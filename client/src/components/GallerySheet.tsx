@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Loader2, Images, ShoppingCart, MessageCircle, CheckCircle2 } from "lucide-react";
+import { X, Loader2, Images, ShoppingCart, MessageCircle, CheckCircle2, ChevronUp, ChevronDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -144,16 +144,26 @@ function SoldPopup({ item, merchantId, onClose }: { item: GalleryItem; merchantI
 }
 
 export default function GallerySheet({ galleryId, onClose }: { galleryId: number; onClose: () => void }) {
+  const [, navigate] = useLocation();
   const { data, isLoading } = trpc.productGalleries.getPublic.useQuery(
     { id: galleryId },
     { refetchOnWindowFocus: false }
   );
 
   const gallery = (data as any)?.gallery;
+  const merchantId = gallery?.merchantId;
   const allItems: GalleryItem[] = ((data as any)?.items ?? []);
   const items = allItems.filter((i: GalleryItem) => i.status !== 'hidden');
   const displayCols = gallery?.columnsPerRow ?? 3;
 
+  const otherGalQ = trpc.productGalleries.listPublicByMerchant.useQuery(
+    { merchantId: merchantId ?? 0 },
+    { enabled: !!merchantId, refetchOnWindowFocus: false, staleTime: 60000 }
+  );
+  const otherGalleries = ((otherGalQ.data ?? []) as Array<{ id: number; title: string; activeItemCount: number; coverImageUrl: string | null; firstItemImage: string | null }>)
+    .filter(g => g.id !== galleryId);
+
+  const [otherGalOpen, setOtherGalOpen] = useState(false);
   const [buyingItem, setBuyingItem] = useState<GalleryItem | null>(null);
   const [soldItem, setSoldItem] = useState<GalleryItem | null>(null);
   const [localSold, setLocalSold] = useState<Set<number>>(new Set());
@@ -195,27 +205,75 @@ export default function GallerySheet({ galleryId, onClose }: { galleryId: number
         </div>
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-sm flex-shrink-0">
-            <Images className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm text-indigo-900 truncate">{gallery?.title ?? '圖片集'}</p>
-            {gallery?.merchantName && (
-              <p className="text-[10px] text-gray-400 truncate">{gallery.merchantName}</p>
+        <div className="flex-shrink-0 border-b border-gray-100">
+          <div className="flex items-center gap-3 px-4 py-2.5">
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-sm flex-shrink-0">
+              <Images className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-indigo-900 truncate">{gallery?.title ?? '圖片集'}</p>
+              {gallery?.merchantName && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <p className="text-[10px] text-gray-400 truncate flex-1">{gallery.merchantName}</p>
+                  {otherGalleries.length > 0 && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}
+                      onClick={() => setOtherGalOpen(v => !v)}
+                    >
+                      <span className="text-[10px] font-semibold" style={{ color: '#6366F1' }}>其他圖片集</span>
+                      <span className="text-[10px] font-bold px-1 rounded-full" style={{ background: 'rgba(99,102,241,0.15)', color: '#6366F1' }}>{otherGalleries.length}</span>
+                      {otherGalOpen
+                        ? <ChevronUp className="w-3 h-3 flex-shrink-0" style={{ color: '#6366F1' }} />
+                        : <ChevronDown className="w-3 h-3 flex-shrink-0" style={{ color: '#6366F1' }} />}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            {gallery && (
+              <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full flex-shrink-0">
+                {items.filter(i => i.status === 'active' && !localSold.has(i.id)).length} 件
+              </span>
             )}
+            <button
+              onClick={onClose}
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 flex-shrink-0"
+            >
+              <X className="w-3.5 h-3.5 text-gray-500" />
+            </button>
           </div>
-          {gallery && (
-            <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full flex-shrink-0">
-              {items.filter(i => i.status === 'active' && !localSold.has(i.id)).length} 件
-            </span>
+          {/* 其他圖片集 dropdown */}
+          {otherGalleries.length > 0 && otherGalOpen && (
+            <div
+              className="flex gap-2.5 px-3 pb-2.5"
+              style={{ overflowX: 'auto', scrollbarWidth: 'none' }}
+            >
+              {otherGalleries.map(g => {
+                const thumb = g.coverImageUrl || g.firstItemImage;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                    style={{ width: 64 }}
+                    onClick={() => { onClose(); navigate(`/gallery/${g.id}`); }}
+                  >
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.12)' }}>
+                      {thumb
+                        ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <Images className="w-4 h-4" style={{ color: '#9CA3AF' }} />}
+                    </div>
+                    <p className="text-[9px] font-medium leading-tight text-center line-clamp-2" style={{ color: '#374151', maxWidth: 60 }}>{g.title}</p>
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.12)', color: '#16A34A' }}>
+                      {g.activeItemCount} 件
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           )}
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 flex-shrink-0"
-          >
-            <X className="w-3.5 h-3.5 text-gray-500" />
-          </button>
         </div>
 
         {/* Body */}
