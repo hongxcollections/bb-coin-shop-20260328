@@ -1973,6 +1973,45 @@ export default function GroupAuctionEdit() {
                             </p>
                           );
                         })()}
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => {
+                              const colData: Record<string, string> = {};
+                              columns.forEach(c => { colData[c.key] = editFields[c.key] ?? ""; });
+                              const patch: any = { id: item.id, dataJson: JSON.stringify(colData), imageIdsJson: JSON.stringify(editImageIds) };
+                              if (!hasBids) {
+                                const sp = parseInt(editFields.__startPrice || "0", 10) || 0;
+                                patch.startPrice = sp;
+                                const buyNowRaw = editFields.__buyNowPrice ? parseInt(editFields.__buyNowPrice, 10) : null;
+                                patch.buyNowPrice = buyNowRaw && buyNowRaw > 0 ? buyNowRaw : null;
+                                // 封頂價校驗
+                                if (patch.buyNowPrice != null) {
+                                  const inc2 = parseInt(editFields.__bidIncrement || "0", 10) || parseInt(basic.defaultBidIncrement, 10) || 50;
+                                  const effectiveFirst = sp > 0 ? sp : inc2;
+                                  const minCap = effectiveFirst + inc2;
+                                  if (patch.buyNowPrice < minCap) {
+                                    toast.error(`封頂價最少 ${currSym}${minCap}`);
+                                    return;
+                                  }
+                                }
+                              }
+                              const inc = parseInt(editFields.__bidIncrement || "0", 10);
+                              patch.bidIncrement = inc > 0 ? inc : 0;
+                              updateItemMut.mutate(patch);
+                            }}
+                            disabled={updateItemMut.isPending}
+                            className="flex-1 bg-amber-500 text-white text-xs py-1.5 rounded-lg"
+                          >
+                            儲存
+                          </button>
+                          <button
+                            onClick={() => setEditingItemId(null)}
+                            className="px-4 text-xs text-gray-500 py-1.5 rounded-lg bg-gray-100"
+                          >
+                            取消
+                          </button>
+                        </div>
+
                         {/* 圖片選擇器 */}
                         {images.length > 0 && (
                           <div className="pt-1">
@@ -2040,45 +2079,6 @@ export default function GroupAuctionEdit() {
                             </div>
                           </div>
                         )}
-
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            onClick={() => {
-                              const colData: Record<string, string> = {};
-                              columns.forEach(c => { colData[c.key] = editFields[c.key] ?? ""; });
-                              const patch: any = { id: item.id, dataJson: JSON.stringify(colData), imageIdsJson: JSON.stringify(editImageIds) };
-                              if (!hasBids) {
-                                const sp = parseInt(editFields.__startPrice || "0", 10) || 0;
-                                patch.startPrice = sp;
-                                const buyNowRaw = editFields.__buyNowPrice ? parseInt(editFields.__buyNowPrice, 10) : null;
-                                patch.buyNowPrice = buyNowRaw && buyNowRaw > 0 ? buyNowRaw : null;
-                                // 封頂價校驗
-                                if (patch.buyNowPrice != null) {
-                                  const inc2 = parseInt(editFields.__bidIncrement || "0", 10) || parseInt(basic.defaultBidIncrement, 10) || 50;
-                                  const effectiveFirst = sp > 0 ? sp : inc2;
-                                  const minCap = effectiveFirst + inc2;
-                                  if (patch.buyNowPrice < minCap) {
-                                    toast.error(`封頂價最少 ${currSym}${minCap}`);
-                                    return;
-                                  }
-                                }
-                              }
-                              const inc = parseInt(editFields.__bidIncrement || "0", 10);
-                              patch.bidIncrement = inc > 0 ? inc : 0;
-                              updateItemMut.mutate(patch);
-                            }}
-                            disabled={updateItemMut.isPending}
-                            className="flex-1 bg-amber-500 text-white text-xs py-1.5 rounded-lg"
-                          >
-                            儲存
-                          </button>
-                          <button
-                            onClick={() => setEditingItemId(null)}
-                            className="px-4 text-xs text-gray-500 py-1.5 rounded-lg bg-gray-100"
-                          >
-                            取消
-                          </button>
-                        </div>
                       </div>
                     )}
                   </div>
