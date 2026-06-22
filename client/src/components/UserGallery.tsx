@@ -7,9 +7,8 @@ import {
   ChevronLeft, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
   Images, Check, ExternalLink, Download,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { GalleryShareMenu } from "@/components/ShareMenu";
-import GallerySheet from "@/components/GallerySheet";
 
 // ─────────────────────────────────────────────────────────
 // Types
@@ -81,10 +80,10 @@ interface Props {
 export default function UserGallery({ onClose }: Props) {
   const { isAuthenticated } = useAuth();
   const confirm = useConfirm();
+  const [, navigate] = useLocation();
 
   const [view, setView] = useState<View>('list');
   const [editGalleryId, setEditGalleryId] = useState<number | null>(null);
-  const [previewGalleryId, setPreviewGalleryId] = useState<number | null>(null);
   const [editTab, setEditTab] = useState<EditTab>('info');
   const [itemsScrollMode, setItemsScrollMode] = useState(true);
 
@@ -886,7 +885,7 @@ export default function UserGallery({ onClose }: Props) {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => setPreviewGalleryId(g.id)}
+                          onClick={() => navigate(`/gallery/${g.id}`)}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:border-indigo-300 flex-shrink-0"
                         >
                           <Images className="w-3 h-3" />
@@ -1855,12 +1854,6 @@ export default function UserGallery({ onClose }: Props) {
           </div>
         );
       })()}
-      {previewGalleryId !== null && (
-        <GallerySheet
-          galleryId={previewGalleryId}
-          onClose={() => setPreviewGalleryId(null)}
-        />
-      )}
     </div>
   );
 }
