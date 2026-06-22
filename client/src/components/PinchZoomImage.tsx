@@ -67,6 +67,17 @@ function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; 
       }
     }
 
+    function clamp(s: typeof stateRef.current) {
+      // Limit pan so image edges can't move past the viewport centre.
+      // el.offsetWidth / offsetHeight are the pre-transform layout dimensions.
+      const imgW = el.offsetWidth;
+      const imgH = el.offsetHeight;
+      const maxTx = Math.max(0, (imgW * s.scale - window.innerWidth) / 2);
+      const maxTy = Math.max(0, (imgH * s.scale - window.innerHeight) / 2);
+      s.tx = Math.max(-maxTx, Math.min(maxTx, s.tx));
+      s.ty = Math.max(-maxTy, Math.min(maxTy, s.ty));
+    }
+
     function onMove(e: TouchEvent) {
       e.preventDefault();
       const s = stateRef.current;
@@ -84,14 +95,17 @@ function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; 
         s.lastDist = dist;
         s.lastMidX = mid.x;
         s.lastMidY = mid.y;
+        clamp(s);
         applyTransform();
-      } else if (e.touches.length === 1 && s.isPanning) {
+      } else if (e.touches.length === 1 && s.isPanning && s.scale > 1) {
+        // Only allow panning when zoomed in
         const dx = e.touches[0].clientX - s.lastSingleX;
         const dy = e.touches[0].clientY - s.lastSingleY;
         s.tx += dx;
         s.ty += dy;
         s.lastSingleX = e.touches[0].clientX;
         s.lastSingleY = e.touches[0].clientY;
+        clamp(s);
         applyTransform();
       }
     }
@@ -105,6 +119,9 @@ function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; 
         s.isPanning = false;
         if (s.scale <= 1) {
           s.scale = 1; s.tx = 0; s.ty = 0;
+          applyTransform();
+        } else {
+          clamp(s);
           applyTransform();
         }
       }
