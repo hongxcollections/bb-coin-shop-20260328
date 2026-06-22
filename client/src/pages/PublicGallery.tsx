@@ -762,7 +762,21 @@ export default function PublicGallery() {
                 )}
                   <div className="flex items-center gap-1.5 mb-2">
                     <Store className="w-3 h-3 flex-shrink-0" style={{ color: '#FFB347' }} />
-                    <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{gallery.merchantName}</span>
+                    <span className="text-[11px] font-semibold flex-1" style={{ color: '#FFB347' }}>{gallery.merchantName}</span>
+                    {otherGalleries.length > 0 && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}
+                        onClick={() => setOtherGalOpen(v => !v)}
+                      >
+                        <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>其他圖片集</span>
+                        <span className="text-[10px] font-bold px-1 py-0 rounded-full" style={{ background: 'rgba(255,255,255,0.25)', color: '#fff' }}>{otherGalleries.length}</span>
+                        {otherGalOpen
+                          ? <ChevronUp className="w-3 h-3 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.8)' }} />
+                          : <ChevronDown className="w-3 h-3 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.8)' }} />}
+                      </button>
+                    )}
                   </div>
                   <h1 className="text-[17px] font-bold leading-snug mb-1.5 relative z-10" style={{ color: '#FFFFFF' }}>
                     {gallery.title}
@@ -802,54 +816,36 @@ export default function PublicGallery() {
               </div>
             </div>
           </div>
-          {/* ── 其他圖片集 dropdown ── */}
-          {otherGalleries.length > 0 && (
+          {/* ── 其他圖片集 dropdown（toggle 在 hero 右上角） ── */}
+          {otherGalleries.length > 0 && otherGalOpen && (
             <div className="mx-3 mb-3">
-              <button
-                type="button"
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl"
-                style={{ background: 'rgba(31,58,95,0.08)', border: '1px solid rgba(31,58,95,0.12)' }}
-                onClick={() => setOtherGalOpen(v => !v)}
+              <div
+                className="flex gap-2.5 pt-1"
+                style={{ overflowX: 'auto', scrollbarWidth: 'none', paddingRight: 4, justifyContent: 'flex-end' }}
               >
-                <span className="text-xs font-semibold" style={{ color: '#1F3A5F' }}>
-                  其他圖片集
-                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(31,58,95,0.12)', color: '#1F3A5F' }}>
-                    {otherGalleries.length}
-                  </span>
-                </span>
-                {otherGalOpen
-                  ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#1F3A5F' }} />
-                  : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#1F3A5F' }} />}
-              </button>
-              {otherGalOpen && (
-                <div
-                  className="flex gap-2.5 pt-2"
-                  style={{ overflowX: 'auto', scrollbarWidth: 'none', paddingRight: 4, justifyContent: 'flex-end' }}
-                >
-                  {otherGalleries.map(g => {
-                    const thumb = g.coverImageUrl || g.firstItemImage;
-                    return (
-                      <button
-                        key={g.id}
-                        type="button"
-                        className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                        style={{ width: 68 }}
-                        onClick={() => navigate(`/gallery/${g.id}`)}
-                      >
-                        <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(31,58,95,0.08)', border: '1px solid rgba(31,58,95,0.12)' }}>
-                          {thumb
-                            ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : <Images className="w-5 h-5" style={{ color: '#9CA3AF' }} />}
-                        </div>
-                        <p className="text-[10px] font-medium leading-tight text-center line-clamp-2" style={{ color: '#374151', maxWidth: 64 }}>{g.title}</p>
-                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.12)', color: '#16A34A' }}>
-                          {g.activeItemCount} 件
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                {otherGalleries.map(g => {
+                  const thumb = g.coverImageUrl || g.firstItemImage;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                      style={{ width: 68 }}
+                      onClick={() => navigate(`/gallery/${g.id}`)}
+                    >
+                      <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(31,58,95,0.08)', border: '1px solid rgba(31,58,95,0.12)' }}>
+                        {thumb
+                          ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <Images className="w-5 h-5" style={{ color: '#9CA3AF' }} />}
+                      </div>
+                      <p className="text-[10px] font-medium leading-tight text-center line-clamp-2" style={{ color: '#374151', maxWidth: 64 }}>{g.title}</p>
+                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.12)', color: '#16A34A' }}>
+                        {g.activeItemCount} 件
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
