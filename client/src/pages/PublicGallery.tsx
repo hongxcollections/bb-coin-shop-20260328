@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2, LayoutGrid, LayoutList } from "lucide-react";
+import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2, LayoutGrid, LayoutList, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { GalleryItemShareMenu } from "@/components/ShareMenu";
 
@@ -283,11 +283,20 @@ export default function PublicGallery() {
   const [buyingItem, setBuyingItem] = useState<GalleryItem | null>(null);
   const [soldItem, setSoldItem] = useState<GalleryItem | null>(null);
   const [lbMode, setLbMode] = useState<'h' | 'v'>('v');
+  const [otherGalOpen, setOtherGalOpen] = useState(false);
 
   const galleryQ = trpc.productGalleries.getPublic.useQuery(
     { id: galleryId },
     { enabled: !isNaN(galleryId) && galleryId > 0, refetchOnWindowFocus: false }
   );
+
+  const merchantId = (galleryQ.data as any)?.gallery?.merchantId;
+  const otherGalQ = trpc.productGalleries.listPublicByMerchant.useQuery(
+    { merchantId: merchantId ?? 0 },
+    { enabled: !!merchantId, refetchOnWindowFocus: false, staleTime: 60000 }
+  );
+  const otherGalleries = ((otherGalQ.data ?? []) as Array<{ id: number; title: string; activeItemCount: number; coverImageUrl: string | null; firstItemImage: string | null }>)
+    .filter(g => g.id !== galleryId);
 
   // Auth loads asynchronously; once auth state settles, refetch so server can compute isOwner with the session cookie.
   const authSettled = useRef(false);
@@ -793,6 +802,57 @@ export default function PublicGallery() {
               </div>
             </div>
           </div>
+          {/* ── 其他圖片集 dropdown ── */}
+          {otherGalleries.length > 0 && (
+            <div className="mx-3 mb-3">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl"
+                style={{ background: 'rgba(31,58,95,0.08)', border: '1px solid rgba(31,58,95,0.12)' }}
+                onClick={() => setOtherGalOpen(v => !v)}
+              >
+                <span className="text-xs font-semibold" style={{ color: '#1F3A5F' }}>
+                  其他圖片集
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(31,58,95,0.12)', color: '#1F3A5F' }}>
+                    {otherGalleries.length}
+                  </span>
+                </span>
+                {otherGalOpen
+                  ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#1F3A5F' }} />
+                  : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#1F3A5F' }} />}
+              </button>
+              {otherGalOpen && (
+                <div
+                  className="flex gap-2.5 pt-2"
+                  style={{ overflowX: 'auto', scrollbarWidth: 'none', paddingRight: 4, justifyContent: 'flex-end' }}
+                >
+                  {otherGalleries.map(g => {
+                    const thumb = g.coverImageUrl || g.firstItemImage;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                        style={{ width: 68 }}
+                        onClick={() => navigate(`/gallery/${g.id}`)}
+                      >
+                        <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(31,58,95,0.08)', border: '1px solid rgba(31,58,95,0.12)' }}>
+                          {thumb
+                            ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <Images className="w-5 h-5" style={{ color: '#9CA3AF' }} />}
+                        </div>
+                        <p className="text-[10px] font-medium leading-tight text-center line-clamp-2" style={{ color: '#374151', maxWidth: 64 }}>{g.title}</p>
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.12)', color: '#16A34A' }}>
+                          {g.activeItemCount} 件
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Grid ── */}
           {/* Items always sized at 3-column width; extra columns overflow horizontally */}
           {items.length === 0 ? (
