@@ -257,6 +257,7 @@ export default function GroupAuctionEdit() {
   const [editFields, setEditFields] = useState<Record<string, string>>({});
   const [editImageIds, setEditImageIds] = useState<number[]>([]);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const scrollToItemIdRef = useRef<number | null>(null);
 
   // ── tRPC ──
   const { data: roundData, isLoading, refetch } = trpc.groupAuctions.getMine.useQuery(
@@ -302,7 +303,17 @@ export default function GroupAuctionEdit() {
     onError: (e) => toast.error(e.message || "匯入失敗"),
   });
   const updateItemMut = trpc.groupAuctions.updateItem.useMutation({
-    onSuccess: () => { setEditingItemId(null); refetch(); },
+    onSuccess: () => {
+      const targetId = scrollToItemIdRef.current;
+      setEditingItemId(null);
+      refetch().then(() => {
+        if (targetId !== null) {
+          setTimeout(() => {
+            document.getElementById(`edit-item-${targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 60);
+        }
+      });
+    },
     onError: (e) => toast.error(e.message || "更新失敗"),
   });
   const deleteItemMut = trpc.groupAuctions.deleteItem.useMutation({
@@ -1801,6 +1812,7 @@ export default function GroupAuctionEdit() {
 
                 return (
                   <div key={item.id}
+                    id={`edit-item-${item.id}`}
                     className={`rounded-xl border p-3 transition-colors ${
                       isEditing ? "border-amber-300 bg-amber-50" :
                       isSelected && selectMode ? "border-red-300 bg-red-50" :
@@ -1997,6 +2009,7 @@ export default function GroupAuctionEdit() {
                               }
                               const inc = parseInt(editFields.__bidIncrement || "0", 10);
                               patch.bidIncrement = inc > 0 ? inc : 0;
+                              scrollToItemIdRef.current = item.id;
                               updateItemMut.mutate(patch);
                             }}
                             disabled={updateItemMut.isPending}
