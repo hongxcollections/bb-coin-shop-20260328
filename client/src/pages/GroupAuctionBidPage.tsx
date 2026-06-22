@@ -4,7 +4,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Clock, ChevronUp, ChevronDown, ExternalLink, Trophy, AlertCircle } from "lucide-react";
+import { Clock, ChevronUp, ChevronDown, ExternalLink, Trophy, AlertCircle, LayoutGrid, LayoutList } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import Header from "@/components/Header";
 
@@ -122,7 +122,23 @@ export default function GroupAuctionBidPage() {
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [bidConfirm, setBidConfirm] = useState<{ itemId: number; amount: number; title: string; lotNumber: string; isBuyNow?: boolean } | null>(null);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  // ── 商品圖片 lightbox ──
+  const [lbItem, setLbItem] = useState<{ title: string; urls: string[] } | null>(null);
+  const [lbImgIdx, setLbImgIdx] = useState(0);
+  const [lbZoom, setLbZoom] = useState(1);
+  const [lbPanX, setLbPanX] = useState(0);
+  const [lbPanY, setLbPanY] = useState(0);
+  const [lbMode, setLbMode] = useState<'h' | 'v'>('v');
+  const [lbVZoomIdx, setLbVZoomIdx] = useState(-1);
+  const lbZoomRef = useRef(1);
+  const lbVZoomIdxRef = useRef(-1);
+  const lbPinchStartDist = useRef(0);
+  const lbPinchStartZoom = useRef(1);
+  const lbPanStartTouch = useRef({ x: 0, y: 0 });
+  const lbPanStartOffset = useRef({ x: 0, y: 0 });
+  const lbLastTapTime = useRef(0);
+  const lbScrollRef = useRef<HTMLDivElement>(null);
+  const lbVScrollRef = useRef<HTMLDivElement>(null);
 
   // ── 推廣圖片 lightbox ──
   const [promoLbIdx, setPromoLbIdx] = useState<number | null>(null);
@@ -270,6 +286,95 @@ export default function GroupAuctionBidPage() {
     });
     setOverflowingTitles(overflowing);
   }, [items]);
+
+  // keep zoom ref in sync
+  useEffect(() => { lbZoomRef.current = lbZoom; }, [lbZoom]);
+
+  function openItemLb(urls: string[], startIdx: number, title: string) {
+    setLbItem({ title, urls });
+    setLbImgIdx(startIdx);
+    setLbZoom(1); lbZoomRef.current = 1;
+    setLbPanX(0); setLbPanY(0);
+    setLbMode('v');
+    setLbVZoomIdx(-1); lbVZoomIdxRef.current = -1;
+    setTimeout(() => {
+      if (lbScrollRef.current) lbScrollRef.current.scrollLeft = startIdx * lbScrollRef.current.clientWidth;
+    }, 20);
+  }
+
+  // native touchstart (passive:false) — vertical lightbox pinch
+  useEffect(() => {
+    const el = lbVScrollRef.current;
+    if (!el || !lbItem || lbMode !== 'v') return;
+    function onTS(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const imgs = el!.querySelectorAll('img');
+        let found = 0;
+        imgs.forEach((img, i) => { const r = img.getBoundingClientRect(); if (my >= r.top && my <= r.bottom) found = i; });
+        lbVZoomIdxRef.current = found; setLbVZoomIdx(found);
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        lbPinchStartDist.current = Math.sqrt(dx*dx+dy*dy); lbPinchStartZoom.current = lbZoomRef.current;
+      } else if (e.touches.length === 1) {
+        const now2 = Date.now();
+        if (now2 - lbLastTapTime.current < 280 && lbZoomRef.current > 1) { setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); }
+        lbLastTapTime.current = now2;
+        if (lbZoomRef.current > 1) { lbPanStartTouch.current={x:e.touches[0].clientX,y:e.touches[0].clientY}; lbPanStartOffset.current={x:lbPanX,y:lbPanY}; }
+      }
+    }
+    el.addEventListener('touchstart', onTS, { passive: false });
+    return () => el.removeEventListener('touchstart', onTS);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lbItem, lbMode, lbPanX, lbPanY]);
+
+  // native touchstart (passive:false) — horizontal lightbox pinch
+  useEffect(() => {
+    const el = lbScrollRef.current;
+    if (!el || !lbItem) return;
+    function onTS(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        lbPinchStartDist.current = Math.sqrt(dx*dx+dy*dy); lbPinchStartZoom.current = lbZoomRef.current;
+      } else if (e.touches.length === 1) {
+        const now2 = Date.now();
+        if (now2 - lbLastTapTime.current < 280) { setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); }
+        lbLastTapTime.current = now2;
+        lbPanStartTouch.current={x:e.touches[0].clientX,y:e.touches[0].clientY}; lbPanStartOffset.current={x:lbPanX,y:lbPanY};
+      }
+    }
+    el.addEventListener('touchstart', onTS, { passive: false });
+    return () => el.removeEventListener('touchstart', onTS);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lbItem, lbPanX, lbPanY]);
+
+  function lbPinchDist(t: React.TouchList) {
+    const dx = t[0].clientX-t[1].clientX, dy = t[0].clientY-t[1].clientY;
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+  function lbVTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const z = Math.min(6, Math.max(1, lbPinchStartZoom.current * (lbPinchDist(e.touches) / lbPinchStartDist.current)));
+      setLbZoom(z); lbZoomRef.current = z;
+    } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
+      e.preventDefault();
+      setLbPanX(lbPanStartOffset.current.x + e.touches[0].clientX - lbPanStartTouch.current.x);
+      setLbPanY(lbPanStartOffset.current.y + e.touches[0].clientY - lbPanStartTouch.current.y);
+    }
+  }
+  function lbHTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const z = Math.min(6, Math.max(1, lbPinchStartZoom.current * (lbPinchDist(e.touches) / lbPinchStartDist.current)));
+      setLbZoom(z); lbZoomRef.current = z;
+    } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
+      e.preventDefault();
+      setLbPanX(lbPanStartOffset.current.x + e.touches[0].clientX - lbPanStartTouch.current.x);
+      setLbPanY(lbPanStartOffset.current.y + e.touches[0].clientY - lbPanStartTouch.current.y);
+    }
+  }
 
   function handleBid(itemId: number, amount: number, itemTitle?: string, itemNumber?: number) {
     if (!isAuthenticated) {
@@ -683,7 +788,7 @@ export default function GroupAuctionBidPage() {
                           alt=""
                           className="flex-shrink-0 rounded-md object-cover cursor-pointer"
                           style={{ width: 25, height: 25 }}
-                          onClick={e => { e.stopPropagation(); setLightboxUrl(url); }}
+                          onClick={e => { e.stopPropagation(); openItemLb(urls, i, title); }}
                         />
                       ))}
                     </div>
@@ -908,21 +1013,125 @@ export default function GroupAuctionBidPage() {
         />
       )}
 
-      {/* Lightbox */}
-      {lightboxUrl && (
-        <div
-          className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <img src={lightboxUrl} alt="" className="object-contain rounded-lg" style={{ maxHeight: "90vh", maxWidth: "95vw" }} />
-          <button
-            className="absolute top-4 right-4 text-white/70 hover:text-white"
-            onClick={() => setLightboxUrl(null)}
+      {/* 商品圖片 Lightbox */}
+      {lbItem && (() => {
+        const imgs = lbItem.urls;
+        const loopImgs = imgs.length > 1 ? [...imgs, imgs[0]] : imgs;
+        const dotIdx = lbImgIdx % imgs.length;
+        return (
+          <div
+            className="fixed inset-0 z-[9999] flex flex-col"
+            style={{ background: 'rgba(0,0,0,0.97)' }}
           >
-            <span style={{ fontSize: 28, lineHeight: 1 }}>✕</span>
-          </button>
-        </div>
-      )}
+            {/* Top bar */}
+            <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
+              <p className="flex-1 min-w-0 text-sm font-semibold text-white leading-snug line-clamp-2">{lbItem.title}</p>
+              {imgs.length > 1 && (
+                <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
+                  <button
+                    onClick={() => { setLbMode('h'); setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); setLbVZoomIdx(-1); lbVZoomIdxRef.current=-1; }}
+                    style={{ padding: '5px 8px', background: lbMode==='h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+                  ><LayoutGrid className="w-3.5 h-3.5" /></button>
+                  <button
+                    onClick={() => { setLbMode('v'); setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); setLbVZoomIdx(-1); lbVZoomIdxRef.current=-1; }}
+                    style={{ padding: '5px 8px', background: lbMode==='v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+                  ><LayoutList className="w-3.5 h-3.5" /></button>
+                </div>
+              )}
+              <button
+                className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', alignSelf: 'flex-start', marginTop: 2 }}
+                onClick={() => setLbItem(null)}
+              >關閉</button>
+            </div>
+
+            {/* Image area */}
+            <div className="flex-1 relative overflow-hidden">
+              {lbMode === 'v' ? (
+                <div
+                  ref={lbVScrollRef}
+                  className="h-full"
+                  style={{ overflowY: lbZoom > 1 ? 'hidden' : 'auto', overflowX: 'hidden', scrollbarWidth: 'none' } as React.CSSProperties}
+                  onTouchMove={lbVTouchMove}
+                >
+                  {imgs.map((url, i) => (
+                    <div key={i} className="flex items-center justify-center" style={{ padding: '3px 3px', minHeight: '30vh' }}>
+                      <img
+                        src={url}
+                        className="select-none"
+                        style={{
+                          width: '100%', objectFit: 'contain', borderRadius: 14, display: 'block', pointerEvents: 'none',
+                          transform: lbVZoomIdx === i ? `translate(${lbPanX}px,${lbPanY}px) scale(${lbZoom})` : 'none',
+                          transformOrigin: 'center center',
+                        }}
+                        alt="" draggable={false} loading="lazy"
+                      />
+                    </div>
+                  ))}
+                  <div style={{ height: 12 }} />
+                </div>
+              ) : (
+                <>
+                  <div
+                    ref={lbScrollRef}
+                    className="flex h-full"
+                    style={{
+                      overflowX: lbZoom > 1 ? 'hidden' : 'auto', overflowY: 'hidden',
+                      scrollSnapType: 'x mandatory', scrollBehavior: 'auto', scrollbarWidth: 'none',
+                      WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+                    } as React.CSSProperties}
+                    onScroll={() => {
+                      if (!lbScrollRef.current || lbZoomRef.current > 1) return;
+                      const w = lbScrollRef.current.clientWidth;
+                      const scrollLeft = lbScrollRef.current.scrollLeft;
+                      const remainder = scrollLeft % w;
+                      if (remainder > 2 && remainder < w - 2) return;
+                      const idx = Math.round(scrollLeft / w);
+                      if (imgs.length > 1 && idx === imgs.length) {
+                        lbScrollRef.current.scrollLeft = 0; setLbImgIdx(0); setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); return;
+                      }
+                      if (idx !== lbImgIdx) { setLbImgIdx(idx); setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); }
+                    }}
+                    onTouchMove={lbHTouchMove}
+                  >
+                    {loopImgs.map((url, i) => (
+                      <div key={i} className="flex-shrink-0 h-full flex items-center justify-center" style={{ width: '100%', scrollSnapAlign: 'start', padding: '0 3px' }}>
+                        <img
+                          src={url}
+                          className="select-none"
+                          style={{
+                            maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 14, display: 'block', pointerEvents: 'none',
+                            transform: i === lbImgIdx ? `translate(${lbPanX}px,${lbPanY}px) scale(${lbZoom})` : 'none',
+                            transformOrigin: 'center center',
+                          }}
+                          alt="" draggable={false}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {imgs.length > 1 && (
+                    <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 6, left: 0, right: 0, justifyContent: 'center' }}>
+                      {imgs.map((_, i) => (
+                        <div key={i} style={{ width: i===dotIdx ? 14 : 6, height: 6, borderRadius: 3, background: i===dotIdx ? '#fff' : 'rgba(255,255,255,0.35)', transition: 'width 0.2s' }} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Bottom bar */}
+            <div className="flex items-center justify-between px-4 pt-2 pb-3 flex-shrink-0">
+              {lbZoom > 1 ? (
+                <button className="text-white/60 text-xs px-3 py-1.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.1)' }}
+                  onClick={() => { setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); }}>重設縮放</button>
+              ) : (
+                <p className="text-[11px] text-white/30">{imgs.length > 1 ? '左右滑動切換' : '兩指放大'}</p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 底部 */}
       {!isAuthenticated && !isEnded && (
