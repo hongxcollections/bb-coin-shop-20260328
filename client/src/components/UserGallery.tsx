@@ -882,17 +882,15 @@ export default function UserGallery({ onClose }: Props) {
                     <p className="text-xs text-gray-400">{g.itemCount} 張圖片 · {g.columnsPerRow} 列</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {g.status === 'active' && (
-                      <a
-                        href={`/gallery/${g.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg hover:bg-gray-100"
-                        title="查看公開頁面"
-                      >
-                        <ExternalLink className="w-4 h-4 text-gray-400" />
-                      </a>
-                    )}
+                    <a
+                      href={`/gallery/${g.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:border-indigo-300 flex-shrink-0"
+                    >
+                      <Images className="w-3 h-3" />
+                      圖片集
+                    </a>
                     <button
                       onClick={() => { setPosterFromList(true); openEdit(g.id); setShowPosterModal(true); }}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
