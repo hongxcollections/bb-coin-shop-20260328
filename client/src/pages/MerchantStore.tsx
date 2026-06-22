@@ -1280,36 +1280,36 @@ export default function MerchantStore() {
                 {(publicGalleries as any[]).length} 個圖集
               </span>
             </div>
-            <div className="p-3 grid grid-cols-2 gap-2.5">
+            <div className="p-3 space-y-2.5">
               {(publicGalleries as any[]).map((g: any) => {
                 const thumb = g.coverImageUrl || g.firstItemImage || null;
                 const count = Number(g.activeItemCount ?? 0);
                 return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    className="text-left w-full"
-                    onClick={() => setSelectedGalleryId(g.id)}
-                  >
-                    <div className="bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 shadow-sm overflow-hidden cursor-pointer transition-all active:scale-[0.98]">
-                      <div className="relative aspect-square w-full bg-indigo-50">
-                        {thumb ? (
-                          <img src={thumb} alt={g.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Images className="w-8 h-8 text-indigo-200" />
-                          </div>
-                        )}
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 pointer-events-none">
-                          <span className="text-white text-[10px] font-semibold">{count} 件</span>
+                  <div key={g.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col gap-2.5">
+                    <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{g.title}</p>
+                    <div className="flex items-stretch gap-3">
+                      {thumb ? (
+                        <img src={thumb} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" alt="" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <Images className="w-6 h-6 text-gray-300" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <span className="text-xs text-gray-400">共 {count} 件商品</span>
+                        <div className="flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedGalleryId(g.id)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:border-indigo-300 flex-shrink-0 active:scale-95 transition-transform"
+                          >
+                            <Images className="w-3 h-3" />
+                            瀏覽圖片集
+                          </button>
                         </div>
                       </div>
-                      <div className="px-2 py-1.5">
-                        <p className="text-xs font-semibold text-gray-800 leading-snug break-words">{g.title}</p>
-                        <p className="text-[10px] text-indigo-500 font-medium mt-0.5">共 {count} 件商品</p>
-                      </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
