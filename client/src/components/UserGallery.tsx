@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { GalleryShareMenu } from "@/components/ShareMenu";
+import GallerySheet from "@/components/GallerySheet";
 
 // ─────────────────────────────────────────────────────────
 // Types
@@ -17,7 +18,7 @@ import { GalleryShareMenu } from "@/components/ShareMenu";
 interface GalleryRow {
   id: number; merchantId: number; merchantName: string; title: string;
   description: string | null; coverImageUrl: string | null; columnsPerRow: number;
-  status: string; itemCount: number;
+  status: string; itemCount: number; activeItemCount: number;
 }
 
 interface GalleryItem {
@@ -83,6 +84,7 @@ export default function UserGallery({ onClose }: Props) {
 
   const [view, setView] = useState<View>('list');
   const [editGalleryId, setEditGalleryId] = useState<number | null>(null);
+  const [previewGalleryId, setPreviewGalleryId] = useState<number | null>(null);
   const [editTab, setEditTab] = useState<EditTab>('info');
   const [itemsScrollMode, setItemsScrollMode] = useState(true);
 
@@ -864,47 +866,48 @@ export default function UserGallery({ onClose }: Props) {
           ) : (
             <div className="space-y-3">
               {galleries.map(g => (
-                <div key={g.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
-                  {g.coverImageUrl ? (
-                    <img src={g.coverImageUrl} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" alt="" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      <Images className="w-5 h-5 text-gray-300" />
+                <div key={g.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col gap-2.5">
+                  <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{g.title}</p>
+                  <div className="flex items-stretch gap-3">
+                    {g.coverImageUrl ? (
+                      <img src={g.coverImageUrl} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" alt="" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Images className="w-6 h-6 text-gray-300" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_COLORS[g.status] ?? ''}`}>
+                          {STATUS_LABELS[g.status] ?? g.status}
+                        </span>
+                        <span className="text-xs text-gray-400">發佈 {g.activeItemCount} 張圖片 · {g.columnsPerRow} 列</span>
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewGalleryId(g.id)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:border-indigo-300 flex-shrink-0"
+                        >
+                          <Images className="w-3 h-3" />
+                          圖片集
+                        </button>
+                        <button
+                          onClick={() => { setPosterFromList(true); openEdit(g.id); setShowPosterModal(true); }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
+                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                        >
+                          <Images className="w-3 h-3" />
+                          生成
+                        </button>
+                        <button
+                          onClick={() => openEdit(g.id)}
+                          className="text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300 flex-shrink-0"
+                        >
+                          管理
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <p className="font-semibold text-sm text-gray-900 truncate">{g.title}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_COLORS[g.status] ?? ''}`}>
-                        {STATUS_LABELS[g.status] ?? g.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400">{g.itemCount} 張圖片 · {g.columnsPerRow} 列</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={`/gallery/${g.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:border-indigo-300 flex-shrink-0"
-                    >
-                      <Images className="w-3 h-3" />
-                      圖片集
-                    </a>
-                    <button
-                      onClick={() => { setPosterFromList(true); openEdit(g.id); setShowPosterModal(true); }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
-                      style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-                    >
-                      <Images className="w-3 h-3" />
-                      生成
-                    </button>
-                    <button
-                      onClick={() => openEdit(g.id)}
-                      className="text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300 flex-shrink-0"
-                    >
-                      管理
-                    </button>
                   </div>
                 </div>
               ))}
@@ -1852,6 +1855,12 @@ export default function UserGallery({ onClose }: Props) {
           </div>
         );
       })()}
+      {previewGalleryId !== null && (
+        <GallerySheet
+          galleryId={previewGalleryId}
+          onClose={() => setPreviewGalleryId(null)}
+        />
+      )}
     </div>
   );
 }
