@@ -821,7 +821,7 @@ export default function PublicGallery() {
             <div className="mx-3 mb-3">
               <div
                 className="flex gap-2.5 pt-1"
-                style={{ overflowX: 'auto', scrollbarWidth: 'none', paddingRight: 4, justifyContent: 'flex-end' }}
+                style={{ overflowX: 'auto', scrollbarWidth: 'none', paddingLeft: 4, paddingRight: 4 }}
               >
                 {otherGalleries.map(g => {
                   const thumb = g.coverImageUrl || g.firstItemImage;
