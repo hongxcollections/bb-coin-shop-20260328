@@ -756,8 +756,8 @@ export default function PublicGallery() {
               <div className="relative px-4 pt-4 pb-4 overflow-hidden">
                 {!heroImageUrl && (
                   <>
-                    <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
-                    <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
+                    <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10 pointer-events-none" style={{ background: '#FFB347' }} />
+                    <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10 pointer-events-none" style={{ background: '#4A90D9' }} />
                   </>
                 )}
                   <div className="flex items-center gap-1.5 mb-2">
