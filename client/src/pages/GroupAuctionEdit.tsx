@@ -1324,7 +1324,7 @@ export default function GroupAuctionEdit() {
               <div className="grid grid-cols-3 gap-2">
                 {images.map((img, idx) => (
                   <div key={img.id} className="relative rounded-xl overflow-hidden aspect-square">
-                    <img src={img.url} className="w-full h-full object-cover" />
+                    <PinchZoomImage src={img.url} className="w-full h-full object-cover" fullscreenOnClick />
                     <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full">
                       #{idx + 1}
                     </div>
