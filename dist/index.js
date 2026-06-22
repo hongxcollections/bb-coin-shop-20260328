@@ -7215,7 +7215,9 @@ async function listProductGalleriesForMerchant(merchantId) {
   await ensureProductGalleriesTable();
   const pool = await getRawPool();
   const [rows] = await pool.execute(
-    `SELECT g.*, (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id) AS itemCount
+    `SELECT g.*,
+     (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id) AS itemCount,
+     (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id AND i.status = 'active') AS activeItemCount
      FROM productGalleries g WHERE g.merchantId = ? ORDER BY g.createdAt DESC`,
     [merchantId]
   );

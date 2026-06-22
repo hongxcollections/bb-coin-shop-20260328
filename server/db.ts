@@ -7706,11 +7706,13 @@ export interface ProductGalleryItemRow {
 
 export async function listProductGalleriesForMerchant(
   merchantId: number
-): Promise<Array<ProductGalleryRow & { itemCount: number }>> {
+): Promise<Array<ProductGalleryRow & { itemCount: number; activeItemCount: number }>> {
   await ensureProductGalleriesTable();
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
-    `SELECT g.*, (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id) AS itemCount
+    `SELECT g.*,
+     (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id) AS itemCount,
+     (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id AND i.status = 'active') AS activeItemCount
      FROM productGalleries g WHERE g.merchantId = ? ORDER BY g.createdAt DESC`,
     [merchantId]
   );
