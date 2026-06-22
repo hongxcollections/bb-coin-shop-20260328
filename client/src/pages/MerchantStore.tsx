@@ -10,6 +10,7 @@ import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
 import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X, Images } from "lucide-react";
+import GallerySheet from "@/components/GallerySheet";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
@@ -627,6 +628,7 @@ export default function MerchantStore() {
   const [sessionTab, setSessionTab] = useState<"active" | "ended">("active");
   const [storeRoomId, setStoreRoomId] = useState<number | null>(null);
   const [storeOpening, setStoreOpening] = useState(false);
+  const [selectedGalleryId, setSelectedGalleryId] = useState<number | null>(null);
   const storeUtils = trpc.useUtils();
   const storeOpenRoom = trpc.chat.openRoomByMerchant.useMutation({
     onSuccess: ({ roomId }) => { setStoreRoomId(roomId); setStoreOpening(false); },
@@ -1283,7 +1285,12 @@ export default function MerchantStore() {
                 const thumb = g.coverImageUrl || g.firstItemImage || null;
                 const count = Number(g.activeItemCount ?? 0);
                 return (
-                  <Link key={g.id} href={`/gallery/${g.id}`}>
+                  <button
+                    key={g.id}
+                    type="button"
+                    className="text-left w-full"
+                    onClick={() => setSelectedGalleryId(g.id)}
+                  >
                     <div className="bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 shadow-sm overflow-hidden cursor-pointer transition-all active:scale-[0.98]">
                       <div className="relative aspect-square w-full bg-indigo-50">
                         {thumb ? (
@@ -1302,7 +1309,7 @@ export default function MerchantStore() {
                         <p className="text-[10px] text-indigo-500 font-medium mt-0.5">共 {count} 件商品</p>
                       </div>
                     </div>
-                  </Link>
+                  </button>
                 );
               })}
             </div>
@@ -1316,6 +1323,12 @@ export default function MerchantStore() {
           onOpenChange={(o) => {
             if (!o) { setStoreRoomId(null); storeUtils.chat.unreadTotal.invalidate(); storeUtils.chat.listMyRooms.invalidate(); }
           }}
+        />
+      )}
+      {selectedGalleryId !== null && (
+        <GallerySheet
+          galleryId={selectedGalleryId}
+          onClose={() => setSelectedGalleryId(null)}
         />
       )}
     </div>
