@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import {
   ChevronLeft, ChevronDown, Plus, Trash2, ArrowUp, ArrowDown, Upload,
-  Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X, Check, ZoomIn, Copy,
+  Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X, Check, ZoomIn, Copy, Star,
 } from "lucide-react";
 
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
@@ -323,6 +323,9 @@ export default function GroupAuctionEdit() {
   const copyItemMut = trpc.groupAuctions.copyItem.useMutation({
     onSuccess: () => { toast.success("已複製，新商品加至末尾"); refetch(); },
     onError: (e) => toast.error(e.message || "複製失敗"),
+  });
+  const updatePromoMut = trpc.groupAuctions.updateRound.useMutation({
+    onError: (e) => toast.error(e.message || "更新推廣圖片失敗"),
   });
   const batchDeleteItemsMut = trpc.groupAuctions.batchDeleteItems.useMutation({
     onSuccess: (r) => {
@@ -1337,23 +1340,44 @@ export default function GroupAuctionEdit() {
 
             {images.length > 0 && (
               <div className="grid grid-cols-3 gap-2">
-                {images.map((img, idx) => (
-                  <div key={img.id} className="relative rounded-xl overflow-hidden aspect-square">
-                    <PinchZoomImage src={img.url} className="w-full h-full object-cover" fullscreenOnClick />
-                    <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                      #{idx + 1}
+                {images.map((img, idx) => {
+                  const isPromo = promoImages.some(p => p.url === img.url);
+                  return (
+                    <div key={img.id} className="relative rounded-xl overflow-hidden aspect-square">
+                      <PinchZoomImage src={img.url} className="w-full h-full object-cover" fullscreenOnClick />
+                      <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                        #{idx + 1}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const ok = await confirm({ title: "刪除圖片", description: "確認刪除這張圖片？" });
+                          if (ok) deleteImageMut.mutate({ id: img.id });
+                        }}
+                        className="absolute top-1 right-1 bg-red-500/80 text-white rounded-full p-0.5"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                      <button
+                        title={isPromo ? "移除推廣圖片" : promoImages.length >= 10 ? "最多 10 張推廣圖片" : "設為推廣圖片"}
+                        disabled={!isPromo && promoImages.length >= 10}
+                        onClick={() => {
+                          const next = isPromo
+                            ? promoImages.filter(p => p.url !== img.url)
+                            : [...promoImages, { url: img.url, s3Key: img.s3Key }];
+                          setPromoImages(next);
+                          updatePromoMut.mutate(
+                            { id: roundId!, promoImagesJson: JSON.stringify(next) },
+                            { onSuccess: () => toast.success(isPromo ? "已移除推廣圖片" : "已設為推廣圖片") }
+                          );
+                        }}
+                        className="absolute bottom-1 right-1 rounded-full p-0.5 disabled:opacity-40"
+                        style={{ background: isPromo ? "rgba(245,158,11,0.9)" : "rgba(0,0,0,0.5)" }}
+                      >
+                        <Star className="w-3 h-3" fill={isPromo ? "#fff" : "none"} color="#fff" />
+                      </button>
                     </div>
-                    <button
-                      onClick={async () => {
-                        const ok = await confirm({ title: "刪除圖片", description: "確認刪除這張圖片？" });
-                        if (ok) deleteImageMut.mutate({ id: img.id });
-                      }}
-                      className="absolute top-1 right-1 bg-red-500/80 text-white rounded-full p-0.5"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
