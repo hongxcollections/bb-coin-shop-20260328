@@ -925,6 +925,35 @@ export default function MerchantGallery() {
     });
   }
 
+  function handleBatchStatusChange(newStatus: 'active' | 'sold' | 'hidden') {
+    if (!editGalleryId || batchSelectedIds.size === 0) return;
+    const selected = draftItems.filter(i => batchSelectedIds.has(i.id));
+    batchUpdateM.mutate(
+      {
+        galleryId: editGalleryId,
+        items: selected.map(i => ({
+          id: i.id,
+          itemName: i.itemName,
+          itemNumber: i.itemNumber ?? '',
+          price: parseFloat(i.price) || 0,
+          status: newStatus,
+        })),
+      },
+      {
+        onSuccess: () => {
+          setDraftItems(items =>
+            items.map(i =>
+              batchSelectedIds.has(i.id) ? { ...i, status: newStatus } : i
+            )
+          );
+          setBatchSelectedIds(new Set());
+          setBatchSelectMode(false);
+          toast.success(`已將 ${selected.length} 件改為「${ITEM_STATUS_LABELS[newStatus]}」`);
+        },
+      }
+    );
+  }
+
   async function handleDeleteItem(id: number) {
     const ok = await confirm({ title: '刪除圖片', description: '確定刪除此圖片商品？', confirmText: '刪除', cancelText: '取消' });
     if (!ok) return;
@@ -1894,6 +1923,29 @@ export default function MerchantGallery() {
                                     </div>
                                     {batchSelectedIds.size > 0 && (
                                       <div className="flex flex-col gap-2">
+                                        {/* ── 批量改狀態 ── */}
+                                        <p className="text-[11px] font-semibold text-gray-400 px-0.5">批量改狀態（{batchSelectedIds.size} 件）</p>
+                                        <div className="flex gap-2">
+                                          <button
+                                            disabled={batchUpdateM.isPending}
+                                            onClick={() => handleBatchStatusChange('active')}
+                                            className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                                            style={{ background: 'linear-gradient(135deg,#16A34A,#15803D)' }}
+                                          >在售</button>
+                                          <button
+                                            disabled={batchUpdateM.isPending}
+                                            onClick={() => handleBatchStatusChange('sold')}
+                                            className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                                            style={{ background: 'linear-gradient(135deg,#6B7280,#4B5563)' }}
+                                          >已售</button>
+                                          <button
+                                            disabled={batchUpdateM.isPending}
+                                            onClick={() => handleBatchStatusChange('hidden')}
+                                            className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                                            style={{ background: 'linear-gradient(135deg,#DC2626,#B91C1C)' }}
+                                          >下架</button>
+                                        </div>
+                                        <div className="h-px bg-gray-100 my-0.5" />
                                         <button
                                           disabled={convertToAuctionDraftsM.isPending}
                                           onClick={() => {
