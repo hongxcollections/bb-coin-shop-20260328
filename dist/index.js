@@ -21891,6 +21891,31 @@ EXAMPLE OUTPUT (exact format):
       await db.delete(groupAuctionItems).where(eq8(groupAuctionItems.id, input.id));
       return { success: true };
     }),
+    /** 商戶：複製商品（同一場次末尾新增一件） */
+    copyItem: protectedProcedure.input(z2.object({ id: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      const [item] = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.id, input.id)).limit(1);
+      if (!item) throw new TRPCError3({ code: "NOT_FOUND", message: "\u5546\u54C1\u4E0D\u5B58\u5728" });
+      const [round] = await db.select().from(groupAuctionRounds).where(eq8(groupAuctionRounds.id, item.roundId)).limit(1);
+      if (!round || round.merchantUserId !== ctx.user.id) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u4E0D\u662F\u4F60\u7684\u5834\u6B21" });
+      }
+      const [maxRow] = await db.execute(
+        sql6`SELECT COALESCE(MAX(displayOrder), 0) as maxOrder FROM groupAuctionItems WHERE roundId = ${item.roundId}`
+      );
+      const nextOrder = Number(maxRow?.[0]?.maxOrder || 0) + 1;
+      const [inserted] = await db.insert(groupAuctionItems).values({
+        roundId: item.roundId,
+        displayOrder: nextOrder,
+        dataJson: item.dataJson,
+        imageIdsJson: item.imageIdsJson,
+        startPrice: item.startPrice,
+        bidIncrement: item.bidIncrement,
+        buyNowPrice: item.buyNowPrice ?? void 0,
+        status: "active"
+      });
+      return { success: true, newId: inserted.insertId };
+    }),
     /** 商戶：批量刪除商品 */
     batchDeleteItems: protectedProcedure.input(z2.object({
       roundId: z2.number().int().positive(),

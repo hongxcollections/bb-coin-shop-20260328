@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import {
   ChevronLeft, ChevronDown, Plus, Trash2, ArrowUp, ArrowDown, Upload,
-  Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X, Check, ZoomIn,
+  Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X, Check, ZoomIn, Copy,
 } from "lucide-react";
 
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
@@ -319,6 +319,10 @@ export default function GroupAuctionEdit() {
   const deleteItemMut = trpc.groupAuctions.deleteItem.useMutation({
     onSuccess: () => { toast.success("已刪除"); refetch(); },
     onError: (e) => toast.error(e.message || "刪除失敗"),
+  });
+  const copyItemMut = trpc.groupAuctions.copyItem.useMutation({
+    onSuccess: () => { toast.success("已複製，新商品加至末尾"); refetch(); },
+    onError: (e) => toast.error(e.message || "複製失敗"),
   });
   const batchDeleteItemsMut = trpc.groupAuctions.batchDeleteItems.useMutation({
     onSuccess: (r) => {
@@ -1911,6 +1915,14 @@ export default function GroupAuctionEdit() {
                             className="p-1.5 text-blue-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => copyItemMut.mutate({ id: item.id })}
+                            disabled={copyItemMut.isPending}
+                            title="複製商品"
+                            className="p-1.5 text-gray-400 hover:text-amber-600 disabled:opacity-40"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={async () => {

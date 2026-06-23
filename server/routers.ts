@@ -10941,6 +10941,36 @@ EXAMPLE OUTPUT (exact format):
         return { success: true };
       }),
 
+    /** 商戶：複製商品（同一場次末尾新增一件） */
+    copyItem: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [item] = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.id, input.id)).limit(1);
+        if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, item.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        const [maxRow]: any = await db.execute(
+          sql`SELECT COALESCE(MAX(displayOrder), 0) as maxOrder FROM groupAuctionItems WHERE roundId = ${item.roundId}`
+        );
+        const nextOrder = Number((maxRow as any[])?.[0]?.maxOrder || 0) + 1;
+        const [inserted] = await db.insert(groupAuctionItems).values({
+          roundId: item.roundId,
+          displayOrder: nextOrder,
+          dataJson: item.dataJson,
+          imageIdsJson: item.imageIdsJson,
+          startPrice: item.startPrice,
+          bidIncrement: item.bidIncrement,
+          buyNowPrice: item.buyNowPrice ?? undefined,
+          status: 'active',
+        });
+        return { success: true, newId: (inserted as any).insertId };
+      }),
+
     /** 商戶：批量刪除商品 */
     batchDeleteItems: protectedProcedure
       .input(z.object({
