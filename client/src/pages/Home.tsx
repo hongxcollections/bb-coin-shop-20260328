@@ -987,15 +987,27 @@ function RecentSalesFader() {
 }
 
 function MerchantProductsStrip() {
-  const { data: products } = trpc.merchants.listProducts.useQuery(undefined, {
-    staleTime: 60_000,
-  });
+  const { data: products } = trpc.merchants.listProducts.useQuery(undefined, { staleTime: 60_000 });
+  const { data: galleries } = trpc.productGalleries.listHomeGalleries.useQuery(undefined, { staleTime: 60_000 });
 
-  const activeProducts = (products ?? []).filter((p: any) => p.status === 'active' && (p.stock ?? 1) > 0);
-  if (activeProducts.length === 0) return null;
+  const mixed = useMemo(() => {
+    const activeProducts = (products ?? [])
+      .filter((p: any) => p.status === 'active' && (p.stock ?? 1) > 0)
+      .map((p: any) => ({ ...p, _type: 'product' as const }));
+    const galleryItems = (galleries ?? []).map((g: any) => ({ ...g, _type: 'gallery' as const }));
+    const combined = [...activeProducts, ...galleryItems];
+    // Fisher-Yates shuffle（每次 mount 隨機）
+    for (let i = combined.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [combined[i], combined[j]] = [combined[j], combined[i]];
+    }
+    return combined;
+  }, [products, galleries]);
 
-  const duration = `${Math.max(10, activeProducts.length * 5)}s`;
-  const doubled = [...activeProducts, ...activeProducts];
+  if (mixed.length === 0) return null;
+
+  const duration = `${Math.max(10, mixed.length * 5)}s`;
+  const doubled = [...mixed, ...mixed];
 
   return (
     <section className="py-2">
@@ -1011,28 +1023,54 @@ function MerchantProductsStrip() {
         </p>
         <div className="marquee-wrapper rounded-2xl py-3 overflow-hidden home-section-card">
           <div className="marquee-track flex" style={{ animationDuration: duration }}>
-            {doubled.map((p: any, idx: number) => {
-              const imgs = parseProductImages(p.images);
+            {doubled.map((item: any, idx: number) => {
+              if (item._type === 'gallery') {
+                return (
+                  <Link
+                    key={`g${item.id}-${idx}`}
+                    href={`/gallery/${item.id}`}
+                    className="flex items-center gap-3 px-5 py-2 mx-2 rounded-xl hover:bg-purple-50 transition-all shrink-0 cursor-pointer border border-transparent hover:border-purple-100"
+                  >
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-purple-50 flex items-center justify-center shrink-0 shadow-inner">
+                      {item.thumbUrl ? (
+                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xl">🖼️</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <span className="text-xs font-bold text-gray-800 max-w-[10rem] truncate">{item.title}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-gray-500 truncate max-w-[6rem]">{item.merchantName}</span>
+                        <div className="flex items-center gap-1 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100">
+                          <span className="text-[9px] text-purple-600 font-bold tracking-wider">🖼️ 圖片集</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              }
+              const imgs = parseProductImages(item.images);
               const thumb = imgs[0] ?? null;
-              const currSymbol = getCurrencySymbol(p.currency ?? 'HKD');
+              const currSymbol = getCurrencySymbol(item.currency ?? 'HKD');
               return (
                 <Link
-                  key={`${p.id}-${idx}`}
-                  href={`/merchant-products/${p.id}`}
+                  key={`p${item.id}-${idx}`}
+                  href={`/merchant-products/${item.id}`}
                   className="flex items-center gap-3 px-5 py-2 mx-2 rounded-xl hover:bg-amber-50 transition-all shrink-0 cursor-pointer border border-transparent hover:border-amber-100"
                 >
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-50 flex items-center justify-center shrink-0 shadow-inner">
                     {thumb ? (
-                      <img src={thumb} alt={p.title} className="w-full h-full object-cover" />
+                      <img src={thumb} alt={item.title} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xl">🪙</span>
                     )}
                   </div>
                   <div className="flex flex-col justify-center">
-                    <span className="text-xs font-bold text-amber-900 max-w-[10rem] truncate">{p.title}</span>
+                    <span className="text-xs font-bold text-amber-900 max-w-[10rem] truncate">{item.title}</span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-amber-600 font-extrabold">
-                        {currSymbol}{Number(p.price).toLocaleString()}
+                        {currSymbol}{Number(item.price).toLocaleString()}
                       </span>
                       <div className="flex items-center gap-1 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-100">
                         <span className="text-[9px] text-orange-600 font-bold uppercase tracking-wider">🏪 商品</span>

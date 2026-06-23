@@ -23328,6 +23328,37 @@ EXAMPLE OUTPUT (exact format):
       const { listPublicProductGalleriesForMerchant: listPublicProductGalleriesForMerchant2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       return listPublicProductGalleriesForMerchant2(input.merchantId);
     }),
+    /** 主頁：隨機抽取 5 商戶 × 最多 2 個 live 圖片集，供首頁混排顯示 */
+    listHomeGalleries: publicProcedure.query(async () => {
+      const { ensureProductGalleriesTable: ensureProductGalleriesTable2, getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      await ensureProductGalleriesTable2();
+      const pool = await getRawPool2();
+      const [rows] = await pool.execute(
+        `SELECT g.id, g.title, g.merchantId, g.merchantName,
+           COALESCE(g.coverImageUrl, (
+             SELECT i2.imageUrl FROM productGalleryItems i2
+             WHERE i2.galleryId = g.id AND i2.status = 'active' AND i2.imageUrl != ''
+             ORDER BY i2.sortOrder ASC, i2.id ASC LIMIT 1
+           )) AS thumbUrl,
+           (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id AND i.status = 'active') AS activeItemCount
+           FROM productGalleries g
+           WHERE g.status = 'active'
+           HAVING activeItemCount > 0
+           ORDER BY RAND()`
+      );
+      const byMerchant = /* @__PURE__ */ new Map();
+      for (const row of rows) {
+        const arr = byMerchant.get(row.merchantId) ?? [];
+        if (arr.length < 2) {
+          arr.push(row);
+          byMerchant.set(row.merchantId, arr);
+        }
+      }
+      const merchantIds = [...byMerchant.keys()].slice(0, 5);
+      const result = [];
+      for (const mid of merchantIds) result.push(...byMerchant.get(mid) ?? []);
+      return result;
+    }),
     buyItem: protectedProcedure.input(z2.object({
       itemId: z2.number().int().positive(),
       buyerNote: z2.string().max(200).optional()

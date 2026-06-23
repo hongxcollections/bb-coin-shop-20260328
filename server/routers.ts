@@ -12613,6 +12613,36 @@ EXAMPLE OUTPUT (exact format):
         return listPublicProductGalleriesForMerchant(input.merchantId);
       }),
 
+    /** 主頁：隨機抽取 5 商戶 × 最多 2 個 live 圖片集，供首頁混排顯示 */
+    listHomeGalleries: publicProcedure
+      .query(async () => {
+        const { ensureProductGalleriesTable, getRawPool } = await import('./db') as any;
+        await ensureProductGalleriesTable();
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          `SELECT g.id, g.title, g.merchantId, g.merchantName,
+           COALESCE(g.coverImageUrl, (
+             SELECT i2.imageUrl FROM productGalleryItems i2
+             WHERE i2.galleryId = g.id AND i2.status = 'active' AND i2.imageUrl != ''
+             ORDER BY i2.sortOrder ASC, i2.id ASC LIMIT 1
+           )) AS thumbUrl,
+           (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id AND i.status = 'active') AS activeItemCount
+           FROM productGalleries g
+           WHERE g.status = 'active'
+           HAVING activeItemCount > 0
+           ORDER BY RAND()`
+        );
+        const byMerchant = new Map<number, any[]>();
+        for (const row of rows as any[]) {
+          const arr = byMerchant.get(row.merchantId) ?? [];
+          if (arr.length < 2) { arr.push(row); byMerchant.set(row.merchantId, arr); }
+        }
+        const merchantIds = [...byMerchant.keys()].slice(0, 5);
+        const result: any[] = [];
+        for (const mid of merchantIds) result.push(...(byMerchant.get(mid) ?? []));
+        return result;
+      }),
+
     buyItem: protectedProcedure
       .input(z.object({
         itemId: z.number().int().positive(),
