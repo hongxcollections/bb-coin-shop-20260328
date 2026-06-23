@@ -333,6 +333,47 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
   );
 }
 
+function GalleryHeroSlide({ gallery }: { gallery: any }) {
+  return (
+    <Link href={`/gallery/${gallery.id}`} className="block w-full h-full">
+      <div className="relative w-full h-full rounded-2xl overflow-hidden group">
+        {gallery.thumbUrl ? (
+          <img src={gallery.thumbUrl} alt={gallery.title}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            style={{ objectPosition: "center" }} />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-400 via-purple-400 to-indigo-300">
+            <span className="text-8xl opacity-55">🖼️</span>
+          </div>
+        )}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.22) 28%, transparent 55%)" }} />
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+          🖼️ 圖片集
+        </div>
+        {gallery.merchantName && (
+          <div className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+            {gallery.merchantName}
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-1">{gallery.title}</h2>
+          <p className="text-purple-300 font-bold text-sm leading-none mb-2 drop-shadow">
+            {gallery.activeItemCount ? `${gallery.activeItemCount} 件商品` : ""}
+          </p>
+          <div className="flex items-end justify-end gap-2">
+            <span
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg"
+              style={{ background: "linear-gradient(135deg,#7c3aed 0%,#6d28d9 50%,#5b21b6 100%)" }}
+            >
+              查看圖片集 →
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: any) => void }) {
   const [idx, setIdx] = useState(0);
   const total = products.length;
@@ -396,12 +437,14 @@ function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: 
 function CombinedHeroCarousel({
   products,
   auctions,
+  galleries,
   onBuy,
   currentUserId,
   isAuthenticated,
 }: {
   products: any[];
   auctions: any[];
+  galleries: any[];
   onBuy: (p: any) => void;
   currentUserId?: number | null;
   isAuthenticated?: boolean;
@@ -413,74 +456,52 @@ function CombinedHeroCarousel({
   const isApprovedMerchant = myMerchantApp?.status === "approved";
 
   const handleRegisterClick = (e: React.MouseEvent) => {
-    if (isAuthenticated) {
-      e.preventDefault();
-      toast.info("你已經係會員啦，無需重新註冊");
-    }
+    if (isAuthenticated) { e.preventDefault(); toast.info("你已經係會員啦，無需重新註冊"); }
   };
   const handleMerchantClick = (e: React.MouseEvent) => {
-    if (!isAuthenticated) {
-      e.preventDefault();
-      toast.info("請先登入會員，再申請開通商戶");
-      return;
-    }
-    if (isApprovedMerchant) {
-      e.preventDefault();
-      toast.info("你已經係商戶啦，去「商戶後台」管理你嘅商店");
-      return;
-    }
-    if (myMerchantApp?.status === "pending") {
-      e.preventDefault();
-      toast.info("你嘅商戶申請正在審核中，請耐心等候");
-    }
+    if (!isAuthenticated) { e.preventDefault(); toast.info("請先登入會員，再申請開通商戶"); return; }
+    if (isApprovedMerchant) { e.preventDefault(); toast.info("你已經係商戶啦，去「商戶後台」管理你嘅商店"); return; }
+    if (myMerchantApp?.status === "pending") { e.preventDefault(); toast.info("你嘅商戶申請正在審核中，請耐心等候"); }
   };
-  const hasProducts = products.length > 0;
-  const hasAuctions = auctions.length > 0;
-  const bothExist = hasProducts && hasAuctions;
 
-  const [mode, setMode] = useState<"products" | "auctions">(hasProducts ? "products" : "auctions");
+  // 三合一 shuffle — 每次 products/auctions/galleries 數據就緒後重新隨機
+  const allItems = useMemo(() => {
+    const tagged = [
+      ...products.map(p => ({ ...p, _type: 'product' as const })),
+      ...auctions.map(a => ({ ...a, _type: 'auction' as const })),
+      ...galleries.map(g => ({ ...g, _type: 'gallery' as const })),
+    ];
+    for (let i = tagged.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
+    }
+    return tagged;
+  }, [products, auctions, galleries]);
+
   const [itemIdx, setItemIdx] = useState(0);
   const [visible, setVisible] = useState(true);
-
-  const modeRef = useRef(mode);
   const itemIdxRef = useRef(itemIdx);
-  const productsRef = useRef(products);
-  const auctionsRef = useRef(auctions);
-  modeRef.current = mode;
+  const allItemsRef = useRef(allItems);
   itemIdxRef.current = itemIdx;
-  productsRef.current = products;
-  auctionsRef.current = auctions;
+  allItemsRef.current = allItems;
 
   useEffect(() => {
-    if (!hasProducts && !hasAuctions) return;
+    if (allItems.length <= 1) return;
     const timer = setInterval(() => {
-      const curItems = modeRef.current === "products" ? productsRef.current : auctionsRef.current;
-      const nextIdx = itemIdxRef.current + 1;
-      if (nextIdx >= curItems.length) {
-        if (bothExist) {
-          const nextMode = modeRef.current === "products" ? "auctions" : "products";
-          setVisible(false);
-          setTimeout(() => {
-            setMode(nextMode);
-            setItemIdx(0);
-            setVisible(true);
-          }, 600);
-        } else {
-          setItemIdx(0);
-        }
-      } else {
-        setItemIdx(nextIdx);
-      }
+      setVisible(false);
+      setTimeout(() => {
+        setItemIdx(i => (i + 1) % allItemsRef.current.length);
+        setVisible(true);
+      }, 550);
     }, 4500);
     return () => clearInterval(timer);
-  }, [bothExist, hasProducts, hasAuctions]);
+  }, [allItems.length]);
 
-  if (!hasProducts && !hasAuctions) return null;
-
-  const currentItems = mode === "products" ? products : auctions;
-  const currentItem = currentItems[Math.min(itemIdx, currentItems.length - 1)];
+  if (allItems.length === 0) return null;
+  const currentItem = allItems[Math.min(itemIdx, allItems.length - 1)];
   if (!currentItem) return null;
 
+  const labelMap = { product: "🏪 精選出售商品", auction: "🔨 精選拍品", gallery: "🖼️ 商戶圖片集" };
   const gradientText = {
     background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
     WebkitBackgroundClip: "text",
@@ -493,9 +514,7 @@ function CombinedHeroCarousel({
       <div className="container">
         <div className="flex items-end justify-between mb-1.5 pl-1 pr-1" style={{ paddingTop: 5, paddingBottom: 5 }}>
           <p className="text-xs font-semibold" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))", minHeight: 16 }}>
-            <span style={gradientText}>
-              {mode === "products" ? "🏪 精選出售商品" : "🔨 精選拍品"}
-            </span>
+            <span style={gradientText}>{labelMap[currentItem._type]}</span>
           </p>
           <div className="flex items-end gap-3">
             <Link href="/login?tab=register" onClick={handleRegisterClick} className="flex flex-col items-center text-amber-700 hover:text-amber-900 active:scale-95 transition-all">
@@ -519,20 +538,21 @@ function CombinedHeroCarousel({
             boxShadow: "0 6px 28px rgba(251,146,60,0.28), 0 2px 6px rgba(0,0,0,0.07)",
           }}
         >
-          {mode === "products" ? (
+          {currentItem._type === "product" && (
             <ProductHeroSlide product={currentItem} onBuy={onBuy} currentUserId={currentUserId} />
-          ) : (
-            <HeroSlide auction={currentItem} />
           )}
-          {/* 圓點指示器（item 位置） */}
-          {currentItems.length > 1 && (
+          {currentItem._type === "auction" && <HeroSlide auction={currentItem} />}
+          {currentItem._type === "gallery" && <GalleryHeroSlide gallery={currentItem} />}
+          {allItems.length > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
-              {currentItems.map((_, i) => (
+              {allItems.map((item, i) => (
                 <span
                   key={i}
                   className={`rounded-full transition-all duration-300 ${
                     i === itemIdx
-                      ? (mode === "products" ? "w-5 h-2 bg-orange-400" : "w-5 h-2 bg-amber-400")
+                      ? item._type === "gallery" ? "w-5 h-2 bg-violet-400"
+                        : item._type === "auction" ? "w-5 h-2 bg-amber-400"
+                        : "w-5 h-2 bg-orange-400"
                       : "w-2 h-2 bg-white/50"
                   }`}
                 />
@@ -1304,6 +1324,14 @@ export default function Home() {
     const shuffled = [...activeProducts].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 3);
   }, [allProducts]);
+  // 精選圖片集：從 listHomeGalleries 隨機抽最多 2 個（與 MerchantProductsStrip 共用 cache）
+  const { data: homeGalleries } = trpc.productGalleries.listHomeGalleries.useQuery(undefined, { staleTime: 60_000 });
+  const heroGalleries = useMemo(() => {
+    const all = homeGalleries ?? [];
+    if (all.length <= 2) return all;
+    const shuffled = [...all].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 2);
+  }, [homeGalleries]);
 
   // 付費主打商品：從 API 取得，輪播顯示（30 秒換一個）
   const { data: paidFeatured } = trpc.featuredListings.getActive.useQuery(undefined, { staleTime: 30_000, refetchInterval: 60_000 });
@@ -1578,11 +1606,12 @@ export default function Home() {
         <FeaturedProductSideCard products={featuredProducts} onBuy={handleBuy} currentUserId={user?.id} />
       )}
 
-      {/* ── 精選商品＋精選拍品 合併輪播（同位置淡入淡出切換）── */}
-      {(heroProducts.length > 0 || heroAuctions.length > 0) && (
+      {/* ── 精選拍品＋出售商品＋圖片集 三合一輪播 ── */}
+      {(heroProducts.length > 0 || heroAuctions.length > 0 || heroGalleries.length > 0) && (
         <CombinedHeroCarousel
           products={heroProducts}
           auctions={heroAuctions}
+          galleries={heroGalleries}
           onBuy={handleBuy}
           currentUserId={user?.id}
           isAuthenticated={isAuthenticated}
