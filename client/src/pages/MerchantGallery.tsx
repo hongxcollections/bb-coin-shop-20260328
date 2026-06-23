@@ -226,7 +226,7 @@ export default function MerchantGallery() {
     onError: (e) => toast.error(e.message),
   });
   const updateInfoM = trpc.productGalleries.updateGallery.useMutation({
-    onSuccess: () => { galleriesQ.refetch(); toast.success('設定已儲存'); },
+    onSuccess: () => { galleriesQ.refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteGalleryM = trpc.productGalleries.deleteGallery.useMutation({
@@ -479,7 +479,9 @@ export default function MerchantGallery() {
   async function handleSaveInfo() {
     if (!editGalleryId) return;
     if (!editTitle.trim()) { toast.error('請輸入圖片集名稱'); return; }
-    updateInfoM.mutate({ id: editGalleryId, title: editTitle.trim(), description: editDesc.trim() || undefined, columnsPerRow: editCols });
+    updateInfoM.mutate({ id: editGalleryId, title: editTitle.trim(), description: editDesc.trim() || undefined, columnsPerRow: editCols }, {
+      onSuccess: () => toast.success('設定已儲存'),
+    });
   }
 
   async function handleSetStatus(status: 'draft' | 'active' | 'hidden') {

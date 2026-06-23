@@ -7859,7 +7859,7 @@ export async function getPublicGalleryWithItems(id: number): Promise<{
   await ensureProductGalleriesTable();
   const pool = await getRawPool();
   const [gRows]: any = await pool.execute(
-    'SELECT * FROM productGalleries WHERE id = ? AND status = "active" LIMIT 1',
+    'SELECT * FROM productGalleries WHERE id = ? LIMIT 1',
     [id]
   );
   if (!gRows[0]) return null;

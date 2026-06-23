@@ -849,6 +849,25 @@ export default function PublicGallery() {
             </div>
           )}
 
+          {/* ── Owner preview banner (hidden/draft) ── */}
+          {isOwner && gallery.status !== 'active' && (
+            <div className="mx-3 mb-3 px-4 py-3 rounded-2xl flex items-center gap-3" style={{ background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.3)' }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: '#C2410C' }}>
+                  {gallery.status === 'hidden' ? '此圖片集已下架' : '此圖片集為草稿'}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#9A3412' }}>只有你能預覽此頁面，訪客看不到</p>
+              </div>
+              <button
+                onClick={() => navigate(`/merchant/galleries`)}
+                className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+              >
+                管理
+              </button>
+            </div>
+          )}
+
           {/* ── Grid ── */}
           {/* Items always sized at 3-column width; extra columns overflow horizontally */}
           {items.length === 0 ? (

@@ -7363,7 +7363,7 @@ async function getPublicGalleryWithItems(id) {
   await ensureProductGalleriesTable();
   const pool = await getRawPool();
   const [gRows] = await pool.execute(
-    'SELECT * FROM productGalleries WHERE id = ? AND status = "active" LIMIT 1',
+    "SELECT * FROM productGalleries WHERE id = ? LIMIT 1",
     [id]
   );
   if (!gRows[0]) return null;
@@ -23290,12 +23290,13 @@ EXAMPLE OUTPUT (exact format):
       const { getPublicGalleryWithItems: getPublicGalleryWithItems2, getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const data = await getPublicGalleryWithItems2(input.id);
       if (!data) return null;
+      const isOwner = ctx.user != null && Number(ctx.user.id) === Number(data.gallery.merchantId);
+      if (data.gallery.status !== "active" && !isOwner) return null;
       const pool = await getRawPool2();
       const [maRows] = await pool.execute(
         "SELECT 1 FROM merchantApplications WHERE userId = ? AND status = 'approved' LIMIT 1",
         [data.gallery.merchantId]
       );
-      const isOwner = ctx.user != null && Number(ctx.user.id) === Number(data.gallery.merchantId);
       return { ...data, ownerIsMerchant: maRows.length > 0, isOwner };
     }),
     listPublicByMerchant: publicProcedure.input(z2.object({ merchantId: z2.number().int().positive() })).query(async ({ input }) => {

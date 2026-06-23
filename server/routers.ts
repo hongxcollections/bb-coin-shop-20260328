@@ -12565,12 +12565,14 @@ EXAMPLE OUTPUT (exact format):
         const { getPublicGalleryWithItems, getRawPool } = await import('./db') as any;
         const data = await getPublicGalleryWithItems(input.id);
         if (!data) return null;
+        const isOwner = ctx.user != null && Number(ctx.user.id) === Number(data.gallery.merchantId);
+        // Non-owner can only see active galleries
+        if (data.gallery.status !== 'active' && !isOwner) return null;
         const pool = await getRawPool();
         const [maRows]: any = await pool.execute(
           "SELECT 1 FROM merchantApplications WHERE userId = ? AND status = 'approved' LIMIT 1",
           [data.gallery.merchantId]
         );
-        const isOwner = ctx.user != null && Number(ctx.user.id) === Number(data.gallery.merchantId);
         return { ...data, ownerIsMerchant: maRows.length > 0, isOwner };
       }),
 
