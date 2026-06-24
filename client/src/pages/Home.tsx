@@ -1455,14 +1455,14 @@ export default function Home() {
             <div className="flex flex-col gap-2 shrink-0">
               {/* 藏品社區 — 移至原「即睇拍品」位置，沿用其底色樣式 */}
               <Link href="/collection-square">
-                <span className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3.5 py-2 rounded-full shadow-md transition cursor-pointer select-none">
+                <span className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-3.5 py-2 rounded-full shadow-md transition cursor-pointer select-none">
                   <Sparkles className="w-3.5 h-3.5" /> 藏品社區
                 </span>
               </Link>
               {/* 圖片集區 — 輪播按鈕，沿用原「藏品社區」底色樣式 */}
               <div className="relative" style={{ width: 120 }} ref={galleryDropdownRef}>
                 <button
-                  className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none w-full justify-center"
+                  className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-[11px] font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none w-full justify-center"
                   onClick={() => {
                     if (galleryCarouselIdx === 0 || galleriesForCarousel.length === 0) {
                       setGalleryDropdownOpen(v => !v);
