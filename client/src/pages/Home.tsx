@@ -1343,12 +1343,12 @@ export default function Home() {
   const galleryDropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const total = galleriesForCarousel.length + 1;
-    if (total <= 1) return;
+    if (total <= 1 || galleryDropdownOpen) return;
     const timer = setInterval(() => {
       setGalleryCarouselIdx(prev => (prev + 1) % total);
     }, 3000);
     return () => clearInterval(timer);
-  }, [galleriesForCarousel.length]);
+  }, [galleriesForCarousel.length, galleryDropdownOpen]);
   useEffect(() => {
     if (!galleryDropdownOpen) return;
     function handler(e: MouseEvent) {
@@ -1440,9 +1440,12 @@ export default function Home() {
 
       {/* ── 商品拍賣主頁 Hero（深橙垂直漸變：頂部深 → 底部淺，無底線）── */}
       <div className="bg-gradient-to-b from-orange-500 via-orange-300 to-orange-100">
-        <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative overflow-hidden">
-          <div className="absolute -right-12 -top-12 w-48 h-48 bg-orange-400/40 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-orange-300/50 rounded-full blur-2xl pointer-events-none" />
+        <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative">
+          {/* 裝飾圓圈獨立 overflow-hidden 層，避免截斷 dropdown */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -right-12 -top-12 w-48 h-48 bg-orange-400/40 rounded-full blur-3xl" />
+            <div className="absolute -left-10 bottom-0 w-32 h-32 bg-orange-300/50 rounded-full blur-2xl" />
+          </div>
           <div className="relative flex items-center justify-between gap-4">
             <div className="min-w-0">
               <RotatingMerchantBadge />
@@ -1457,7 +1460,7 @@ export default function Home() {
                 </span>
               </Link>
               {/* 圖片集區 — 輪播按鈕，沿用原「藏品社區」底色樣式 */}
-              <div className="relative" ref={galleryDropdownRef}>
+              <div className="relative" style={{ width: 110 }} ref={galleryDropdownRef}>
                 <button
                   className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none w-full justify-center"
                   onClick={() => {
