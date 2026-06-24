@@ -1626,9 +1626,11 @@ export default function MerchantProducts() {
                       </div>
                     </div>
 
-                    {/* ③ 圖片下面 第一行: 分享去藏品社區 + 申請主打 → 向右 */}
+                    {/* ③④ 按鈕區（統一淺色底框） */}
+                    <div className="rounded-xl p-2 mt-0.5" style={{ background: '#F5F5F5' }}>
+                    {/* ③ 第一行: 分享去藏品社區 + 申請主打 → 向右 */}
                     {isActive && (
-                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap mb-1.5">
                         <a
                           href={`/collection-square/new?productId=${p.id}`}
                           className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors font-medium"
@@ -1646,7 +1648,7 @@ export default function MerchantProducts() {
                       </div>
                     )}
 
-                    {/* ④ 圖片下面 第二行: 下架/售出/重售/上架 + 拆除 + 編輯 → 向右 */}
+                    {/* ④ 第二行: 下架/售出/重售/上架 + 拆除 + 編輯 → 向右 */}
                     <div className="flex items-center justify-end gap-1.5 flex-wrap">
                       {isActive && (
                         <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
@@ -1697,6 +1699,7 @@ export default function MerchantProducts() {
                         <Pencil className="w-3 h-3" />編輯
                       </button>
                     </div>
+                    </div>{/* end buttons container */}
 
                   </div>
                 </div>
@@ -1740,7 +1743,8 @@ export default function MerchantProducts() {
                       </div>
                       <span className="text-xs text-gray-400">庫存 {p.stock}</span>
                     </div>
-                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    <div className="rounded-xl p-2 mt-1" style={{ background: '#F5F5F5' }}>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex-1 justify-center">
                         <Pencil className="w-3 h-3" />編輯
                       </button>
@@ -1791,6 +1795,7 @@ export default function MerchantProducts() {
                         </a>
                       )}
                     </div>
+                    </div>{/* end buttons container */}
                   </div>
                 </div>
               );
@@ -1820,7 +1825,8 @@ export default function MerchantProducts() {
                     </div>
                     <span className="font-bold text-amber-600 text-xs">{price === 0 ? "查詢格價" : `${p.currency} $${price.toLocaleString()}`}</span>
                     <span className="text-[10px] text-gray-400">庫存 {p.stock}</span>
-                    <div className="flex gap-1 mt-auto pt-1 flex-wrap">
+                    <div className="rounded-lg p-1.5 mt-auto" style={{ background: '#F5F5F5' }}>
+                    <div className="flex gap-1 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex-1 text-[10px] py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-center">
                         編輯
                       </button>
@@ -1867,6 +1873,7 @@ export default function MerchantProducts() {
                         </a>
                       )}
                     </div>
+                    </div>{/* end buttons container */}
                   </div>
                 </div>
               );
@@ -1895,7 +1902,8 @@ export default function MerchantProducts() {
                   <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                     <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
                     <span className="text-[10px] font-bold text-amber-600">{price === 0 ? "查詢格價" : `$${price.toLocaleString()}`}</span>
-                    <div className="flex gap-1 mt-1 flex-wrap">
+                    <div className="rounded-lg p-1 mt-1" style={{ background: '#F5F5F5' }}>
+                    <div className="flex gap-1 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex-1 text-[9px] py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors text-center">
                         編輯
                       </button>
@@ -1939,6 +1947,7 @@ export default function MerchantProducts() {
                         </a>
                       )}
                     </div>
+                    </div>{/* end buttons container */}
                   </div>
                 </div>
               );
