@@ -12643,6 +12643,34 @@ EXAMPLE OUTPUT (exact format):
         return result;
       }),
 
+    listRandomMerchantGalleries: publicProcedure
+      .query(async () => {
+        const { ensureProductGalleriesTable, getRawPool } = await import('./db') as any;
+        await ensureProductGalleriesTable();
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          `SELECT g.id, g.title, g.merchantId, g.merchantName,
+           COALESCE(g.coverImageUrl, (
+             SELECT i2.imageUrl FROM productGalleryItems i2
+             WHERE i2.galleryId = g.id AND i2.status = 'active' AND i2.imageUrl != ''
+             ORDER BY i2.sortOrder ASC, i2.id ASC LIMIT 1
+           )) AS thumbUrl,
+           (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id AND i.status = 'active') AS activeItemCount
+           FROM productGalleries g
+           WHERE g.status = 'active'
+           HAVING activeItemCount > 0
+           ORDER BY RAND()`
+        );
+        const byMerchant = new Map<number, any>();
+        for (const row of rows as any[]) {
+          if (!byMerchant.has(row.merchantId)) {
+            byMerchant.set(row.merchantId, row);
+          }
+        }
+        const merchantIds = [...byMerchant.keys()].slice(0, 10);
+        return merchantIds.map((mid: number) => byMerchant.get(mid));
+      }),
+
     buyItem: protectedProcedure
       .input(z.object({
         itemId: z.number().int().positive(),
