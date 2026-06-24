@@ -1626,80 +1626,102 @@ export default function MerchantProducts() {
                       </div>
                     </div>
 
-                    {/* ③④ 按鈕區（統一淺色底框） */}
-                    <div className="rounded-xl p-2 mt-0.5" style={{ background: '#F5F5F5' }}>
-                    {/* ③ 第一行: 分享去藏品社區 + 申請主打 → 向右 */}
-                    {isActive && (
-                      <div className="flex items-center justify-end gap-1.5 flex-wrap mb-1.5">
+                    {/* ③④ 按鈕區 — 每個按鈕各自有淺色底框 */}
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {/* 分享去藏品社區 */}
+                      {isActive && (
                         <a
                           href={`/collection-square/new?productId=${p.id}`}
-                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors font-medium"
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors"
+                          style={{ background: '#EFF6FF', color: '#2563EB', borderColor: '#BFDBFE' }}
                         >
                           <Sparkles className="w-3 h-3" />分享去藏品社區
                         </a>
-                        {!isFeatured && !queued && (
-                          <button
-                            onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })}
-                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg hover:from-amber-500 hover:to-orange-600 transition-colors font-medium shadow-sm"
-                          >
-                            <Flame className="w-3 h-3" />申請主打
+                      )}
+                      {/* 申請主打 */}
+                      {isActive && !isFeatured && !queued && (
+                        <button
+                          onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors"
+                          style={{ background: '#FFF7ED', color: '#C2410C', borderColor: '#FED7AA' }}
+                        >
+                          <Flame className="w-3 h-3" />申請主打
+                        </button>
+                      )}
+                      {/* 主打中 badge */}
+                      {isActive && isFeatured && (
+                        <span className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border" style={{ background: '#FFF7ED', color: '#EA580C', borderColor: '#FED7AA' }}>
+                          <Flame className="w-3 h-3" />主打刊登中
+                        </span>
+                      )}
+                      {/* 排隊狀態 */}
+                      {isActive && queued && (
+                        <span className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border" style={{ background: '#FFFBEB', color: '#B45309', borderColor: '#FDE68A' }}>
+                          ⏳ 排隊第 {queued.queuePosition} 位
+                          <button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="ml-0.5 text-red-500 hover:text-red-700">
+                            <X className="w-3 h-3" />
                           </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ④ 第二行: 下架/售出/重售/上架 + 拆除 + 編輯 → 向右 */}
-                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        </span>
+                      )}
+                      {/* 下架（active → hidden） */}
                       {isActive && (
-                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50" style={{ background: '#F9FAFB', color: '#4B5563', borderColor: '#E5E7EB' }}>
                           <EyeOff className="w-3 h-3" />下架
                         </button>
                       )}
+                      {/* 已售出 */}
                       {isActive && (
-                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 font-medium">
+                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50" style={{ background: '#F8FAFC', color: '#374151', borderColor: '#CBD5E1' }}>
                           <Tag className="w-3 h-3" />已售出
                         </button>
                       )}
+                      {/* 上架（hidden → active） */}
                       {isHidden && (
-                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 font-medium">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50" style={{ background: '#F0FDF4', color: '#15803D', borderColor: '#BBF7D0' }}>
                           <Eye className="w-3 h-3" />上架
                         </button>
                       )}
+                      {/* 重售 + 下架（sold） */}
                       {isSold && (
                         <>
-                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium">
+                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50" style={{ background: '#EFF6FF', color: '#1D4ED8', borderColor: '#BFDBFE' }}>
                             <RotateCcw className="w-3 h-3" />重售
                           </button>
-                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
+                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50" style={{ background: '#F9FAFB', color: '#4B5563', borderColor: '#E5E7EB' }}>
                             <EyeOff className="w-3 h-3" />下架
                           </button>
                         </>
                       )}
+                      {/* 上架（draft） */}
                       {isDraft && (
                         <button
                           onClick={() => updateStatus.mutateAsync({ id: p.id, status: "active" }).then(() => toast.success("商品已上架"))}
                           disabled={updateStatus.isPending}
-                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 font-medium"
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50"
+                          style={{ background: '#F0FDF4', color: '#15803D', borderColor: '#BBF7D0' }}
                         >
                           <Eye className="w-3 h-3" />上架
                         </button>
                       )}
+                      {/* 拆除 */}
                       <button
                         onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })}
-                        className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                        className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors"
+                        style={{ background: '#FFF1F2', color: '#E11D48', borderColor: '#FECDD3' }}
                       >
                         <Trash2 className="w-3 h-3" />拆除
                       </button>
+                      {/* 分享 */}
                       {!isDraft && (
-                        <div onClick={e => e.stopPropagation()}>
+                        <div onClick={e => e.stopPropagation()} className="rounded-lg border" style={{ background: '#F9FAFB', borderColor: '#E5E7EB' }}>
                           <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
                         </div>
                       )}
-                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium">
+                      {/* 編輯 */}
+                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors" style={{ background: '#EFF6FF', color: '#2563EB', borderColor: '#BFDBFE' }}>
                         <Pencil className="w-3 h-3" />編輯
                       </button>
                     </div>
-                    </div>{/* end buttons container */}
 
                   </div>
                 </div>
