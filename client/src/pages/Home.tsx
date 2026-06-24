@@ -1449,7 +1449,7 @@ export default function Home() {
           <div className="relative flex items-center justify-between gap-4">
             <div className="min-w-0">
               <RotatingMerchantBadge />
-              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-amber-900">錢幣 · 競投 · 即時成交</h1>
+              <h1 className="text-[19px] md:text-[23px] font-extrabold tracking-tight text-amber-900">錢幣 · 競投 · 即時成交</h1>
               <p className="text-xs md:text-sm text-amber-800/80 mt-1.5">精選拍品 · 商家直銷 · 安心交易</p>
             </div>
             <div className="flex flex-col gap-2 shrink-0">
