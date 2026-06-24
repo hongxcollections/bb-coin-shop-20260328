@@ -1460,7 +1460,7 @@ export default function Home() {
                 </span>
               </Link>
               {/* 圖片集區 — 輪播按鈕，沿用原「藏品社區」底色樣式 */}
-              <div className="relative" style={{ width: 110 }} ref={galleryDropdownRef}>
+              <div className="relative" style={{ width: 120 }} ref={galleryDropdownRef}>
                 <button
                   className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none w-full justify-center"
                   onClick={() => {
@@ -1483,12 +1483,12 @@ export default function Home() {
                 {galleryDropdownOpen && galleriesForCarousel.length > 0 && (
                   <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-amber-200 rounded-xl shadow-lg overflow-hidden"
                     style={{ minWidth: 180, maxHeight: 320, overflowY: 'auto' }}>
-                    {galleriesForCarousel.map((g: any) => (
+                    {galleriesForCarousel.map((g: any, i: number) => (
                       <a
                         key={g.id}
                         href={`/gallery/${g.id}`}
                         className="flex items-center gap-2 px-2 hover:bg-amber-50 transition"
-                        style={{ height: 44 }}
+                        style={{ height: 44, borderTop: i > 0 ? '1px solid #fde68a' : undefined }}
                         onClick={() => setGalleryDropdownOpen(false)}
                       >
                         <div className="shrink-0 w-7 h-7 rounded overflow-hidden bg-amber-100">
