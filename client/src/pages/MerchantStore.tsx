@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
-import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X, Images } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X, Images, GalleryHorizontal, LayoutList } from "lucide-react";
 import GallerySheet from "@/components/GallerySheet";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +18,101 @@ import { getCurrencySymbol } from "./AdminAuctions";
 import AdSenseAd from "@/components/AdSenseAd";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
+
+function GalleryHorizontalCarousel({ galleries, onOpen }: { galleries: any[]; onOpen: (id: number) => void }) {
+  const [idx, setIdx] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const total = galleries.length;
+
+  const goTo = (i: number) => setIdx(Math.max(0, Math.min(i, total - 1)));
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    setIsDragging(true);
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    setDragOffset(e.touches[0].clientX - touchStartX.current);
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    setIsDragging(false);
+    setDragOffset(0);
+    if (dx < -50 && idx < total - 1) goTo(idx + 1);
+    else if (dx > 50 && idx > 0) goTo(idx - 1);
+  };
+
+  if (!galleries[idx]) return null;
+
+  return (
+    <div className="px-3 pb-3 pt-1 select-none">
+      <div
+        style={{ overflow: "hidden", borderRadius: 16 }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div
+          style={{
+            display: "flex",
+            transform: `translateX(calc(${-idx * 100}% + ${dragOffset}px))`,
+            transition: isDragging ? "none" : "transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)",
+          }}
+        >
+          {galleries.map((item) => {
+            const itemThumb = item.coverImageUrl || item.firstItemImage || null;
+            const itemCount = Number(item.activeItemCount ?? 0);
+            return (
+              <div key={item.id} style={{ minWidth: "100%" }}>
+                <div className="relative rounded-2xl overflow-hidden bg-indigo-50" style={{ height: 190 }}>
+                  {itemThumb ? (
+                    <img src={itemThumb} alt={item.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-200 via-indigo-100 to-white">
+                      <Images className="w-14 h-14 text-indigo-300" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 45%, transparent 70%)" }} />
+                  <div className="absolute bottom-0 left-0 right-0 p-3.5">
+                    <p className="text-white font-bold text-sm leading-snug line-clamp-2 drop-shadow mb-1">{item.title}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-indigo-200 text-xs font-medium">{itemCount} 件商品</span>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(item.id)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold text-white active:scale-95 transition-transform"
+                        style={{ background: "linear-gradient(135deg,#6366f1 0%,#4f46e5 100%)" }}
+                      >
+                        <Images className="w-3 h-3" />
+                        瀏覽圖片集
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {total > 1 && (
+        <div className="flex justify-center gap-1.5 mt-2.5">
+          {galleries.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-indigo-500" : "w-2 h-2 bg-indigo-200"}`}
+              aria-label={`第${i + 1}個圖片集`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function buildProductMsg(title: string, price?: number, id?: number) {
   const productUrl = id ? `https://share.hongxcollections.com/merchant-products/${id}` : "";
@@ -629,6 +724,7 @@ export default function MerchantStore() {
   const [storeRoomId, setStoreRoomId] = useState<number | null>(null);
   const [storeOpening, setStoreOpening] = useState(false);
   const [selectedGalleryId, setSelectedGalleryId] = useState<number | null>(null);
+  const [galleryViewMode, setGalleryViewMode] = useState<"horizontal" | "vertical">("horizontal");
   const storeUtils = trpc.useUtils();
   const storeOpenRoom = trpc.chat.openRoomByMerchant.useMutation({
     onSuccess: ({ roomId }) => { setStoreRoomId(roomId); setStoreOpening(false); },
@@ -1276,43 +1372,69 @@ export default function MerchantStore() {
                 <Images className="w-4 h-4 text-white" />
               </div>
               <h2 className="font-bold text-sm text-indigo-900">圖片集商品</h2>
-              <span className="ml-auto text-xs font-semibold text-indigo-700 bg-white/80 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-semibold text-indigo-700 bg-white/80 border border-indigo-200 px-2.5 py-0.5 rounded-full">
                 {(publicGalleries as any[]).length} 個圖集
               </span>
+              <div className="ml-auto flex items-center gap-1 bg-white/70 border border-indigo-100 rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setGalleryViewMode("horizontal")}
+                  className={`flex items-center justify-center w-7 h-7 rounded-md transition-all ${galleryViewMode === "horizontal" ? "bg-indigo-500 text-white shadow-sm" : "text-indigo-400 hover:text-indigo-600"}`}
+                  aria-label="橫向輪播"
+                >
+                  <GalleryHorizontal className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGalleryViewMode("vertical")}
+                  className={`flex items-center justify-center w-7 h-7 rounded-md transition-all ${galleryViewMode === "vertical" ? "bg-indigo-500 text-white shadow-sm" : "text-indigo-400 hover:text-indigo-600"}`}
+                  aria-label="垂直列表"
+                >
+                  <LayoutList className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <div className="p-3 space-y-2.5">
-              {(publicGalleries as any[]).map((g: any) => {
-                const thumb = g.coverImageUrl || g.firstItemImage || null;
-                const count = Number(g.activeItemCount ?? 0);
-                return (
-                  <div key={g.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col gap-2.5">
-                    <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{g.title}</p>
-                    <div className="flex items-stretch gap-3">
-                      {thumb ? (
-                        <img src={thumb} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" alt="" />
-                      ) : (
-                        <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <Images className="w-6 h-6 text-gray-300" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <span className="text-xs text-gray-400">共 {count} 件商品</span>
-                        <div className="flex items-center justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedGalleryId(g.id)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:border-indigo-300 flex-shrink-0 active:scale-95 transition-transform"
-                          >
-                            <Images className="w-3 h-3" />
-                            瀏覽圖片集
-                          </button>
+
+            {galleryViewMode === "horizontal" ? (
+              <GalleryHorizontalCarousel
+                galleries={publicGalleries as any[]}
+                onOpen={setSelectedGalleryId}
+              />
+            ) : (
+              <div className="p-3 space-y-2.5">
+                {(publicGalleries as any[]).map((g: any) => {
+                  const thumb = g.coverImageUrl || g.firstItemImage || null;
+                  const count = Number(g.activeItemCount ?? 0);
+                  return (
+                    <div key={g.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col gap-2.5">
+                      <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{g.title}</p>
+                      <div className="flex items-stretch gap-3">
+                        {thumb ? (
+                          <img src={thumb} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" alt="" />
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <Images className="w-6 h-6 text-gray-300" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <span className="text-xs text-gray-400">共 {count} 件商品</span>
+                          <div className="flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedGalleryId(g.id)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:border-indigo-300 flex-shrink-0 active:scale-95 transition-transform"
+                            >
+                              <Images className="w-3 h-3" />
+                              瀏覽圖片集
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
