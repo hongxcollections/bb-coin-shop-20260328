@@ -1460,9 +1460,10 @@ export function GroupAuctionItemShareMenu({ itemId, roundId, title, lotNumber, c
         type="button"
         onClick={handleOpen}
         title="分享"
-        className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+        className="flex items-center gap-1 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-0.5 transition-colors bg-amber-50 hover:bg-amber-100"
+        style={{ fontSize: 10 }}
       >
-        <Share2 className="w-3 h-3" />
+        <Share2 className="w-2.5 h-2.5" />
         分享
       </button>
       {open && menuPos && (
