@@ -12765,6 +12765,21 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    pendingOrderCounts: protectedProcedure.query(async ({ ctx }) => {
+      const { getRawPool } = await import('./db') as any;
+      const pool = await getRawPool();
+      if (!pool) return {} as Record<number, number>;
+      const [rows]: any = await pool.execute(
+        `SELECT galleryId, COUNT(*) as cnt FROM galleryOrders WHERE merchantId = ? AND status = 'pending' GROUP BY galleryId`,
+        [ctx.user.id]
+      );
+      const result: Record<number, number> = {};
+      for (const row of rows as Array<{ galleryId: number; cnt: number }>) {
+        result[row.galleryId] = Number(row.cnt);
+      }
+      return result;
+    }),
+
     myUnsoldAuctions: protectedProcedure.query(async ({ ctx }) => {
       const { getRawPool } = await import('./db') as any;
       const pool = await getRawPool();

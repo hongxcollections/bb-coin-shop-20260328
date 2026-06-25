@@ -276,6 +276,11 @@ export default function MerchantGallery() {
     onSuccess: () => galleryImagesQ.refetch(),
     onError: (e) => toast.error(e.message),
   });
+  const pendingOrderCountsQ = trpc.productGalleries.pendingOrderCounts.useQuery(undefined, {
+    refetchInterval: 30_000,
+  });
+  const pendingCounts = pendingOrderCountsQ.data ?? {};
+
   const myUnsoldAuctionsQ = trpc.productGalleries.myUnsoldAuctions.useQuery(undefined, {
     enabled: auctionPickerOpen,
     refetchOnWindowFocus: false,
@@ -1115,9 +1120,15 @@ export default function MerchantGallery() {
                         </button>
                         <button
                           onClick={() => openEdit(g.id)}
-                          className="text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300"
+                          className="relative text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300"
                         >
                           管理
+                          {(pendingCounts[g.id] ?? 0) > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                            </span>
+                          )}
                         </button>
                       </div>
                     </div>
