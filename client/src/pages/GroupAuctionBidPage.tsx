@@ -161,6 +161,26 @@ export default function GroupAuctionBidPage() {
     { refetchInterval: 3000, refetchOnMount: true, refetchOnWindowFocus: true, enabled: !isNaN(roundId) }
   );
 
+  const scrollTargetItemId = useMemo(() => {
+    const p = new URLSearchParams(window.location.search);
+    const v = p.get("item");
+    return v ? parseInt(v, 10) : null;
+  }, []);
+
+  const scrolledRef = useRef(false);
+  useEffect(() => {
+    if (scrolledRef.current || !data || !scrollTargetItemId) return;
+    const el = document.getElementById(`item-${scrollTargetItemId}`);
+    if (!el) return;
+    scrolledRef.current = true;
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.style.transition = "box-shadow 0.3s";
+      el.style.boxShadow = "0 0 0 3px #f59e0b";
+      setTimeout(() => { el.style.boxShadow = ""; }, 2000);
+    }, 400);
+  }, [data, scrollTargetItemId]);
+
   const placeBidMut = trpc.groupAuctions.placeBid.useMutation({
     onSuccess: (r) => {
       const info = pendingBidRef.current;
@@ -697,7 +717,7 @@ export default function GroupAuctionBidPage() {
           }
 
           return (
-            <div key={item.id} className="relative">
+            <div key={item.id} id={`item-${item.id}`} className="relative">
               {showRoundTimer && (
                 <div
                   className={`absolute right-3 z-10 flex items-center gap-1 px-2 py-[2px] text-[11px] font-mono font-semibold rounded-full border bg-white${roundTimerFlash ? " animate-red-flash" : ""}`}
