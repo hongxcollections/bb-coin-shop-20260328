@@ -326,11 +326,6 @@ export default function MerchantDashboard() {
     enabled: isAuthenticated,
   });
 
-  const { data: myGalleries } = trpc.productGalleries.myGalleries.useQuery(undefined, {
-    enabled: isAuthenticated && myApp?.status === 'approved',
-    staleTime: 60_000,
-  });
-  const galleryCount = (myGalleries as any[] | undefined)?.length ?? 0;
   const { data: deposit, isLoading: loadingDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -754,15 +749,10 @@ export default function MerchantDashboard() {
               <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
                 <Images className="w-5 h-5 text-sky-600" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div>
                 <p className="font-semibold text-sm text-sky-900">圖片集商品</p>
                 <p className="text-xs text-gray-400 mt-0.5">批量上圖 · 一圖一品</p>
               </div>
-              {galleryCount > 0 && (
-                <span className="text-xs font-bold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                  {galleryCount} 個
-                </span>
-              )}
             </div>
           </Link>
           <button
