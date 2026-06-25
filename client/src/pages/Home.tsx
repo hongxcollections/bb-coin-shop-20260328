@@ -192,7 +192,7 @@ function HeroCarousel({ auctions }: { auctions: any[] }) {
 
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setIdx(p => (p + 1) % total), 4500);
+    timerRef.current = setInterval(() => setIdx(p => (p + 1) % total), 5000);
   };
 
   useEffect(() => {
@@ -383,7 +383,7 @@ function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: 
   const goTo = (i: number) => setIdx((i + total) % total);
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setIdx(p => (p + 1) % total), 4500);
+    timerRef.current = setInterval(() => setIdx(p => (p + 1) % total), 5000);
   };
 
   useEffect(() => {
@@ -494,7 +494,7 @@ function CombinedHeroCarousel({
         setItemIdx(i => (i + 1) % allItemsRef.current.length);
         setVisible(true);
       }, 550);
-    }, 4500);
+    }, 5000);
     return () => clearInterval(timer);
   }, [allItems.length]);
 
