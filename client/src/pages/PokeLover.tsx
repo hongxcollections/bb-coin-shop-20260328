@@ -1069,10 +1069,16 @@ export default function CardZzz() {
               回主頁
             </button>
             {isAuthenticated && (
-              <button onClick={() => navigate("/cardzzz/collection")} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
-                <BookOpen className="w-3.5 h-3.5" />
-                卡冊
-              </button>
+              <div className="ml-auto flex items-center gap-1.5">
+                <button onClick={() => navigate("/cardzzz/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(204,0,0,0.15)", border: "1px solid rgba(204,0,0,0.35)", color: "#FF6B6B" }}>
+                  <DollarSign className="w-3.5 h-3.5" />
+                  出售
+                </button>
+                <button onClick={() => navigate("/cardzzz/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
+                  <BookOpen className="w-3.5 h-3.5" />
+                  卡冊
+                </button>
+              </div>
             )}
           </div>
         )}

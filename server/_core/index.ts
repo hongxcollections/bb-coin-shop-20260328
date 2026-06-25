@@ -1271,6 +1271,14 @@ async function startServer() {
   } catch (e) {
     console.warn('[Bootstrap] adBanners table skipped:', (e as Error).message);
   }
+  // 卡牌交易平台表
+  try {
+    const { bootstrapCardTradingTables } = await import('../db');
+    await bootstrapCardTradingTables();
+    console.log('[Bootstrap] Ensured cardTrading tables');
+  } catch (e) {
+    console.warn('[Bootstrap] cardTrading tables skipped:', (e as Error).message);
+  }
   bootstrapDone = true;
 
   // Gzip 壓縮 — 減少回應體積 60-80%

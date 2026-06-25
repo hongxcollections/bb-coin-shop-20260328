@@ -8084,3 +8084,240 @@ export async function cancelGalleryOrder(orderId: number, byUserId: number, isAd
   await pool.execute('UPDATE productGalleryItems SET status = "active" WHERE id = ?', [order.galleryItemId]);
   return { ok: true };
 }
+
+// ─── Card Trading Platform ────────────────────────────────────────────────────
+
+export async function bootstrapCardTradingTables() {
+  const pool = await getRawPool();
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardListings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      userId INT NOT NULL,
+      game VARCHAR(50) NOT NULL,
+      cardApiId VARCHAR(200),
+      cardName VARCHAR(200) NOT NULL,
+      cardNameJa VARCHAR(200),
+      setName VARCHAR(200),
+      setNumber VARCHAR(100),
+      rarity VARCHAR(100),
+      officialImageUrl TEXT,
+      \`condition\` VARCHAR(20) NOT NULL DEFAULT 'NM',
+      isGraded TINYINT(1) DEFAULT 0,
+      gradingOrg VARCHAR(20),
+      gradeScore VARCHAR(10),
+      priceHKD INT NOT NULL,
+      photoUrlsJson TEXT,
+      description TEXT,
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      views INT DEFAULT 0,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardWantToBuy (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      userId INT NOT NULL,
+      game VARCHAR(50) NOT NULL,
+      cardApiId VARCHAR(200),
+      cardName VARCHAR(200) NOT NULL,
+      cardNameJa VARCHAR(200),
+      setName VARCHAR(200),
+      setNumber VARCHAR(100),
+      officialImageUrl TEXT,
+      maxPriceHKD INT,
+      minCondition VARCHAR(20),
+      notes TEXT,
+      isActive TINYINT(1) DEFAULT 1,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardTransactions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      listingId INT NOT NULL,
+      sellerId INT NOT NULL,
+      soldPriceHKD INT NOT NULL,
+      soldAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+export async function getCardListings(opts: {
+  game?: string; status?: string; userId?: number;
+  cardApiId?: string; cardName?: string;
+  limit?: number; offset?: number;
+}) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const where: string[] = [];
+  const params: any[] = [];
+  if (opts.game) { where.push('l.game = ?'); params.push(opts.game); }
+  if (opts.status) { where.push('l.status = ?'); params.push(opts.status); }
+  if (opts.userId) { where.push('l.userId = ?'); params.push(opts.userId); }
+  if (opts.cardApiId) { where.push('l.cardApiId = ?'); params.push(opts.cardApiId); }
+  if (opts.cardName) { where.push('l.cardName LIKE ?'); params.push(`%${opts.cardName}%`); }
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const limit = opts.limit ?? 20;
+  const offset = opts.offset ?? 0;
+  params.push(limit, offset);
+  const [rows]: any = await pool.execute(
+    `SELECT l.*, u.name as sellerName
+     FROM cardListings l
+     LEFT JOIN users u ON u.id = l.userId
+     ${whereClause}
+     ORDER BY l.createdAt DESC
+     LIMIT ? OFFSET ?`,
+    params
+  );
+  return (Array.isArray(rows[0]) ? rows[0] : rows).map((r: any) => ({
+    ...r,
+    isGraded: Boolean(r.isGraded),
+    photoUrls: (() => { try { return JSON.parse(r.photoUrlsJson || '[]'); } catch { return []; } })(),
+  }));
+}
+
+export async function getCardListingById(id: number) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT l.*, u.name as sellerName, u.photoUrl as sellerPhoto
+     FROM cardListings l
+     LEFT JOIN users u ON u.id = l.userId
+     WHERE l.id = ? LIMIT 1`,
+    [id]
+  );
+  const r = (Array.isArray(rows[0]) ? rows[0] : rows)[0];
+  if (!r) return null;
+  return {
+    ...r,
+    isGraded: Boolean(r.isGraded),
+    photoUrls: (() => { try { return JSON.parse(r.photoUrlsJson || '[]'); } catch { return []; } })(),
+  };
+}
+
+export async function createCardListing(data: {
+  userId: number; game: string; cardApiId?: string | null;
+  cardName: string; cardNameJa?: string | null; setName?: string | null;
+  setNumber?: string | null; rarity?: string | null; officialImageUrl?: string | null;
+  condition: string; isGraded: boolean; gradingOrg?: string | null; gradeScore?: string | null;
+  priceHKD: number; photoUrls: string[]; description?: string | null;
+}) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [res]: any = await pool.execute(
+    `INSERT INTO cardListings
+     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, rarity, officialImageUrl,
+      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      data.userId, data.game, data.cardApiId ?? null,
+      data.cardName, data.cardNameJa ?? null, data.setName ?? null,
+      data.setNumber ?? null, data.rarity ?? null, data.officialImageUrl ?? null,
+      data.condition, data.isGraded ? 1 : 0, data.gradingOrg ?? null,
+      data.gradeScore ?? null, data.priceHKD,
+      JSON.stringify(data.photoUrls), data.description ?? null,
+    ]
+  );
+  return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
+}
+
+export async function updateCardListing(id: number, userId: number, updates: {
+  priceHKD?: number; description?: string | null; status?: string; photoUrls?: string[];
+}) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const sets: string[] = [];
+  const params: any[] = [];
+  if (updates.priceHKD !== undefined) { sets.push('priceHKD = ?'); params.push(updates.priceHKD); }
+  if (updates.description !== undefined) { sets.push('description = ?'); params.push(updates.description); }
+  if (updates.status !== undefined) { sets.push('status = ?'); params.push(updates.status); }
+  if (updates.photoUrls !== undefined) { sets.push('photoUrlsJson = ?'); params.push(JSON.stringify(updates.photoUrls)); }
+  if (!sets.length) return;
+  params.push(id, userId);
+  await pool.execute(`UPDATE cardListings SET ${sets.join(', ')} WHERE id = ? AND userId = ?`, params);
+}
+
+export async function markCardListingSold(id: number, userId: number) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute('SELECT * FROM cardListings WHERE id = ? AND userId = ? LIMIT 1', [id, userId]);
+  const listing = (Array.isArray(rows[0]) ? rows[0] : rows)[0];
+  if (!listing) return { ok: false, error: '找不到此上架記錄' };
+  if (listing.status === 'sold') return { ok: false, error: '已標記為已售出' };
+  await pool.execute("UPDATE cardListings SET status = 'sold' WHERE id = ?", [id]);
+  await pool.execute(
+    'INSERT INTO cardTransactions (listingId, sellerId, soldPriceHKD) VALUES (?,?,?)',
+    [id, userId, listing.priceHKD]
+  );
+  return { ok: true };
+}
+
+export async function incrementCardListingViews(id: number) {
+  const pool = await getRawPool();
+  await pool.execute('UPDATE cardListings SET views = views + 1 WHERE id = ?', [id]).catch(() => {});
+}
+
+export async function createCardWTB(data: {
+  userId: number; game: string; cardApiId?: string | null;
+  cardName: string; cardNameJa?: string | null; setName?: string | null;
+  setNumber?: string | null; officialImageUrl?: string | null;
+  maxPriceHKD?: number | null; minCondition?: string | null; notes?: string | null;
+}) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [res]: any = await pool.execute(
+    `INSERT INTO cardWantToBuy
+     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      data.userId, data.game, data.cardApiId ?? null,
+      data.cardName, data.cardNameJa ?? null, data.setName ?? null,
+      data.setNumber ?? null, data.officialImageUrl ?? null,
+      data.maxPriceHKD ?? null, data.minCondition ?? null, data.notes ?? null,
+    ]
+  );
+  return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
+}
+
+export async function getCardWTBs(opts: { userId?: number; game?: string; isActive?: boolean; limit?: number; offset?: number }) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const where: string[] = [];
+  const params: any[] = [];
+  if (opts.userId !== undefined) { where.push('w.userId = ?'); params.push(opts.userId); }
+  if (opts.game) { where.push('w.game = ?'); params.push(opts.game); }
+  if (opts.isActive !== undefined) { where.push('w.isActive = ?'); params.push(opts.isActive ? 1 : 0); }
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const limit = opts.limit ?? 30;
+  const offset = opts.offset ?? 0;
+  params.push(limit, offset);
+  const [rows]: any = await pool.execute(
+    `SELECT w.*, u.name as buyerName FROM cardWantToBuy w
+     LEFT JOIN users u ON u.id = w.userId
+     ${whereClause}
+     ORDER BY w.createdAt DESC LIMIT ? OFFSET ?`,
+    params
+  );
+  return Array.isArray(rows[0]) ? rows[0] : rows;
+}
+
+export async function deactivateCardWTB(id: number, userId: number) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute('UPDATE cardWantToBuy SET isActive = 0 WHERE id = ? AND userId = ?', [id, userId]);
+}
+
+export async function getMatchingWTBsForListing(game: string, cardApiId?: string | null, cardName?: string) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const where = ['w.isActive = 1', 'w.game = ?'];
+  const params: any[] = [game];
+  if (cardApiId) { where.push('w.cardApiId = ?'); params.push(cardApiId); }
+  else if (cardName) { where.push('w.cardName LIKE ?'); params.push(`%${cardName}%`); }
+  const [rows]: any = await pool.execute(
+    `SELECT w.userId FROM cardWantToBuy w WHERE ${where.join(' AND ')} LIMIT 50`,
+    params
+  );
+  return (Array.isArray(rows[0]) ? rows[0] : rows) as { userId: number }[];
+}

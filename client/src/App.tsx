@@ -84,6 +84,9 @@ import VirtualStore from "./pages/VirtualStore";
 import CoinAnalysis from "./pages/CoinAnalysis";
 import CardZzz from "./pages/PokeLover";
 import PokeCollection from "./pages/PokeCollection";
+import CardMarket from "./pages/CardMarket";
+import CardMarketSell from "./pages/CardMarketSell";
+import CardMarketMy from "./pages/CardMarketMy";
 import Messages from "./pages/Messages";
 import ChatRoom from "./pages/ChatRoom";
 import MerchantGallery from "./pages/MerchantGallery";
@@ -249,6 +252,10 @@ function Router() {
       <Route path={"/coin-analysis"} component={CoinAnalysis} />
       <Route path={"/cardzzz"} component={CardZzz} />
       <Route path={"/cardzzz/collection"} component={PokeCollection} />
+      <Route path={"/cardzzz/market"} component={CardMarket} />
+      <Route path={"/cardzzz/market/sell"} component={CardMarketSell} />
+      <Route path={"/cardzzz/market/wtb"} component={CardMarketSell} />
+      <Route path={"/cardzzz/market/my"} component={CardMarketMy} />
       <Route path={"/messages"} component={Messages} />
       <Route path={"/messages/:roomId"} component={ChatRoom} />
       <Route path={"/404"} component={NotFound} />

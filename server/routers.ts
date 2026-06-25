@@ -13530,6 +13530,291 @@ EXAMPLE OUTPUT (exact format):
         return { created: totalCreated };
       }),
   }),
+  cardTrading: router({
+    // ── 外部卡牌 API 搜尋 ───────────────────────────────────────────────────
+    searchCards: protectedProcedure
+      .input(z.object({
+        game: z.enum(['pokemon', 'yugioh', 'mtg', 'digimon', 'onepiece', 'dragonball', 'other']),
+        query: z.string().min(1).max(100),
+      }))
+      .query(async ({ input }) => {
+        interface CardResult {
+          cardApiId: string; cardName: string; cardNameJa?: string;
+          setName?: string; setNumber?: string; rarity?: string; officialImageUrl?: string;
+        }
+        const q = encodeURIComponent(input.query.trim());
+        try {
+          if (input.game === 'pokemon') {
+            const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${q}"&pageSize=20`);
+            const json = await res.json() as any;
+            return (json.data ?? []).map((c: any): CardResult => ({
+              cardApiId: c.id, cardName: c.name,
+              setName: c.set?.name, setNumber: c.number,
+              rarity: c.rarity, officialImageUrl: c.images?.large ?? c.images?.small,
+            }));
+          }
+          if (input.game === 'yugioh') {
+            const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${q}&num=20&offset=0`);
+            const json = await res.json() as any;
+            return ((json.data ?? [])).map((c: any): CardResult => ({
+              cardApiId: String(c.id), cardName: c.name,
+              setName: c.card_sets?.[0]?.set_name,
+              setNumber: c.card_sets?.[0]?.set_code,
+              rarity: c.card_sets?.[0]?.set_rarity,
+              officialImageUrl: c.card_images?.[0]?.image_url,
+            }));
+          }
+          if (input.game === 'mtg') {
+            const res = await fetch(`https://api.scryfall.com/cards/search?q=${q}&limit=20`);
+            const json = await res.json() as any;
+            return ((json.data ?? [])).map((c: any): CardResult => ({
+              cardApiId: c.id, cardName: c.name,
+              setName: c.set_name, setNumber: c.collector_number,
+              rarity: c.rarity,
+              officialImageUrl: c.image_uris?.normal ?? c.image_uris?.large
+                ?? c.card_faces?.[0]?.image_uris?.normal,
+            }));
+          }
+          if (input.game === 'digimon') {
+            const res = await fetch(`https://digimoncard.io/api-public/search.php?keyword=${q}&sort=name&sortdirection=desc&num=20`);
+            const json = await res.json() as any;
+            return ((Array.isArray(json) ? json : [])).map((c: any): CardResult => ({
+              cardApiId: c.cardnumber ?? c.id ?? String(Math.random()),
+              cardName: c.name,
+              setName: c.set_name ?? c.block_name,
+              setNumber: c.cardnumber,
+              rarity: c.rarity,
+              officialImageUrl: c.image_url,
+            }));
+          }
+          // onepiece, dragonball, other → no external API, manual entry
+          return [];
+        } catch {
+          return [];
+        }
+      }),
+
+    // ── S3 presigned upload ──────────────────────────────────────────────────
+    signPhotoUpload: protectedProcedure
+      .input(z.object({
+        mimeType: z.string().default('image/jpeg'),
+        fileName: z.string().default('card.jpg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const mime = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此格式（${mime}）` });
+        }
+        const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `card-listings/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 300);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl, key: signed.key };
+      }),
+
+    // ── Listing CRUD ─────────────────────────────────────────────────────────
+    createListing: protectedProcedure
+      .input(z.object({
+        game: z.enum(['pokemon', 'yugioh', 'mtg', 'digimon', 'onepiece', 'dragonball', 'other']),
+        cardApiId: z.string().optional(),
+        cardName: z.string().min(1).max(200),
+        cardNameJa: z.string().max(200).optional(),
+        setName: z.string().max(200).optional(),
+        setNumber: z.string().max(100).optional(),
+        rarity: z.string().max(100).optional(),
+        officialImageUrl: z.string().url().optional().or(z.literal('')),
+        condition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']),
+        isGraded: z.boolean().default(false),
+        gradingOrg: z.string().max(20).optional(),
+        gradeScore: z.string().max(10).optional(),
+        priceHKD: z.number().int().min(1),
+        photoUrls: z.array(z.string()).max(6),
+        description: z.string().max(1000).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const {
+          createCardListing, getMatchingWTBsForListing,
+        } = await import('./db');
+        const result = await createCardListing({
+          userId: ctx.user.id,
+          game: input.game,
+          cardApiId: input.cardApiId ?? null,
+          cardName: input.cardName,
+          cardNameJa: input.cardNameJa ?? null,
+          setName: input.setName ?? null,
+          setNumber: input.setNumber ?? null,
+          rarity: input.rarity ?? null,
+          officialImageUrl: input.officialImageUrl || null,
+          condition: input.condition,
+          isGraded: input.isGraded,
+          gradingOrg: input.gradingOrg ?? null,
+          gradeScore: input.gradeScore ?? null,
+          priceHKD: input.priceHKD,
+          photoUrls: input.photoUrls,
+          description: input.description ?? null,
+        });
+        // Notify WTB users
+        try {
+          const wtbUsers = await getMatchingWTBsForListing(input.game, input.cardApiId ?? null, input.cardName);
+          const gameLabels: Record<string, string> = {
+            pokemon: 'Pokémon', yugioh: '遊戲王', mtg: 'MTG',
+            digimon: '數碼暴龍', onepiece: '航海王', dragonball: '龍珠', other: '其他',
+          };
+          const gameLabel = gameLabels[input.game] ?? input.game;
+          for (const { userId } of wtbUsers) {
+            if (userId === ctx.user.id) continue;
+            sendPushToUser(userId, {
+              title: `🃏 CardZzz 有新上架`,
+              body: `${gameLabel}｜${input.cardName}｜HKD $${input.priceHKD}`,
+              url: `/cardzzz/market`,
+            }).catch(() => {});
+          }
+        } catch { /* ignore */ }
+        return { id: result.id };
+      }),
+
+    getListings: publicProcedure
+      .input(z.object({
+        game: z.string().optional(),
+        cardName: z.string().optional(),
+        cardApiId: z.string().optional(),
+        limit: z.number().int().min(1).max(50).default(20),
+        offset: z.number().int().min(0).default(0),
+      }))
+      .query(async ({ input }) => {
+        const { getCardListings } = await import('./db');
+        return getCardListings({
+          game: input.game || undefined,
+          status: 'active',
+          cardName: input.cardName || undefined,
+          cardApiId: input.cardApiId || undefined,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+
+    getListingById: publicProcedure
+      .input(z.object({ id: z.number().int() }))
+      .query(async ({ input }) => {
+        const { getCardListingById, incrementCardListingViews } = await import('./db');
+        const listing = await getCardListingById(input.id);
+        if (!listing) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到此上架記錄' });
+        incrementCardListingViews(input.id).catch(() => {});
+        return listing;
+      }),
+
+    updateListing: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        priceHKD: z.number().int().min(1).optional(),
+        description: z.string().max(1000).optional(),
+        photoUrls: z.array(z.string()).max(6).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { updateCardListing } = await import('./db');
+        await updateCardListing(input.id, ctx.user.id, {
+          priceHKD: input.priceHKD,
+          description: input.description,
+          photoUrls: input.photoUrls,
+        });
+        return { ok: true };
+      }),
+
+    removeListing: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { updateCardListing } = await import('./db');
+        await updateCardListing(input.id, ctx.user.id, { status: 'removed' });
+        return { ok: true };
+      }),
+
+    markSold: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { markCardListingSold } = await import('./db');
+        return markCardListingSold(input.id, ctx.user.id);
+      }),
+
+    getMyListings: protectedProcedure
+      .input(z.object({
+        status: z.string().optional(),
+        limit: z.number().int().min(1).max(50).default(20),
+        offset: z.number().int().min(0).default(0),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { getCardListings } = await import('./db');
+        return getCardListings({
+          userId: ctx.user.id,
+          status: input.status || undefined,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+
+    // ── WTB (Want To Buy) ────────────────────────────────────────────────────
+    createWTB: protectedProcedure
+      .input(z.object({
+        game: z.enum(['pokemon', 'yugioh', 'mtg', 'digimon', 'onepiece', 'dragonball', 'other']),
+        cardApiId: z.string().optional(),
+        cardName: z.string().min(1).max(200),
+        cardNameJa: z.string().max(200).optional(),
+        setName: z.string().max(200).optional(),
+        setNumber: z.string().max(100).optional(),
+        officialImageUrl: z.string().url().optional().or(z.literal('')),
+        maxPriceHKD: z.number().int().min(1).optional(),
+        minCondition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']).optional(),
+        notes: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createCardWTB } = await import('./db');
+        const result = await createCardWTB({
+          userId: ctx.user.id, game: input.game,
+          cardApiId: input.cardApiId ?? null, cardName: input.cardName,
+          cardNameJa: input.cardNameJa ?? null, setName: input.setName ?? null,
+          setNumber: input.setNumber ?? null,
+          officialImageUrl: input.officialImageUrl || null,
+          maxPriceHKD: input.maxPriceHKD ?? null,
+          minCondition: input.minCondition ?? null,
+          notes: input.notes ?? null,
+        });
+        return { id: result.id };
+      }),
+
+    getWTBs: publicProcedure
+      .input(z.object({
+        game: z.string().optional(),
+        limit: z.number().int().min(1).max(50).default(30),
+        offset: z.number().int().min(0).default(0),
+      }))
+      .query(async ({ input }) => {
+        const { getCardWTBs } = await import('./db');
+        return getCardWTBs({
+          game: input.game || undefined,
+          isActive: true,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+
+    getMyWTBs: protectedProcedure
+      .input(z.object({
+        limit: z.number().int().min(1).max(50).default(30),
+        offset: z.number().int().min(0).default(0),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { getCardWTBs } = await import('./db');
+        return getCardWTBs({ userId: ctx.user.id, limit: input.limit, offset: input.offset });
+      }),
+
+    deactivateWTB: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { deactivateCardWTB } = await import('./db');
+        await deactivateCardWTB(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 
