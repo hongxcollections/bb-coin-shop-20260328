@@ -456,42 +456,60 @@ function CombinedHeroCarousel({
     if (myMerchantApp?.status === "pending") { e.preventDefault(); toast.info("你嘅商戶申請正在審核中，請耐心等候"); }
   };
 
-  // 三合一 shuffle — 每次 products/auctions/galleries 數據就緒後重新隨機
-  const allItems = useMemo(() => {
+  // 三合一 shuffle — 只在首次有資料時 shuffle 一次，之後 refetch 不重新洗牌
+  const stableItemsRef = useRef<any[]>([]);
+  const [allItems, setAllItems] = useState<any[]>([]);
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedRef.current) return;
     const tagged = [
       ...products.map(p => ({ ...p, _type: 'product' as const })),
       ...auctions.map(a => ({ ...a, _type: 'auction' as const })),
       ...galleries.map(g => ({ ...g, _type: 'gallery' as const })),
     ];
+    if (tagged.length === 0) return;
     for (let i = tagged.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
     }
-    return tagged;
+    stableItemsRef.current = tagged;
+    setAllItems(tagged);
+    initializedRef.current = true;
   }, [products, auctions, galleries]);
 
-  const [itemIdx, setItemIdx] = useState(0);
+  // displayItem 只在 fade-out 完成後才 swap，確保唔會中途閃現新內容
+  const [displayItem, setDisplayItem] = useState<any | null>(null);
+  const [dotIdx, setDotIdx] = useState(0);
   const [visible, setVisible] = useState(true);
-  const itemIdxRef = useRef(itemIdx);
-  const allItemsRef = useRef(allItems);
-  itemIdxRef.current = itemIdx;
-  allItemsRef.current = allItems;
+  const idxRef = useRef(0);
+  const transitioningRef = useRef(false);
+
+  useEffect(() => {
+    if (allItems.length > 0 && !displayItem) {
+      setDisplayItem(allItems[0]);
+    }
+  }, [allItems, displayItem]);
 
   useEffect(() => {
     if (allItems.length <= 1) return;
     const timer = setInterval(() => {
+      if (transitioningRef.current) return;
+      transitioningRef.current = true;
       setVisible(false);
       setTimeout(() => {
-        setItemIdx(i => (i + 1) % allItemsRef.current.length);
+        idxRef.current = (idxRef.current + 1) % allItems.length;
+        setDisplayItem(allItems[idxRef.current]);
+        setDotIdx(idxRef.current);
         setVisible(true);
-      }, 550);
+        transitioningRef.current = false;
+      }, 600);
     }, 7000);
     return () => clearInterval(timer);
-  }, [allItems.length]);
+  }, [allItems]);
 
-  if (allItems.length === 0) return null;
-  const currentItem = allItems[Math.min(itemIdx, allItems.length - 1)];
-  if (!currentItem) return null;
+  if (!displayItem) return null;
+  const currentItem = displayItem;
 
   const labelMap = { product: "🏪 精選出售商品", auction: "🔨 精選拍品", gallery: "🖼️ 商戶圖片集" };
   const gradientText = {
@@ -541,7 +559,7 @@ function CombinedHeroCarousel({
                 <span
                   key={i}
                   className={`rounded-full transition-all duration-300 ${
-                    i === itemIdx
+                    i === dotIdx
                       ? item._type === "gallery" ? "w-5 h-2 bg-violet-400"
                         : item._type === "auction" ? "w-5 h-2 bg-amber-400"
                         : "w-5 h-2 bg-orange-400"
