@@ -185,14 +185,21 @@ function HeroSlide({ auction }: { auction: any }) {
 
 function HeroCarousel({ auctions }: { auctions: any[] }) {
   const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
   const total = auctions.length;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const goTo = (i: number) => setIdx((i + total) % total);
+  const fadeTo = (i: number) => {
+    setVisible(false);
+    setTimeout(() => { setIdx((i + total) % total); setVisible(true); }, 450);
+  };
 
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setIdx(p => (p + 1) % total), 5000);
+    timerRef.current = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => { setIdx(p => (p + 1) % total); setVisible(true); }, 450);
+    }, 7000);
   };
 
   useEffect(() => {
@@ -201,27 +208,14 @@ function HeroCarousel({ auctions }: { auctions: any[] }) {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [total]);
 
-  const prev = () => { goTo(idx - 1); resetTimer(); };
-  const next = () => { goTo(idx + 1); resetTimer(); };
+  const prev = () => { fadeTo(idx - 1); resetTimer(); };
+  const next = () => { fadeTo(idx + 1); resetTimer(); };
 
   return (
     <div className="relative w-full select-none" style={{ height: 260 }}>
-      {/* 滑動軌道 */}
-      <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-lg">
-        <div
-          className="flex h-full"
-          style={{
-            width: `${total * 100}%`,
-            transform: `translateX(-${(idx * 100) / total}%)`,
-            transition: "transform 0.45s cubic-bezier(0.4,0,0.2,1)",
-          }}
-        >
-          {auctions.map((a) => (
-            <div key={a.id} style={{ width: `${100 / total}%`, height: "100%" }} className="shrink-0">
-              <HeroSlide auction={a} />
-            </div>
-          ))}
-        </div>
+      <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-lg"
+        style={{ opacity: visible ? 1 : 0, transition: "opacity 0.45s ease-in-out" }}>
+        {auctions[idx] && <HeroSlide auction={auctions[idx]} />}
       </div>
 
       {/* 左右箭頭（>1 項時顯示） */}
@@ -377,13 +371,20 @@ function GalleryHeroSlide({ gallery }: { gallery: any }) {
 
 function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: any) => void }) {
   const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
   const total = products.length;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const goTo = (i: number) => setIdx((i + total) % total);
+  const fadeTo = (i: number) => {
+    setVisible(false);
+    setTimeout(() => { setIdx((i + total) % total); setVisible(true); }, 450);
+  };
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setIdx(p => (p + 1) % total), 5000);
+    timerRef.current = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => { setIdx(p => (p + 1) % total); setVisible(true); }, 450);
+    }, 7000);
   };
 
   useEffect(() => {
@@ -392,24 +393,14 @@ function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [total]);
 
-  const prev = () => { goTo(idx - 1); resetTimer(); };
-  const next = () => { goTo(idx + 1); resetTimer(); };
+  const prev = () => { fadeTo(idx - 1); resetTimer(); };
+  const next = () => { fadeTo(idx + 1); resetTimer(); };
 
   return (
     <div className="relative w-full select-none" style={{ height: 260 }}>
-      <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-lg">
-        <div className="flex h-full"
-          style={{
-            width: `${total * 100}%`,
-            transform: `translateX(-${(idx * 100) / total}%)`,
-            transition: "transform 0.45s cubic-bezier(0.4,0,0.2,1)",
-          }}>
-          {products.map((p) => (
-            <div key={p.id} style={{ width: `${100 / total}%`, height: "100%" }} className="shrink-0">
-              <ProductHeroSlide product={p} onBuy={onBuy} />
-            </div>
-          ))}
-        </div>
+      <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-lg"
+        style={{ opacity: visible ? 1 : 0, transition: "opacity 0.45s ease-in-out" }}>
+        {products[idx] && <ProductHeroSlide product={products[idx]} onBuy={onBuy} />}
       </div>
       {total > 1 && (
         <>
@@ -494,7 +485,7 @@ function CombinedHeroCarousel({
         setItemIdx(i => (i + 1) % allItemsRef.current.length);
         setVisible(true);
       }, 550);
-    }, 5000);
+    }, 7000);
     return () => clearInterval(timer);
   }, [allItems.length]);
 
@@ -514,7 +505,7 @@ function CombinedHeroCarousel({
     <section className="pt-1 pb-1">
       <div className="container">
         <div className="flex items-end justify-between mb-1.5 pl-1 pr-1" style={{ paddingTop: 5, paddingBottom: 5 }}>
-          <p className="text-xs font-semibold" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))", minHeight: 16 }}>
+          <p className="text-xs font-semibold" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))", minHeight: 16, opacity: visible ? 1 : 0, transition: "opacity 0.55s ease-in-out" }}>
             <span style={gradientText}>{labelMap[currentItem._type]}</span>
           </p>
           <div className="flex items-end gap-3">
