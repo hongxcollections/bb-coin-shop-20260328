@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
-  EyeOff, Images, FileImage, Check, Download, ExternalLink, LayoutGrid, LayoutList,
+  EyeOff, Images, FileImage, Check, Download, ExternalLink, LayoutGrid, LayoutList, GalleryHorizontal,
 } from "lucide-react";
 import { GalleryShareMenu } from "@/components/ShareMenu";
 
@@ -73,6 +73,141 @@ const compressImage = (file: File, maxPx = 1280, quality = 0.78): Promise<File> 
   });
 
 // ──────────────────────────────────────────────
+// Horizontal Carousel for gallery list view
+// ──────────────────────────────────────────────
+
+function MerchantGalleryCarousel({
+  galleries, pendingCounts, onOpenGallery, onGenerate, onManage,
+}: {
+  galleries: any[];
+  pendingCounts: Record<number, number>;
+  onOpenGallery: (id: number) => void;
+  onGenerate: (g: any) => void;
+  onManage: (id: number) => void;
+}) {
+  const [idx, setIdx] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const total = galleries.length;
+  const goTo = (i: number) => setIdx(Math.max(0, Math.min(i, total - 1)));
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    setIsDragging(true);
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    setDragOffset(e.touches[0].clientX - touchStartX.current);
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    setIsDragging(false);
+    setDragOffset(0);
+    if (dx < -50 && idx < total - 1) goTo(idx + 1);
+    else if (dx > 50 && idx > 0) goTo(idx - 1);
+  };
+
+  if (!galleries[idx]) return null;
+
+  return (
+    <div className="select-none">
+      <div
+        style={{ overflow: "hidden" }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div style={{
+          display: "flex",
+          transform: `translateX(calc(${-idx * 100}% + ${dragOffset}px))`,
+          transition: isDragging ? "none" : "transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)",
+        }}>
+          {galleries.map((g) => {
+            const hasPending = (pendingCounts[g.id] ?? 0) > 0;
+            return (
+              <div key={g.id} style={{ minWidth: "100%" }} className="px-1">
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  {/* Cover image */}
+                  <div className="relative" style={{ height: 170 }}>
+                    {g.coverImageUrl ? (
+                      <img src={g.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-50 to-sky-50">
+                        <Images className="w-14 h-14 text-indigo-200" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 55%)" }} />
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-white font-bold text-sm leading-snug line-clamp-2 drop-shadow">{g.title}</p>
+                    </div>
+                    <div className="absolute top-2 left-2">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[g.status] ?? ''}`}>
+                        {STATUS_LABELS[g.status] ?? g.status}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Action bar */}
+                  <div className="flex items-center justify-between px-3 py-2.5 gap-2">
+                    <span className="text-xs text-gray-400">{g.activeItemCount} 張圖 · {g.columnsPerRow} 列</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onOpenGallery(g.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200"
+                      >
+                        <Images className="w-3 h-3" />
+                        圖片集
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onGenerate(g)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white"
+                        style={{ backgroundImage: "linear-gradient(180deg,#FBBF24 0%,#78350F 100%)" }}
+                      >
+                        <Images className="w-3 h-3" />
+                        生成
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onManage(g.id)}
+                        className="relative text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200"
+                      >
+                        管理
+                        {hasPending && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {total > 1 && (
+        <div className="flex justify-center gap-1.5 mt-2.5">
+          {galleries.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-indigo-500" : "w-2 h-2 bg-indigo-200"}`}
+              aria-label={`第${i + 1}個`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
 
@@ -82,6 +217,7 @@ export default function MerchantGallery() {
   const [, navigate] = useLocation();
 
   const [view, setView] = useState<View>('list');
+  const [galleryListView, setGalleryListView] = useState<'horizontal' | 'vertical'>('horizontal');
   const [editTab, setEditTab] = useState<EditTab>('info');
   const [editGalleryId, setEditGalleryId] = useState<number | null>(null);
 
@@ -1058,6 +1194,26 @@ export default function MerchantGallery() {
               <ChevronLeft className="w-5 h-5 text-gray-600" />
             </Link>
             <h1 className="text-lg font-bold text-gray-900 flex-1">圖片集商品</h1>
+            {galleries.length > 0 && (
+              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setGalleryListView('horizontal')}
+                  className={`flex items-center justify-center w-7 h-7 rounded-md transition-all ${galleryListView === 'horizontal' ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                  aria-label="橫向輪播"
+                >
+                  <GalleryHorizontal className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGalleryListView('vertical')}
+                  className={`flex items-center justify-center w-7 h-7 rounded-md transition-all ${galleryListView === 'vertical' ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                  aria-label="垂直列表"
+                >
+                  <LayoutList className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           <button
@@ -1077,6 +1233,14 @@ export default function MerchantGallery() {
               <p className="text-gray-400 text-sm">未有圖片集</p>
               <p className="text-gray-300 text-xs mt-1">建立第一個圖片集，批量展示商品</p>
             </div>
+          ) : galleryListView === 'horizontal' ? (
+            <MerchantGalleryCarousel
+              galleries={galleries}
+              pendingCounts={pendingCounts}
+              onOpenGallery={(id) => navigate(`/gallery/${id}`)}
+              onGenerate={(g) => { setPosterCancelNav('list'); openEdit(g.id); setShowPosterModal(true); }}
+              onManage={(id) => openEdit(id)}
+            />
           ) : (
             <div className="space-y-3">
               {galleries.map(g => (
