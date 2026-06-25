@@ -322,15 +322,15 @@ export default function MerchantDashboard() {
     enabled: isAuthenticated,
     refetchInterval: 60_000,
   });
-  const { data: myGalleries } = trpc.productGalleries.myGalleries.useQuery(undefined, {
-    enabled: isAuthenticated,
-    staleTime: 60_000,
-  });
-  const galleryCount = (myGalleries as any[] | undefined)?.length ?? 0;
-
   const { data: myApp, isLoading: loadingApp } = trpc.merchants.myApplication.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  const { data: myGalleries } = trpc.productGalleries.myGalleries.useQuery(undefined, {
+    enabled: isAuthenticated && myApp?.status === 'approved',
+    staleTime: 60_000,
+  });
+  const galleryCount = (myGalleries as any[] | undefined)?.length ?? 0;
   const { data: deposit, isLoading: loadingDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, {
     enabled: isAuthenticated,
   });
