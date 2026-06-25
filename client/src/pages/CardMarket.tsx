@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Tag, Eye, ChevronRight } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame } from "lucide-react";
 
 const GAMES = [
   { id: "", label: "全部" },
@@ -34,6 +34,32 @@ function timeAgo(dateStr: string | Date) {
   return `${Math.floor(hrs / 24)}日前`;
 }
 
+function getRarityShort(rarity: string | null | undefined): string | null {
+  if (!rarity) return null;
+  const r = rarity.toLowerCase();
+  if (r.includes("special illustration")) return "SAR";
+  if (r.includes("illustration rare")) return "IR";
+  if (r.includes("amazing rare")) return "AR";
+  if (r.includes("hyper rare")) return "HR";
+  if (r.includes("double rare")) return "RR";
+  if (r.includes("ultra rare")) return "UR";
+  if (r.includes("secret rare")) return "SR";
+  if (r.includes("rainbow rare")) return "RR";
+  if (r.includes("gold rare")) return "GR";
+  if (r.includes("starlight")) return "StR";
+  if (r.includes("super rare")) return "SR";
+  if (r.includes("full art")) return "FA";
+  if (r.includes("promo")) return "PR";
+  if (r.includes("ace spec")) return "ACE";
+  if (r.includes("trainer gallery")) return "TG";
+  if (r.includes("shiny rare")) return "SIR";
+  if (r.includes("uncommon")) return "U";
+  if (r.includes("common")) return "C";
+  if (r.includes("rare")) return "R";
+  if (rarity.length <= 4) return rarity.toUpperCase();
+  return rarity.substring(0, 3).toUpperCase();
+}
+
 interface Listing {
   id: number; userId: number; game: string;
   cardApiId: string | null; cardName: string; cardNameJa: string | null;
@@ -44,9 +70,63 @@ interface Listing {
   status: string; views: number; createdAt: string; sellerName: string | null;
 }
 
+function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }) {
+  const img = listing.photoUrls[0] ?? listing.officialImageUrl;
+  const rarityBadge = getRarityShort(listing.rarity);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex-shrink-0 flex flex-col rounded-2xl overflow-hidden text-left"
+      style={{ width: 148, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
+    >
+      <div className="relative" style={{ height: 200 }}>
+        {img ? (
+          <img src={img} alt={listing.cardName} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(255,222,0,0.05)" }}>
+            <span style={{ fontSize: 52 }}>🃏</span>
+          </div>
+        )}
+        {rarityBadge && (
+          <div className="absolute top-1.5 right-1.5">
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.82)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}>
+              {rarityBadge}
+            </span>
+          </div>
+        )}
+        <div className="absolute top-1.5 left-1.5">
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.7)", color: "rgba(255,255,255,0.7)" }}>
+            {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
+          </span>
+        </div>
+      </div>
+      <div className="p-2.5">
+        <p className="text-xs font-black leading-tight line-clamp-2 mb-1.5" style={{ color: "#fff" }}>{listing.cardName}</p>
+        {listing.setName && (
+          <p className="text-[10px] line-clamp-1 mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+            {listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}
+          </p>
+        )}
+        <p className="text-sm font-black" style={{ color: "#FFDE00" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+            成交 {listing.status === "sold" ? 1 : 0}
+          </span>
+          <div className="flex items-center gap-0.5">
+            <Eye className="w-2.5 h-2.5" style={{ color: "rgba(255,255,255,0.25)" }} />
+            <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>{listing.views}</span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => void }) {
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#9C27B0" };
   const img = listing.photoUrls[0] ?? listing.officialImageUrl;
+  const rarityBadge = getRarityShort(listing.rarity);
   return (
     <button
       type="button"
@@ -67,6 +147,13 @@ function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => vo
             {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.label}
           </span>
         </div>
+        {rarityBadge && (
+          <div className="absolute top-1.5 right-1.5">
+            <span className="text-[9px] font-black px-1 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.75)", color: "#FFDE00" }}>
+              {rarityBadge}
+            </span>
+          </div>
+        )}
       </div>
       <div className="p-2">
         <p className="text-xs font-black leading-tight line-clamp-2 mb-1" style={{ color: "#FFDE00" }}>{listing.cardName}</p>
@@ -122,6 +209,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheet) {
   const [photoIdx, setPhotoIdx] = useState(0);
   const photos = listing.photoUrls.length ? listing.photoUrls : (listing.officialImageUrl ? [listing.officialImageUrl] : []);
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#9C27B0" };
+  const rarityBadge = getRarityShort(listing.rarity);
 
   function handleContact() {
     if (!isAuthenticated) { toast.info("請先登入"); return; }
@@ -147,7 +235,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheet) {
         <div className="overflow-y-auto flex-1 px-4 pb-24">
           {photos.length > 0 && (
             <div className="mb-4">
-              <img src={photos[photoIdx]} alt="" className="w-full rounded-2xl object-contain" style={{ maxHeight: 240, background: "rgba(255,255,255,0.04)" }} />
+              <img src={photos[photoIdx]} alt="" className="w-full rounded-2xl object-contain" style={{ maxHeight: 260, background: "rgba(255,255,255,0.04)" }} />
               {photos.length > 1 && (
                 <div className="flex gap-1.5 mt-2 justify-center">
                   {photos.map((p, i) => (
@@ -162,11 +250,18 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheet) {
 
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex-1 min-w-0">
-              {listing.game && (
-                <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-1" style={{ background: "rgba(255,222,0,0.12)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.25)" }}>
-                  {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
-                </span>
-              )}
+              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                {listing.game && (
+                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.12)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.25)" }}>
+                    {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
+                  </span>
+                )}
+                {rarityBadge && (
+                  <span className="inline-block text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(255,222,0,0.08)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.2)" }}>
+                    {rarityBadge}
+                  </span>
+                )}
+              </div>
               <h3 className="text-xl font-black leading-tight" style={{ color: "#fff" }}>{listing.cardName}</h3>
               {listing.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{listing.cardNameJa}</p>}
               {listing.setName && <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
@@ -233,10 +328,10 @@ export default function CardMarket() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showWTB, setShowWTB] = useState(false);
 
-  const { data: listings = [], isLoading } = trpc.cardTrading.getListings.useQuery({
+  const { data: allListings = [], isLoading } = trpc.cardTrading.getListings.useQuery({
     game: game || undefined,
     cardName: search || undefined,
-    limit: 40,
+    limit: 50,
     offset: 0,
   }, { staleTime: 30000 });
 
@@ -245,6 +340,10 @@ export default function CardMarket() {
     limit: 20,
     offset: 0,
   }, { staleTime: 60000 });
+
+  const listings = allListings as Listing[];
+  const hotListings = [...listings].sort((a, b) => b.views - a.views).slice(0, 10);
+  const recentListings = listings;
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -260,26 +359,44 @@ export default function CardMarket() {
       )}
 
       <div className="max-w-lg mx-auto px-4 pt-4">
-        {/* Hero */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#FFDE00", textShadow: "0 2px 8px rgba(255,222,0,0.4)" }}>
-                CardZzz
-              </h1>
-              <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.15)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}>市場</span>
+        {/* Hero Banner */}
+        <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1a1080 0%, #4a0090 50%, #880020 100%)" }}>
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)" }} />
+          <div className="relative z-10">
+            <div className="text-[10px] font-black mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", letterSpacing: "0.1em" }}>
+              PREMIUM TRADING HUB
             </div>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>TCG 卡牌買賣交易平台</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => navigate("/cardzzz/market/my")}
-              className="text-xs px-3 py-1.5 rounded-full font-semibold"
-              style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.12)" }}>
-              我的
+            <h2 className="text-lg font-black leading-tight mb-1" style={{ color: "#fff" }}>
+              免費、極簡、方便快捷<br />全系列圖鑑卡牌交易空間
+            </h2>
+            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.7)" }}>
+              內建完整高清卡牌圖鑑，透明成交，一鍵查價、光速成交
+            </p>
+            <button
+              onClick={() => navigate("/cardzzz/market/sell")}
+              className="text-sm font-black px-4 py-1.5 rounded-full"
+              style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.35)" }}
+            >
+              瀏覽全部系列
             </button>
           </div>
         </div>
+
+        {/* Hot listings carousel */}
+        {hotListings.length > 0 && !search && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame className="w-4 h-4" style={{ color: "#FFDE00" }} />
+              <h2 className="text-sm font-black" style={{ color: "#FFDE00" }}>熱門交易卡牌</h2>
+              <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>1 / {hotListings.length}</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+              {hotListings.map(l => (
+                <HotCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <form onSubmit={handleSearch} className="relative mb-4">
@@ -312,12 +429,19 @@ export default function CardMarket() {
           ))}
         </div>
 
-        {/* Listings grid */}
+        {/* Recent listings */}
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-sm font-black" style={{ color: "rgba(255,255,255,0.7)" }}>最近上架卡牌</span>
+          {recentListings.length > 0 && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}>{recentListings.length}</span>
+          )}
+        </div>
+
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#FFDE00", borderTopColor: "transparent" }} />
+            <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "#FFDE00", borderTopColor: "transparent" }} />
           </div>
-        ) : listings.length === 0 ? (
+        ) : recentListings.length === 0 ? (
           <div className="flex flex-col items-center py-12 gap-3">
             <span style={{ fontSize: 48 }}>🃏</span>
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>暫時未有上架記錄</p>
@@ -331,14 +455,14 @@ export default function CardMarket() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 mb-6">
-            {(listings as Listing[]).map(l => (
+            {recentListings.map(l => (
               <ListingCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />
             ))}
           </div>
         )}
 
         {/* WTB section */}
-        {wtbs.length > 0 && (
+        {(wtbs as WTB[]).length > 0 && (
           <div className="mb-6">
             <button
               className="flex items-center justify-between w-full mb-3"
@@ -347,7 +471,7 @@ export default function CardMarket() {
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4" style={{ color: "#FFDE00" }} />
                 <span className="text-sm font-black" style={{ color: "#FFDE00" }}>求購清單 (WTB)</span>
-                <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.12)", color: "#FFDE00" }}>{wtbs.length}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.12)", color: "#FFDE00" }}>{(wtbs as WTB[]).length}</span>
               </div>
               <ChevronRight className="w-4 h-4 transition-transform" style={{ color: "rgba(255,255,255,0.4)", transform: showWTB ? "rotate(90deg)" : "none" }} />
             </button>
@@ -364,9 +488,9 @@ export default function CardMarket() {
           </div>
         )}
 
-        {/* Empty WTB section promo */}
-        {wtbs.length === 0 && (
-          <div className="mb-6 p-4 rounded-2xl flex items-center justify-between" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+        {/* WTB promo / empty */}
+        {(wtbs as WTB[]).length === 0 && (
+          <div className="mb-5 p-4 rounded-2xl flex items-center justify-between" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div>
               <p className="text-sm font-bold" style={{ color: "#FFDE00" }}>想求購特定卡？</p>
               <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>登記 WTB，有人上架即通知你</p>
@@ -378,6 +502,21 @@ export default function CardMarket() {
             </button>
           </div>
         )}
+
+        {/* Sell CTA */}
+        <div className="mb-6 p-5 rounded-2xl text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <p className="text-base font-black mb-1" style={{ color: "#fff" }}>手邊有珍藏卡牌想要出售？</p>
+          <p className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
+            不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZzz 均可快速上架，直面港台數萬名藏家
+          </p>
+          <button
+            onClick={() => { if (isAuthenticated) navigate("/cardzzz/market/sell"); else navigate("/login"); }}
+            className="px-6 py-2.5 rounded-full font-black text-sm"
+            style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}
+          >
+            立即刊登商品
+          </button>
+        </div>
       </div>
 
       {/* FAB */}

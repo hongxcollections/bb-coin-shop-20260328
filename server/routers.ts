@@ -13594,6 +13594,163 @@ EXAMPLE OUTPUT (exact format):
         }
       }),
 
+    // ── 系列列表（供瀏覽選卡用）──────────────────────────────────────────────
+    getSets: publicProcedure
+      .input(z.object({
+        game: z.enum(['pokemon', 'yugioh', 'mtg', 'digimon']),
+      }))
+      .query(async ({ input }) => {
+        interface SetResult {
+          setId: string; name: string; series?: string;
+          releaseDate?: string; total?: number; logoUrl?: string | null; symbolUrl?: string | null;
+        }
+        try {
+          if (input.game === 'pokemon') {
+            const res = await fetch('https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=250');
+            const json = await res.json() as any;
+            return (json.data ?? []).map((s: any): SetResult => ({
+              setId: s.id, name: s.name, series: s.series,
+              releaseDate: s.releaseDate, total: s.total,
+              logoUrl: s.images?.logo ?? null, symbolUrl: s.images?.symbol ?? null,
+            }));
+          }
+          if (input.game === 'yugioh') {
+            const res = await fetch('https://db.ygoprodeck.com/api/v7/cardsets.php');
+            const json = await res.json() as any;
+            return (Array.isArray(json) ? json : [])
+              .map((s: any): SetResult => ({
+                setId: s.set_name, name: s.set_name, series: s.set_code,
+                releaseDate: s.tcg_date ?? '', total: s.num_of_cards,
+                logoUrl: null, symbolUrl: null,
+              }))
+              .sort((a: SetResult, b: SetResult) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''))
+              .slice(0, 300);
+          }
+          if (input.game === 'mtg') {
+            const res = await fetch('https://api.scryfall.com/sets');
+            const json = await res.json() as any;
+            const validTypes = ['core', 'expansion', 'masters', 'draft_innovation', 'commander', 'funny'];
+            return (json.data ?? [])
+              .filter((s: any) => validTypes.includes(s.set_type) && (s.card_count ?? 0) > 0)
+              .slice(0, 150)
+              .map((s: any): SetResult => ({
+                setId: s.code, name: s.name, series: s.block ?? s.set_type,
+                releaseDate: s.released_at ?? '', total: s.card_count,
+                logoUrl: s.icon_svg_uri ?? null, symbolUrl: s.icon_svg_uri ?? null,
+              }));
+          }
+          if (input.game === 'digimon') {
+            const sets: SetResult[] = [
+              { setId: 'BT1', name: 'BT-01 新生進化', series: 'Booster', releaseDate: '2020-04-24', total: 112 },
+              { setId: 'BT2', name: 'BT-02 究極力量', series: 'Booster', releaseDate: '2020-07-30', total: 112 },
+              { setId: 'BT3', name: 'BT-03 聯合衝擊', series: 'Booster', releaseDate: '2020-10-30', total: 112 },
+              { setId: 'BT4', name: 'BT-04 大傳說', series: 'Booster', releaseDate: '2021-01-29', total: 112 },
+              { setId: 'BT5', name: 'BT-05 究極戰役', series: 'Booster', releaseDate: '2021-04-23', total: 112 },
+              { setId: 'BT6', name: 'BT-06 雙鑽石', series: 'Booster', releaseDate: '2021-07-23', total: 112 },
+              { setId: 'BT7', name: 'BT-07 下一個冒險', series: 'Booster', releaseDate: '2021-11-26', total: 112 },
+              { setId: 'BT8', name: 'BT-08 新英雄', series: 'Booster', releaseDate: '2022-02-25', total: 112 },
+              { setId: 'BT9', name: 'BT-09 X Records', series: 'Booster', releaseDate: '2022-05-27', total: 112 },
+              { setId: 'BT10', name: 'BT-10 Xros相遇', series: 'Booster', releaseDate: '2022-09-30', total: 112 },
+              { setId: 'BT11', name: 'BT-11 次元相位', series: 'Booster', releaseDate: '2022-12-23', total: 112 },
+              { setId: 'BT12', name: 'BT-12 超越時空', series: 'Booster', releaseDate: '2023-03-31', total: 112 },
+              { setId: 'BT13', name: 'BT-13 皇家騎士對決', series: 'Booster', releaseDate: '2023-07-28', total: 112 },
+              { setId: 'BT14', name: 'BT-14 爆�王牌', series: 'Booster', releaseDate: '2023-11-24', total: 112 },
+              { setId: 'BT15', name: 'BT-15 超越啟示錄', series: 'Booster', releaseDate: '2024-03-29', total: 112 },
+              { setId: 'BT16', name: 'BT-16 起源觀察者', series: 'Booster', releaseDate: '2024-07-26', total: 112 },
+              { setId: 'EX1', name: 'EX-01 經典收藏', series: 'Extra', releaseDate: '2022-01-28', total: 61 },
+              { setId: 'EX2', name: 'EX-02 數碼危機', series: 'Extra', releaseDate: '2022-05-27', total: 61 },
+              { setId: 'EX3', name: 'EX-03 龍族咆哮', series: 'Extra', releaseDate: '2022-09-30', total: 61 },
+              { setId: 'EX4', name: 'EX-04 異形存在', series: 'Extra', releaseDate: '2023-03-31', total: 61 },
+            ];
+            return sets.sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
+          }
+          return [];
+        } catch {
+          return [];
+        }
+      }),
+
+    // ── 系列內卡牌列表 ──────────────────────────────────────────────────────
+    getSetCards: publicProcedure
+      .input(z.object({
+        game: z.enum(['pokemon', 'yugioh', 'mtg', 'digimon']),
+        setId: z.string().min(1).max(200),
+        page: z.number().int().min(1).max(30).default(1),
+      }))
+      .query(async ({ input }) => {
+        interface CardResult {
+          cardApiId: string; cardName: string; cardNameJa?: string;
+          setName?: string; setNumber?: string; rarity?: string; officialImageUrl?: string;
+        }
+        const pageSize = 30;
+        try {
+          if (input.game === 'pokemon') {
+            const res = await fetch(
+              `https://api.pokemontcg.io/v2/cards?q=set.id:${encodeURIComponent(input.setId)}&orderBy=number&pageSize=${pageSize}&page=${input.page}`
+            );
+            const json = await res.json() as any;
+            return {
+              cards: (json.data ?? []).map((c: any): CardResult => ({
+                cardApiId: c.id, cardName: c.name,
+                setName: c.set?.name, setNumber: c.number,
+                rarity: c.rarity, officialImageUrl: c.images?.large ?? c.images?.small,
+              })),
+              hasMore: (json.page ?? 1) * pageSize < (json.totalCount ?? 0),
+              total: json.totalCount ?? 0,
+            };
+          }
+          if (input.game === 'yugioh') {
+            const offset = (input.page - 1) * 50;
+            const res = await fetch(
+              `https://db.ygoprodeck.com/api/v7/cards.php?cardset=${encodeURIComponent(input.setId)}&num=50&offset=${offset}`
+            );
+            const json = await res.json() as any;
+            const cards = (json.data ?? []).map((c: any): CardResult => ({
+              cardApiId: String(c.id), cardName: c.name,
+              setName: input.setId,
+              setNumber: c.card_sets?.find((s: any) => s.set_name === input.setId)?.set_code ?? c.card_sets?.[0]?.set_code,
+              rarity: c.card_sets?.find((s: any) => s.set_name === input.setId)?.set_rarity ?? c.card_sets?.[0]?.set_rarity,
+              officialImageUrl: c.card_images?.[0]?.image_url,
+            }));
+            return { cards, hasMore: cards.length === 50, total: cards.length };
+          }
+          if (input.game === 'mtg') {
+            const res = await fetch(
+              `https://api.scryfall.com/cards/search?q=set:${encodeURIComponent(input.setId)}&order=collector_number&dir=asc&page=${input.page}`
+            );
+            const json = await res.json() as any;
+            return {
+              cards: (json.data ?? []).map((c: any): CardResult => ({
+                cardApiId: c.id, cardName: c.name,
+                setName: c.set_name, setNumber: c.collector_number,
+                rarity: c.rarity,
+                officialImageUrl: c.image_uris?.normal ?? c.image_uris?.large
+                  ?? c.card_faces?.[0]?.image_uris?.normal,
+              })),
+              hasMore: json.has_more ?? false,
+              total: json.total_cards ?? 0,
+            };
+          }
+          if (input.game === 'digimon') {
+            const offset = (input.page - 1) * 50;
+            const res = await fetch(
+              `https://digimoncard.io/api-public/search.php?series=${encodeURIComponent(input.setId)}&sort=id&sortdirection=asc&num=50&offset=${offset}`
+            );
+            const json = await res.json() as any;
+            const cards = (Array.isArray(json) ? json : []).map((c: any): CardResult => ({
+              cardApiId: c.cardnumber ?? String(Math.random()),
+              cardName: c.name, setName: input.setId,
+              setNumber: c.cardnumber, rarity: c.rarity,
+              officialImageUrl: c.image_url,
+            }));
+            return { cards, hasMore: cards.length === 50, total: cards.length };
+          }
+          return { cards: [], hasMore: false, total: 0 };
+        } catch {
+          return { cards: [], hasMore: false, total: 0 };
+        }
+      }),
+
     // ── S3 presigned upload ──────────────────────────────────────────────────
     signPhotoUpload: protectedProcedure
       .input(z.object({
