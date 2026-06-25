@@ -242,6 +242,7 @@ function Router() {
       <Route path={"/merchant/group-auctions/:id"} component={GroupAuctionEdit} />
       <Route path={"/merchant/group-auctions"} component={GroupAuctionList} />
       <Route path={"/group/:roundId/flyer"} component={GroupAuctionFlyer} />
+      <Route path={"/group/:roundId/bid"} component={GroupAuctionBidPage} />
       <Route path={"/group/:roundId"} component={GroupAuctionBidPage} />
       <Route path={"/merchant/galleries"} component={MerchantGallery} />
       <Route path={"/gallery/:id"} component={PublicGallery} />
