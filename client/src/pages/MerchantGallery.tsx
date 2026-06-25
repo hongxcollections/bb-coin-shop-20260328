@@ -1193,7 +1193,12 @@ export default function MerchantGallery() {
             <Link href="/merchant-dashboard" className="p-1 rounded-full hover:bg-gray-100">
               <ChevronLeft className="w-5 h-5 text-gray-600" />
             </Link>
-            <h1 className="text-lg font-bold text-gray-900 flex-1">圖片集商品</h1>
+            <h1 className="text-lg font-bold text-gray-900">圖片集商品</h1>
+            {galleries.length > 0 && (
+              <span className="text-xs font-bold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                {galleries.length} 個
+              </span>
+            )}
             {galleries.length > 0 && (
               <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5">
                 <button
