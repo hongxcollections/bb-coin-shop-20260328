@@ -1854,6 +1854,26 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // ── OG 圖片代理（團拍商品）：對應 groupAuctionItems 第一幅圖 ──
+  app.get('/api/og-image-group-item/:itemId', async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.itemId, 10);
+      if (isNaN(itemId) || itemId <= 0) { res.status(400).send('Invalid item ID'); return; }
+      const { getGroupAuctionItemWithRoundForOg } = await import('../db');
+      const item = await getGroupAuctionItemWithRoundForOg(itemId);
+      if (!item || !item.firstImageUrl || item.roundStatus === 'draft') {
+        res.status(404).send('No image'); return;
+      }
+      const result = await fetchAllowlistedImage(item.firstImageUrl);
+      if (!result.ok) { res.status(result.status).send(result.reason); return; }
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Group Item Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   // ── OG 圖片代理（商戶專場）：對應 merchantAuctionSessions.coverImage ──
   app.get('/api/og-image-session/:sessionId', async (req, res) => {
     try {

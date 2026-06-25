@@ -299,6 +299,77 @@ async function injectGroupAuctionOgMeta(html: string, reqPath: string, protocol:
   }
 }
 
+async function injectGroupAuctionItemOgMeta(html: string, reqPath: string, reqQuery: Record<string, string | string[] | undefined>, protocol: string, host: string): Promise<string | null> {
+  const m = reqPath.match(/^\/group\/(\d+)\/bid$/);
+  if (!m) return null;
+  const rawItem = reqQuery["item"];
+  const itemIdStr = Array.isArray(rawItem) ? rawItem[0] : rawItem;
+  if (!itemIdStr) return null;
+  const itemId = parseInt(itemIdStr, 10);
+  if (isNaN(itemId) || itemId <= 0) return null;
+  try {
+    const { getGroupAuctionItemWithRoundForOg } = await import("../db");
+    const item = await getGroupAuctionItemWithRoundForOg(itemId);
+    if (!item || item.roundStatus === "draft") return null;
+
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const titleTrimmed = item.title.length > 25 ? item.title.slice(0, 25) + "…" : item.title;
+    const lotPart = item.lotNumber ? `。${item.lotNumber}` : "";
+
+    let endStr = "";
+    if (item.endAt) {
+      const d = new Date(item.endAt);
+      if (!isNaN(d.getTime())) endStr = `${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    const ogTitle = [
+      `${titleTrimmed}${lotPart}`,
+      endStr ? `結拍${endStr}` : null,
+      "hongxcollections.com",
+    ].filter(Boolean).join(" | ");
+
+    const ogDesc = `${item.title}${item.lotNumber ? `。${item.lotNumber}` : ""}${endStr ? ` | 結拍 ${endStr}` : ""} | 香港錢幣拍賣 | 團購競拍`;
+    const fullUrl = `${protocol}://${host}${reqPath}?item=${itemId}`;
+    const ogImageUrl = item.firstImageUrl ? `${protocol}://${host}/api/og-image-group-item/${itemId}` : "";
+    const imgMime = "image/jpeg";
+
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, (mm) => `${mm}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for group auction item /group/${m[1]}/bid?item=${itemId}: title="${ogTitle}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Group auction item inject error:", err);
+    return null;
+  }
+}
+
 async function injectOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
   // Merchant auction session 公開頁
   const sessionInjected = await injectSessionOgMeta(html, reqPath, protocol, host);
@@ -828,6 +899,7 @@ export async function setupVite(app: Express, server: Server) {
         ?? await injectProductOgMeta(template, _cleanPath, protocol, host)
         ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host)
         ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host)
+        ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? await injectGalleryOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
@@ -999,6 +1071,7 @@ export function serveStatic(app: Express) {
       ?? await injectProductOgMeta(html, cleanPath, protocol, host)
       ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host)
       ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host)
+      ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? await injectGalleryOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {

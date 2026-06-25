@@ -1091,6 +1091,7 @@ __export(db_exports, {
   getFeaturedConfig: () => getFeaturedConfig,
   getFeaturedSlotStatus: () => getFeaturedSlotStatus,
   getGalleryOrdersByMerchant: () => getGalleryOrdersByMerchant,
+  getGroupAuctionItemWithRoundForOg: () => getGroupAuctionItemWithRoundForOg,
   getGroupAuctionRoundForOg: () => getGroupAuctionRoundForOg,
   getHiddenProductOrdersByBuyer: () => getHiddenProductOrdersByBuyer,
   getHiddenProductOrdersByMerchant: () => getHiddenProductOrdersByMerchant,
@@ -7029,6 +7030,52 @@ async function getGroupAuctionRoundForOg(roundId) {
     return { title: rows[0].title, coverImage: effectiveCoverImage, endAt: rows[0].endAt, status: rows[0].status, itemCount };
   } catch (e) {
     console.error("[db] getGroupAuctionRoundForOg error:", e);
+    return null;
+  }
+}
+async function getGroupAuctionItemWithRoundForOg(itemId) {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db.select({
+      imageIdsJson: groupAuctionItems.imageIdsJson,
+      dataJson: groupAuctionItems.dataJson,
+      roundTitle: groupAuctionRounds.title,
+      roundColumnsJson: groupAuctionRounds.columnsJson,
+      roundEndAt: groupAuctionRounds.endAt,
+      roundStatus: groupAuctionRounds.status
+    }).from(groupAuctionItems).innerJoin(groupAuctionRounds, eq(groupAuctionItems.roundId, groupAuctionRounds.id)).where(eq(groupAuctionItems.id, itemId)).limit(1);
+    if (!rows[0]) return null;
+    const row = rows[0];
+    let titleVal = "";
+    let lotNumberVal = "";
+    try {
+      const data = JSON.parse(row.dataJson ?? "{}");
+      const cols = JSON.parse(row.roundColumnsJson ?? "[]");
+      const titleCol = cols.find((c) => c.role === "itemTitle");
+      const lotCol = cols.find((c) => c.role === "itemNumber");
+      if (titleCol) titleVal = data[titleCol.key] ?? "";
+      if (lotCol) lotNumberVal = data[lotCol.key] ?? "";
+    } catch {
+    }
+    let firstImageUrl = null;
+    try {
+      const ids = JSON.parse(row.imageIdsJson ?? "[]");
+      if (ids.length > 0) {
+        const imgRows = await db.select({ url: groupAuctionImages.url }).from(groupAuctionImages).where(eq(groupAuctionImages.id, ids[0])).limit(1);
+        firstImageUrl = imgRows[0]?.url ?? null;
+      }
+    } catch {
+    }
+    return {
+      title: titleVal || row.roundTitle,
+      lotNumber: lotNumberVal,
+      endAt: row.roundEndAt,
+      firstImageUrl,
+      roundStatus: row.roundStatus
+    };
+  } catch (e) {
+    console.error("[db] getGroupAuctionItemWithRoundForOg error:", e);
     return null;
   }
 }
@@ -23359,6 +23406,32 @@ EXAMPLE OUTPUT (exact format):
       for (const mid of merchantIds) result.push(...byMerchant.get(mid) ?? []);
       return result;
     }),
+    listRandomMerchantGalleries: publicProcedure.query(async () => {
+      const { ensureProductGalleriesTable: ensureProductGalleriesTable2, getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      await ensureProductGalleriesTable2();
+      const pool = await getRawPool2();
+      const [rows] = await pool.execute(
+        `SELECT g.id, g.title, g.merchantId, g.merchantName,
+           COALESCE(g.coverImageUrl, (
+             SELECT i2.imageUrl FROM productGalleryItems i2
+             WHERE i2.galleryId = g.id AND i2.status = 'active' AND i2.imageUrl != ''
+             ORDER BY i2.sortOrder ASC, i2.id ASC LIMIT 1
+           )) AS thumbUrl,
+           (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id AND i.status = 'active') AS activeItemCount
+           FROM productGalleries g
+           WHERE g.status = 'active'
+           HAVING activeItemCount > 0
+           ORDER BY RAND()`
+      );
+      const byMerchant = /* @__PURE__ */ new Map();
+      for (const row of rows) {
+        if (!byMerchant.has(row.merchantId)) {
+          byMerchant.set(row.merchantId, row);
+        }
+      }
+      const merchantIds = [...byMerchant.keys()].slice(0, 10);
+      return merchantIds.map((mid) => byMerchant.get(mid));
+    }),
     buyItem: protectedProcedure.input(z2.object({
       itemId: z2.number().int().positive(),
       buyerNote: z2.string().max(200).optional()
@@ -23440,6 +23513,20 @@ EXAMPLE OUTPUT (exact format):
       const result = await cancelGalleryOrder2(input.orderId, ctx.user.id, isAdmin, input.reason);
       if (!result.ok) throw new TRPCError3({ code: "BAD_REQUEST", message: result.error });
       return { ok: true };
+    }),
+    pendingOrderCounts: protectedProcedure.query(async ({ ctx }) => {
+      const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const pool = await getRawPool2();
+      if (!pool) return {};
+      const [rows] = await pool.execute(
+        `SELECT galleryId, COUNT(*) as cnt FROM galleryOrders WHERE merchantId = ? AND status = 'pending' GROUP BY galleryId`,
+        [ctx.user.id]
+      );
+      const result = {};
+      for (const row of rows) {
+        result[row.galleryId] = Number(row.cnt);
+      }
+      return result;
     }),
     myUnsoldAuctions: protectedProcedure.query(async ({ ctx }) => {
       const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -25135,6 +25222,66 @@ async function injectGroupAuctionOgMeta(html, reqPath, protocol, host) {
     return null;
   }
 }
+async function injectGroupAuctionItemOgMeta(html, reqPath, reqQuery, protocol, host) {
+  const m = reqPath.match(/^\/group\/(\d+)\/bid$/);
+  if (!m) return null;
+  const rawItem = reqQuery["item"];
+  const itemIdStr = Array.isArray(rawItem) ? rawItem[0] : rawItem;
+  if (!itemIdStr) return null;
+  const itemId = parseInt(itemIdStr, 10);
+  if (isNaN(itemId) || itemId <= 0) return null;
+  try {
+    const { getGroupAuctionItemWithRoundForOg: getGroupAuctionItemWithRoundForOg2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const item = await getGroupAuctionItemWithRoundForOg2(itemId);
+    if (!item || item.roundStatus === "draft") return null;
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const titleTrimmed = item.title.length > 25 ? item.title.slice(0, 25) + "\u2026" : item.title;
+    const lotPart = item.lotNumber ? `\u3002${item.lotNumber}` : "";
+    let endStr = "";
+    if (item.endAt) {
+      const d = new Date(item.endAt);
+      if (!isNaN(d.getTime())) endStr = `${d.getMonth() + 1}\u6708${d.getDate()}\u65E5`;
+    }
+    const ogTitle = [
+      `${titleTrimmed}${lotPart}`,
+      endStr ? `\u7D50\u62CD${endStr}` : null,
+      "hongxcollections.com"
+    ].filter(Boolean).join(" | ");
+    const ogDesc = `${item.title}${item.lotNumber ? `\u3002${item.lotNumber}` : ""}${endStr ? ` | \u7D50\u62CD ${endStr}` : ""} | \u9999\u6E2F\u9322\u5E63\u62CD\u8CE3 | \u5718\u8CFC\u7AF6\u62CD`;
+    const fullUrl = `${protocol}://${host}${reqPath}?item=${itemId}`;
+    const ogImageUrl = item.firstImageUrl ? `${protocol}://${host}/api/og-image-group-item/${itemId}` : "";
+    const imgMime = "image/jpeg";
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`
+    ].filter(Boolean).join("\n    ");
+    let result = html.replace(/<title>[^<]*<\/title>/gi, "").replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "").replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "").replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result) ? result.replace(viewportRe, (mm) => `${mm}
+    ${ogMeta}`) : result.replace("</head>", () => `    ${ogMeta}
+  </head>`);
+    console.log(`[OG Meta] Injected for group auction item /group/${m[1]}/bid?item=${itemId}: title="${ogTitle}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Group auction item inject error:", err);
+    return null;
+  }
+}
 async function injectOgMeta(html, reqPath, protocol, host) {
   const sessionInjected = await injectSessionOgMeta(html, reqPath, protocol, host);
   if (sessionInjected) return sessionInjected;
@@ -25546,7 +25693,7 @@ async function setupVite(app, server) {
       const host = req.get("host") || "";
       const base = `${protocol}://${host}`;
       const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
-      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
+      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         const ua = req.headers["user-agent"] ?? "";
         const isBot = /facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Slackbot|ia_archiver|msnbot|googlebot|bingbot/i.test(ua);
@@ -25677,7 +25824,7 @@ function serveStatic(app) {
     const base = `${protocol}://${host}`;
     const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
     let html = await fs2.promises.readFile(indexPath, "utf-8");
-    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
+    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
       return;
@@ -27309,6 +27456,31 @@ Output ONLY the JSON, nothing else.`;
       sendImageResponse(res, "image/jpeg", cropped);
     } catch (err) {
       console.error("[OG Image Group Proxy] Error:", err);
+      res.status(500).send("Error");
+    }
+  });
+  app.get("/api/og-image-group-item/:itemId", async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.itemId, 10);
+      if (isNaN(itemId) || itemId <= 0) {
+        res.status(400).send("Invalid item ID");
+        return;
+      }
+      const { getGroupAuctionItemWithRoundForOg: getGroupAuctionItemWithRoundForOg2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const item = await getGroupAuctionItemWithRoundForOg2(itemId);
+      if (!item || !item.firstImageUrl || item.roundStatus === "draft") {
+        res.status(404).send("No image");
+        return;
+      }
+      const result = await fetchAllowlistedImage(item.firstImageUrl);
+      if (!result.ok) {
+        res.status(result.status).send(result.reason);
+        return;
+      }
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, "image/jpeg", cropped);
+    } catch (err) {
+      console.error("[OG Image Group Item Proxy] Error:", err);
       res.status(500).send("Error");
     }
   });

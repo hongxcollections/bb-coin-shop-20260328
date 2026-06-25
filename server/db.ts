@@ -1,7 +1,7 @@
 import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction, merchantAuctionSessions, groupAuctionRounds, groupAuctionItems } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction, merchantAuctionSessions, groupAuctionRounds, groupAuctionItems, groupAuctionImages } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { pingAuctionOg, pingProductOg } from './_core/facebook-og-refresh';
 
@@ -7485,6 +7485,66 @@ export async function getGroupAuctionRoundForOg(roundId: number): Promise<{ titl
     return { title: rows[0].title, coverImage: effectiveCoverImage, endAt: rows[0].endAt, status: rows[0].status, itemCount };
   } catch (e) {
     console.error('[db] getGroupAuctionRoundForOg error:', e);
+    return null;
+  }
+}
+
+export async function getGroupAuctionItemWithRoundForOg(itemId: number): Promise<{
+  title: string;
+  lotNumber: string;
+  endAt: Date | null;
+  firstImageUrl: string | null;
+  roundStatus: string;
+} | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db
+      .select({
+        imageIdsJson: groupAuctionItems.imageIdsJson,
+        dataJson: groupAuctionItems.dataJson,
+        roundTitle: groupAuctionRounds.title,
+        roundColumnsJson: groupAuctionRounds.columnsJson,
+        roundEndAt: groupAuctionRounds.endAt,
+        roundStatus: groupAuctionRounds.status,
+      })
+      .from(groupAuctionItems)
+      .innerJoin(groupAuctionRounds, eq(groupAuctionItems.roundId, groupAuctionRounds.id))
+      .where(eq(groupAuctionItems.id, itemId))
+      .limit(1);
+    if (!rows[0]) return null;
+    const row = rows[0];
+    let titleVal = '';
+    let lotNumberVal = '';
+    try {
+      const data = JSON.parse(row.dataJson ?? '{}') as Record<string, string>;
+      const cols = JSON.parse((row.roundColumnsJson as string | null) ?? '[]') as { key: string; role: string }[];
+      const titleCol = cols.find(c => c.role === 'itemTitle');
+      const lotCol = cols.find(c => c.role === 'itemNumber');
+      if (titleCol) titleVal = data[titleCol.key] ?? '';
+      if (lotCol) lotNumberVal = data[lotCol.key] ?? '';
+    } catch {}
+    let firstImageUrl: string | null = null;
+    try {
+      const ids = JSON.parse(row.imageIdsJson ?? '[]') as number[];
+      if (ids.length > 0) {
+        const imgRows = await db
+          .select({ url: groupAuctionImages.url })
+          .from(groupAuctionImages)
+          .where(eq(groupAuctionImages.id, ids[0]))
+          .limit(1);
+        firstImageUrl = imgRows[0]?.url ?? null;
+      }
+    } catch {}
+    return {
+      title: titleVal || row.roundTitle,
+      lotNumber: lotNumberVal,
+      endAt: row.roundEndAt,
+      firstImageUrl,
+      roundStatus: row.roundStatus,
+    };
+  } catch (e) {
+    console.error('[db] getGroupAuctionItemWithRoundForOg error:', e);
     return null;
   }
 }

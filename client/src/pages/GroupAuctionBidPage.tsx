@@ -4,7 +4,8 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Clock, ChevronUp, ChevronDown, ExternalLink, Trophy, AlertCircle, LayoutGrid, LayoutList } from "lucide-react";
+import { Clock, ChevronUp, ChevronDown, ExternalLink, Trophy, AlertCircle, LayoutGrid, LayoutList, Share2 } from "lucide-react";
+import { SHARE_ORIGIN } from "@/lib/shareUrl";
 import ImageLightbox from "@/components/ImageLightbox";
 import Header from "@/components/Header";
 
@@ -14,6 +15,15 @@ function fmtDate(d: string | Date | null) {
   if (!d) return "—";
   const dt = new Date(d);
   return `${dt.getMonth() + 1}月${dt.getDate()}日 ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function formatShareEndTime(d: Date): string {
+  const DAYS = ["日", "一", "二", "三", "四", "五", "六"];
+  const h = d.getHours();
+  const dayPart = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
+  const h12 = h % 12 || 12;
+  const min = d.getMinutes().toString().padStart(2, "0");
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 (${DAYS[d.getDay()]}) ${dayPart}${h12}:${min}`;
 }
 
 function useCountdown(endAt: string | null | undefined) {
@@ -801,7 +811,45 @@ export default function GroupAuctionBidPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
                     </div>
-                    <div className="text-[10px] text-gray-400" style={{ marginTop: "5px" }}>起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</div>
+                    <div className="flex items-center justify-between" style={{ marginTop: "5px" }}>
+                      <span className="text-[10px] text-gray-400">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</span>
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const itemUrl = `${SHARE_ORIGIN}/group/${roundId}/bid?item=${item.id}`;
+                          const endDate = effectiveItemEndAt ? new Date(effectiveItemEndAt) : null;
+                          const endTimeStr = endDate && !isNaN(endDate.getTime()) ? formatShareEndTime(endDate) : "";
+                          const namePart = title && lotNumber ? `${title}。${lotNumber}` : (title || lotNumber || "");
+                          const shareText = [
+                            namePart,
+                            `目前出價 ${displayPrice(item.currentPrice)}`,
+                            endTimeStr ? `結標時間：${endTimeStr}` : "",
+                            "@所有人 歡迎登入網站齊來競拍！",
+                            itemUrl,
+                          ].filter(Boolean).join("\n");
+                          if (navigator.share) {
+                            try {
+                              await navigator.clipboard.writeText(shareText).catch(() => {});
+                              await navigator.share({ title: namePart, text: shareText.replace("\n" + itemUrl, "").trim(), url: itemUrl });
+                              toast.success("已開啟系統分享選單");
+                            } catch (err: unknown) {
+                              if (err instanceof Error && err.name !== "AbortError") {
+                                try { await navigator.clipboard.writeText(shareText); } catch {}
+                                toast.success("已複製分享文案", { description: shareText, duration: 6000 });
+                              }
+                            }
+                          } else {
+                            try { await navigator.clipboard.writeText(shareText); } catch {}
+                            toast.success("已複製分享文案", { description: shareText, duration: 6000 });
+                          }
+                        }}
+                        className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-amber-500 transition-colors flex-shrink-0"
+                      >
+                        <Share2 className="w-3 h-3" />
+                        <span>分享</span>
+                      </button>
+                    </div>
                     {item.topBidderName && (
                       <div className="flex items-center justify-between gap-1 text-xs mt-0.5">
                         <div className="flex items-center gap-1 flex-wrap">
