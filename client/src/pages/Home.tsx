@@ -244,7 +244,7 @@ function HeroCarousel({ auctions }: { auctions: any[] }) {
           {auctions.map((_, i) => (
             <button
               key={i}
-              onClick={() => { goTo(i); resetTimer(); }}
+              onClick={() => { fadeTo(i); resetTimer(); }}
               className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-amber-400" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`}
               aria-label={`第${i + 1}件`}
             />
@@ -415,7 +415,7 @@ function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: 
       {total > 1 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
           {products.map((_, i) => (
-            <button key={i} onClick={() => { goTo(i); resetTimer(); }}
+            <button key={i} onClick={() => { fadeTo(i); resetTimer(); }}
               className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-orange-400" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`}
               aria-label={`第${i + 1}件`} />
           ))}
