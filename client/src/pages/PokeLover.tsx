@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { toast } from "sonner";
-import { Upload, Loader2, Search, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star, AlertTriangle, RefreshCcw, BookmarkPlus, Bookmark, BookOpen, DollarSign, ChevronRight, Images } from "lucide-react";
+import { Upload, Loader2, Search, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star, AlertTriangle, RefreshCcw, BookmarkPlus, Bookmark, BookOpen, DollarSign, ChevronRight, Images, Tag } from "lucide-react";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -1053,6 +1053,29 @@ export default function CardZzz() {
             )}
           </div>
         </div>
+
+        {!imagePreview && !isAnalyzing && (
+          <div data-share-skip="true" className="flex gap-2 mt-4 mb-2">
+            <button
+              onClick={() => navigate("/cardzzz/market")}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
+              style={{ background: "rgba(204,0,0,0.12)", border: "1px solid rgba(204,0,0,0.3)", color: "#FF6B6B" }}
+            >
+              <Tag className="w-4 h-4" />
+              交易市場
+            </button>
+            {isAuthenticated && (
+              <button
+                onClick={() => navigate("/cardzzz/market/sell")}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
+                style={{ background: "rgba(255,222,0,0.10)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}
+              >
+                <DollarSign className="w-4 h-4" />
+                出售卡牌
+              </button>
+            )}
+          </div>
+        )}
 
         {imagePreview && !isAnalyzing && (
           <div data-share-skip="true" className="flex gap-2 mb-4">
