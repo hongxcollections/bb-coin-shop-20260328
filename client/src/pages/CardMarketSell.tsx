@@ -281,6 +281,7 @@ export default function CardMarketSell() {
   }
 
   return (
+    <>
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa", color: "#111827" }}>
       <Header />
       <div className="max-w-lg mx-auto px-4 pt-4">
@@ -895,6 +896,7 @@ export default function CardMarketSell() {
     </div>
 
     {/* ── Card Preview Bottom Sheet ── */}
+
     {previewCard && (
       <div className="fixed inset-0 z-[9999] flex items-end" onClick={() => setPreviewCard(null)}>
         <div className="absolute inset-0 bg-black/60" />
@@ -999,5 +1001,6 @@ export default function CardMarketSell() {
         </div>
       </div>
     )}
+    </>
   );
 }
