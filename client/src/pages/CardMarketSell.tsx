@@ -223,6 +223,7 @@ export default function CardMarketSell() {
         photoUrls: photos,
         description: description.trim() || undefined,
       });
+      await utils.cardTrading.getMyListings.invalidate();
       toast.success("已成功上架！");
       navigate("/cardzzz/market/my");
     } catch (e: any) {

@@ -24506,420 +24506,447 @@ EXAMPLE OUTPUT (exact format):
       return { created: totalCreated };
     })
   }),
-  cardTrading: router({
-    // ── 外部卡牌 API 搜尋 ───────────────────────────────────────────────────
-    searchCards: protectedProcedure.input(z2.object({
-      game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
-      query: z2.string().min(1).max(100)
-    })).query(async ({ input }) => {
-      const q = encodeURIComponent(input.query.trim());
-      try {
-        if (input.game === "pokemon") {
-          const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${q}"&pageSize=20`);
-          const json = await res.json();
-          return (json.data ?? []).map((c) => ({
-            cardApiId: c.id,
-            cardName: c.name,
-            setName: c.set?.name,
-            setNumber: c.number,
-            rarity: c.rarity,
-            officialImageUrl: c.images?.large ?? c.images?.small
-          }));
-        }
-        if (input.game === "yugioh") {
-          const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${q}&num=20&offset=0`);
-          const json = await res.json();
-          return (json.data ?? []).map((c) => ({
-            cardApiId: String(c.id),
-            cardName: c.name,
-            setName: c.card_sets?.[0]?.set_name,
-            setNumber: c.card_sets?.[0]?.set_code,
-            rarity: c.card_sets?.[0]?.set_rarity,
-            officialImageUrl: c.card_images?.[0]?.image_url
-          }));
-        }
-        if (input.game === "mtg") {
-          const res = await fetch(`https://api.scryfall.com/cards/search?q=${q}&limit=20`);
-          const json = await res.json();
-          return (json.data ?? []).map((c) => ({
-            cardApiId: c.id,
-            cardName: c.name,
-            setName: c.set_name,
-            setNumber: c.collector_number,
-            rarity: c.rarity,
-            officialImageUrl: c.image_uris?.normal ?? c.image_uris?.large ?? c.card_faces?.[0]?.image_uris?.normal
-          }));
-        }
-        if (input.game === "digimon") {
-          const res = await fetch(`https://digimoncard.io/api-public/search.php?keyword=${q}&sort=name&sortdirection=desc&num=20`);
-          const json = await res.json();
-          return (Array.isArray(json) ? json : []).map((c) => ({
-            cardApiId: c.cardnumber ?? c.id ?? String(Math.random()),
-            cardName: c.name,
-            setName: c.set_name ?? c.block_name,
-            setNumber: c.cardnumber,
-            rarity: c.rarity,
-            officialImageUrl: c.image_url
-          }));
-        }
-        return [];
-      } catch {
-        return [];
+  cardTrading: (() => {
+    const _apiCache = /* @__PURE__ */ new Map();
+    function _getCached(key) {
+      const e = _apiCache.get(key);
+      if (!e || e.exp < Date.now()) {
+        _apiCache.delete(key);
+        return null;
       }
-    }),
-    // ── 系列列表（供瀏覽選卡用）──────────────────────────────────────────────
-    getSets: publicProcedure.input(z2.object({
-      game: z2.enum(["pokemon", "yugioh", "mtg", "digimon"])
-    })).query(async ({ input }) => {
+      return e.data;
+    }
+    function _setCache(key, data, ttlMs) {
+      _apiCache.set(key, { data, exp: Date.now() + ttlMs });
+    }
+    async function _fetchWithTimeout(url, timeoutMs = 8e3) {
+      const ctrl = new AbortController();
+      const t2 = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
-        if (input.game === "pokemon") {
-          const res = await fetch("https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=250");
-          const json = await res.json();
-          return (json.data ?? []).map((s) => ({
-            setId: s.id,
-            name: s.name,
-            series: s.series,
-            releaseDate: s.releaseDate,
-            total: s.total,
-            logoUrl: s.images?.logo ?? null,
-            symbolUrl: s.images?.symbol ?? null
-          }));
-        }
-        if (input.game === "yugioh") {
-          const res = await fetch("https://db.ygoprodeck.com/api/v7/cardsets.php");
-          const json = await res.json();
-          return (Array.isArray(json) ? json : []).map((s) => ({
-            setId: s.set_name,
-            name: s.set_name,
-            series: s.set_code,
-            releaseDate: s.tcg_date ?? "",
-            total: s.num_of_cards,
-            logoUrl: null,
-            symbolUrl: null
-          })).sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? "")).slice(0, 300);
-        }
-        if (input.game === "mtg") {
-          const res = await fetch("https://api.scryfall.com/sets");
-          const json = await res.json();
-          const validTypes = ["core", "expansion", "masters", "draft_innovation", "commander", "funny"];
-          return (json.data ?? []).filter((s) => validTypes.includes(s.set_type) && (s.card_count ?? 0) > 0).slice(0, 150).map((s) => ({
-            setId: s.code,
-            name: s.name,
-            series: s.block ?? s.set_type,
-            releaseDate: s.released_at ?? "",
-            total: s.card_count,
-            logoUrl: s.icon_svg_uri ?? null,
-            symbolUrl: s.icon_svg_uri ?? null
-          }));
-        }
-        if (input.game === "digimon") {
-          const sets = [
-            { setId: "BT1", name: "BT-01 \u65B0\u751F\u9032\u5316", series: "Booster", releaseDate: "2020-04-24", total: 112 },
-            { setId: "BT2", name: "BT-02 \u7A76\u6975\u529B\u91CF", series: "Booster", releaseDate: "2020-07-30", total: 112 },
-            { setId: "BT3", name: "BT-03 \u806F\u5408\u885D\u64CA", series: "Booster", releaseDate: "2020-10-30", total: 112 },
-            { setId: "BT4", name: "BT-04 \u5927\u50B3\u8AAA", series: "Booster", releaseDate: "2021-01-29", total: 112 },
-            { setId: "BT5", name: "BT-05 \u7A76\u6975\u6230\u5F79", series: "Booster", releaseDate: "2021-04-23", total: 112 },
-            { setId: "BT6", name: "BT-06 \u96D9\u947D\u77F3", series: "Booster", releaseDate: "2021-07-23", total: 112 },
-            { setId: "BT7", name: "BT-07 \u4E0B\u4E00\u500B\u5192\u96AA", series: "Booster", releaseDate: "2021-11-26", total: 112 },
-            { setId: "BT8", name: "BT-08 \u65B0\u82F1\u96C4", series: "Booster", releaseDate: "2022-02-25", total: 112 },
-            { setId: "BT9", name: "BT-09 X Records", series: "Booster", releaseDate: "2022-05-27", total: 112 },
-            { setId: "BT10", name: "BT-10 Xros\u76F8\u9047", series: "Booster", releaseDate: "2022-09-30", total: 112 },
-            { setId: "BT11", name: "BT-11 \u6B21\u5143\u76F8\u4F4D", series: "Booster", releaseDate: "2022-12-23", total: 112 },
-            { setId: "BT12", name: "BT-12 \u8D85\u8D8A\u6642\u7A7A", series: "Booster", releaseDate: "2023-03-31", total: 112 },
-            { setId: "BT13", name: "BT-13 \u7687\u5BB6\u9A0E\u58EB\u5C0D\u6C7A", series: "Booster", releaseDate: "2023-07-28", total: 112 },
-            { setId: "BT14", name: "BT-14 \u7206\uFFFD\u738B\u724C", series: "Booster", releaseDate: "2023-11-24", total: 112 },
-            { setId: "BT15", name: "BT-15 \u8D85\u8D8A\u555F\u793A\u9304", series: "Booster", releaseDate: "2024-03-29", total: 112 },
-            { setId: "BT16", name: "BT-16 \u8D77\u6E90\u89C0\u5BDF\u8005", series: "Booster", releaseDate: "2024-07-26", total: 112 },
-            { setId: "EX1", name: "EX-01 \u7D93\u5178\u6536\u85CF", series: "Extra", releaseDate: "2022-01-28", total: 61 },
-            { setId: "EX2", name: "EX-02 \u6578\u78BC\u5371\u6A5F", series: "Extra", releaseDate: "2022-05-27", total: 61 },
-            { setId: "EX3", name: "EX-03 \u9F8D\u65CF\u5486\u54EE", series: "Extra", releaseDate: "2022-09-30", total: 61 },
-            { setId: "EX4", name: "EX-04 \u7570\u5F62\u5B58\u5728", series: "Extra", releaseDate: "2023-03-31", total: 61 }
-          ];
-          return sets.sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? ""));
-        }
-        return [];
-      } catch {
-        return [];
+        return await fetch(url, { signal: ctrl.signal });
+      } finally {
+        clearTimeout(t2);
       }
-    }),
-    // ── 系列內卡牌列表 ──────────────────────────────────────────────────────
-    getSetCards: publicProcedure.input(z2.object({
-      game: z2.enum(["pokemon", "yugioh", "mtg", "digimon"]),
-      setId: z2.string().min(1).max(200),
-      page: z2.number().int().min(1).max(30).default(1)
-    })).query(async ({ input }) => {
-      const pageSize = 30;
-      try {
-        if (input.game === "pokemon") {
-          const res = await fetch(
-            `https://api.pokemontcg.io/v2/cards?q=set.id:${encodeURIComponent(input.setId)}&orderBy=number&pageSize=${pageSize}&page=${input.page}`
-          );
-          const json = await res.json();
-          return {
-            cards: (json.data ?? []).map((c) => ({
+    }
+    return router({
+      // ── 外部卡牌 API 搜尋 ───────────────────────────────────────────────────
+      searchCards: protectedProcedure.input(z2.object({
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
+        query: z2.string().min(1).max(100)
+      })).query(async ({ input }) => {
+        const q = encodeURIComponent(input.query.trim());
+        try {
+          if (input.game === "pokemon") {
+            const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${q}"&pageSize=20`);
+            const json = await res.json();
+            return (json.data ?? []).map((c) => ({
               cardApiId: c.id,
               cardName: c.name,
               setName: c.set?.name,
               setNumber: c.number,
               rarity: c.rarity,
               officialImageUrl: c.images?.large ?? c.images?.small
-            })),
-            hasMore: (json.page ?? 1) * pageSize < (json.totalCount ?? 0),
-            total: json.totalCount ?? 0
-          };
-        }
-        if (input.game === "yugioh") {
-          const offset = (input.page - 1) * 50;
-          const res = await fetch(
-            `https://db.ygoprodeck.com/api/v7/cards.php?cardset=${encodeURIComponent(input.setId)}&num=50&offset=${offset}`
-          );
-          const json = await res.json();
-          const cards = (json.data ?? []).map((c) => ({
-            cardApiId: String(c.id),
-            cardName: c.name,
-            setName: input.setId,
-            setNumber: c.card_sets?.find((s) => s.set_name === input.setId)?.set_code ?? c.card_sets?.[0]?.set_code,
-            rarity: c.card_sets?.find((s) => s.set_name === input.setId)?.set_rarity ?? c.card_sets?.[0]?.set_rarity,
-            officialImageUrl: c.card_images?.[0]?.image_url
-          }));
-          return { cards, hasMore: cards.length === 50, total: cards.length };
-        }
-        if (input.game === "mtg") {
-          const res = await fetch(
-            `https://api.scryfall.com/cards/search?q=set:${encodeURIComponent(input.setId)}&order=collector_number&dir=asc&page=${input.page}`
-          );
-          const json = await res.json();
-          return {
-            cards: (json.data ?? []).map((c) => ({
+            }));
+          }
+          if (input.game === "yugioh") {
+            const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${q}&num=20&offset=0`);
+            const json = await res.json();
+            return (json.data ?? []).map((c) => ({
+              cardApiId: String(c.id),
+              cardName: c.name,
+              setName: c.card_sets?.[0]?.set_name,
+              setNumber: c.card_sets?.[0]?.set_code,
+              rarity: c.card_sets?.[0]?.set_rarity,
+              officialImageUrl: c.card_images?.[0]?.image_url
+            }));
+          }
+          if (input.game === "mtg") {
+            const res = await fetch(`https://api.scryfall.com/cards/search?q=${q}&limit=20`);
+            const json = await res.json();
+            return (json.data ?? []).map((c) => ({
               cardApiId: c.id,
               cardName: c.name,
               setName: c.set_name,
               setNumber: c.collector_number,
               rarity: c.rarity,
               officialImageUrl: c.image_uris?.normal ?? c.image_uris?.large ?? c.card_faces?.[0]?.image_uris?.normal
-            })),
-            hasMore: json.has_more ?? false,
-            total: json.total_cards ?? 0
+            }));
+          }
+          if (input.game === "digimon") {
+            const res = await fetch(`https://digimoncard.io/api-public/search.php?keyword=${q}&sort=name&sortdirection=desc&num=20`);
+            const json = await res.json();
+            return (Array.isArray(json) ? json : []).map((c) => ({
+              cardApiId: c.cardnumber ?? c.id ?? String(Math.random()),
+              cardName: c.name,
+              setName: c.set_name ?? c.block_name,
+              setNumber: c.cardnumber,
+              rarity: c.rarity,
+              officialImageUrl: c.image_url
+            }));
+          }
+          return [];
+        } catch {
+          return [];
+        }
+      }),
+      // ── 系列列表（供瀏覽選卡用）──────────────────────────────────────────────
+      getSets: publicProcedure.input(z2.object({
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon"])
+      })).query(async ({ input }) => {
+        const cacheKey = `sets:${input.game}`;
+        const cached = _getCached(cacheKey);
+        if (cached) return cached;
+        try {
+          let result = [];
+          if (input.game === "pokemon") {
+            const res = await _fetchWithTimeout("https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=250", 1e4);
+            const json = await res.json();
+            result = (json.data ?? []).map((s) => ({
+              setId: s.id,
+              name: s.name,
+              series: s.series,
+              releaseDate: s.releaseDate,
+              total: s.total,
+              logoUrl: s.images?.logo ?? null,
+              symbolUrl: s.images?.symbol ?? null
+            }));
+          } else if (input.game === "yugioh") {
+            const res = await _fetchWithTimeout("https://db.ygoprodeck.com/api/v7/cardsets.php", 1e4);
+            const json = await res.json();
+            result = (Array.isArray(json) ? json : []).map((s) => ({
+              setId: s.set_name,
+              name: s.set_name,
+              series: s.set_code,
+              releaseDate: s.tcg_date ?? "",
+              total: s.num_of_cards,
+              logoUrl: null,
+              symbolUrl: null
+            })).sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? "")).slice(0, 300);
+          } else if (input.game === "mtg") {
+            const res = await _fetchWithTimeout("https://api.scryfall.com/sets", 1e4);
+            const json = await res.json();
+            const validTypes = ["core", "expansion", "masters", "draft_innovation", "commander", "funny"];
+            result = (json.data ?? []).filter((s) => validTypes.includes(s.set_type) && (s.card_count ?? 0) > 0).slice(0, 150).map((s) => ({
+              setId: s.code,
+              name: s.name,
+              series: s.block ?? s.set_type,
+              releaseDate: s.released_at ?? "",
+              total: s.card_count,
+              logoUrl: s.icon_svg_uri ?? null,
+              symbolUrl: s.icon_svg_uri ?? null
+            }));
+          } else if (input.game === "digimon") {
+            const sets = [
+              { setId: "BT1", name: "BT-01 \u65B0\u751F\u9032\u5316", series: "Booster", releaseDate: "2020-04-24", total: 112 },
+              { setId: "BT2", name: "BT-02 \u7A76\u6975\u529B\u91CF", series: "Booster", releaseDate: "2020-07-30", total: 112 },
+              { setId: "BT3", name: "BT-03 \u806F\u5408\u885D\u64CA", series: "Booster", releaseDate: "2020-10-30", total: 112 },
+              { setId: "BT4", name: "BT-04 \u5927\u50B3\u8AAA", series: "Booster", releaseDate: "2021-01-29", total: 112 },
+              { setId: "BT5", name: "BT-05 \u7A76\u6975\u6230\u5F79", series: "Booster", releaseDate: "2021-04-23", total: 112 },
+              { setId: "BT6", name: "BT-06 \u96D9\u947D\u77F3", series: "Booster", releaseDate: "2021-07-23", total: 112 },
+              { setId: "BT7", name: "BT-07 \u4E0B\u4E00\u500B\u5192\u96AA", series: "Booster", releaseDate: "2021-11-26", total: 112 },
+              { setId: "BT8", name: "BT-08 \u65B0\u82F1\u96C4", series: "Booster", releaseDate: "2022-02-25", total: 112 },
+              { setId: "BT9", name: "BT-09 X Records", series: "Booster", releaseDate: "2022-05-27", total: 112 },
+              { setId: "BT10", name: "BT-10 Xros\u76F8\u9047", series: "Booster", releaseDate: "2022-09-30", total: 112 },
+              { setId: "BT11", name: "BT-11 \u6B21\u5143\u76F8\u4F4D", series: "Booster", releaseDate: "2022-12-23", total: 112 },
+              { setId: "BT12", name: "BT-12 \u8D85\u8D8A\u6642\u7A7A", series: "Booster", releaseDate: "2023-03-31", total: 112 },
+              { setId: "BT13", name: "BT-13 \u7687\u5BB6\u9A0E\u58EB\u5C0D\u6C7A", series: "Booster", releaseDate: "2023-07-28", total: 112 },
+              { setId: "BT14", name: "BT-14 \u7206\uFFFD\u738B\u724C", series: "Booster", releaseDate: "2023-11-24", total: 112 },
+              { setId: "BT15", name: "BT-15 \u8D85\u8D8A\u555F\u793A\u9304", series: "Booster", releaseDate: "2024-03-29", total: 112 },
+              { setId: "BT16", name: "BT-16 \u8D77\u6E90\u89C0\u5BDF\u8005", series: "Booster", releaseDate: "2024-07-26", total: 112 },
+              { setId: "EX1", name: "EX-01 \u7D93\u5178\u6536\u85CF", series: "Extra", releaseDate: "2022-01-28", total: 61 },
+              { setId: "EX2", name: "EX-02 \u6578\u78BC\u5371\u6A5F", series: "Extra", releaseDate: "2022-05-27", total: 61 },
+              { setId: "EX3", name: "EX-03 \u9F8D\u65CF\u5486\u54EE", series: "Extra", releaseDate: "2022-09-30", total: 61 },
+              { setId: "EX4", name: "EX-04 \u7570\u5F62\u5B58\u5728", series: "Extra", releaseDate: "2023-03-31", total: 61 }
+            ];
+            result = sets.sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? ""));
+          }
+          if (result.length > 0) _setCache(cacheKey, result, 24 * 60 * 60 * 1e3);
+          return result;
+        } catch {
+          return [];
+        }
+      }),
+      // ── 系列內卡牌列表 ──────────────────────────────────────────────────────
+      getSetCards: publicProcedure.input(z2.object({
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon"]),
+        setId: z2.string().min(1).max(200),
+        page: z2.number().int().min(1).max(30).default(1)
+      })).query(async ({ input }) => {
+        const pageSize = 30;
+        const cacheKey = `setCards:${input.game}:${input.setId}:${input.page}`;
+        const cached = _getCached(cacheKey);
+        if (cached) return cached;
+        try {
+          let result = { cards: [], hasMore: false, total: 0 };
+          if (input.game === "pokemon") {
+            const res = await _fetchWithTimeout(
+              `https://api.pokemontcg.io/v2/cards?q=set.id:${encodeURIComponent(input.setId)}&orderBy=number&pageSize=${pageSize}&page=${input.page}`
+            );
+            const json = await res.json();
+            result = {
+              cards: (json.data ?? []).map((c) => ({
+                cardApiId: c.id,
+                cardName: c.name,
+                setName: c.set?.name,
+                setNumber: c.number,
+                rarity: c.rarity,
+                officialImageUrl: c.images?.large ?? c.images?.small
+              })),
+              hasMore: (json.page ?? 1) * pageSize < (json.totalCount ?? 0),
+              total: json.totalCount ?? 0
+            };
+          } else if (input.game === "yugioh") {
+            const offset = (input.page - 1) * 50;
+            const res = await _fetchWithTimeout(
+              `https://db.ygoprodeck.com/api/v7/cards.php?cardset=${encodeURIComponent(input.setId)}&num=50&offset=${offset}`
+            );
+            const json = await res.json();
+            const cards = (json.data ?? []).map((c) => ({
+              cardApiId: String(c.id),
+              cardName: c.name,
+              setName: input.setId,
+              setNumber: c.card_sets?.find((s) => s.set_name === input.setId)?.set_code ?? c.card_sets?.[0]?.set_code,
+              rarity: c.card_sets?.find((s) => s.set_name === input.setId)?.set_rarity ?? c.card_sets?.[0]?.set_rarity,
+              officialImageUrl: c.card_images?.[0]?.image_url
+            }));
+            result = { cards, hasMore: cards.length === 50, total: cards.length };
+          } else if (input.game === "mtg") {
+            const res = await _fetchWithTimeout(
+              `https://api.scryfall.com/cards/search?q=set:${encodeURIComponent(input.setId)}&order=collector_number&dir=asc&page=${input.page}`
+            );
+            const json = await res.json();
+            result = {
+              cards: (json.data ?? []).map((c) => ({
+                cardApiId: c.id,
+                cardName: c.name,
+                setName: c.set_name,
+                setNumber: c.collector_number,
+                rarity: c.rarity,
+                officialImageUrl: c.image_uris?.normal ?? c.image_uris?.large ?? c.card_faces?.[0]?.image_uris?.normal
+              })),
+              hasMore: json.has_more ?? false,
+              total: json.total_cards ?? 0
+            };
+          } else if (input.game === "digimon") {
+            const offset = (input.page - 1) * 50;
+            const res = await _fetchWithTimeout(
+              `https://digimoncard.io/api-public/search.php?series=${encodeURIComponent(input.setId)}&sort=id&sortdirection=asc&num=50&offset=${offset}`
+            );
+            const json = await res.json();
+            const cards = (Array.isArray(json) ? json : []).map((c) => ({
+              cardApiId: c.cardnumber ?? String(Math.random()),
+              cardName: c.name,
+              setName: input.setId,
+              setNumber: c.cardnumber,
+              rarity: c.rarity,
+              officialImageUrl: c.image_url
+            }));
+            result = { cards, hasMore: cards.length === 50, total: cards.length };
+          }
+          if (result.cards.length > 0) _setCache(cacheKey, result, 60 * 60 * 1e3);
+          return result;
+        } catch {
+          return { cards: [], hasMore: false, total: 0 };
+        }
+      }),
+      // ── S3 presigned upload ──────────────────────────────────────────────────
+      signPhotoUpload: protectedProcedure.input(z2.object({
+        mimeType: z2.string().default("image/jpeg"),
+        fileName: z2.string().default("card.jpg")
+      })).mutation(async ({ input, ctx }) => {
+        const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        const mime = (input.mimeType || "image/jpeg").toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError3({ code: "BAD_REQUEST", message: `\u4E0D\u652F\u63F4\u6B64\u683C\u5F0F\uFF08${mime}\uFF09` });
+        }
+        const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `card-listings/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 300);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl, key: signed.key };
+      }),
+      // ── Listing CRUD ─────────────────────────────────────────────────────────
+      createListing: protectedProcedure.input(z2.object({
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
+        cardApiId: z2.string().optional(),
+        cardName: z2.string().min(1).max(200),
+        cardNameJa: z2.string().max(200).optional(),
+        setName: z2.string().max(200).optional(),
+        setNumber: z2.string().max(100).optional(),
+        rarity: z2.string().max(100).optional(),
+        officialImageUrl: z2.string().url().optional().or(z2.literal("")),
+        condition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]),
+        isGraded: z2.boolean().default(false),
+        gradingOrg: z2.string().max(20).optional(),
+        gradeScore: z2.string().max(10).optional(),
+        priceHKD: z2.number().int().min(1),
+        photoUrls: z2.array(z2.string()).max(6),
+        description: z2.string().max(1e3).optional()
+      })).mutation(async ({ input, ctx }) => {
+        const {
+          createCardListing: createCardListing2,
+          getMatchingWTBsForListing: getMatchingWTBsForListing2
+        } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const result = await createCardListing2({
+          userId: ctx.user.id,
+          game: input.game,
+          cardApiId: input.cardApiId ?? null,
+          cardName: input.cardName,
+          cardNameJa: input.cardNameJa ?? null,
+          setName: input.setName ?? null,
+          setNumber: input.setNumber ?? null,
+          rarity: input.rarity ?? null,
+          officialImageUrl: input.officialImageUrl || null,
+          condition: input.condition,
+          isGraded: input.isGraded,
+          gradingOrg: input.gradingOrg ?? null,
+          gradeScore: input.gradeScore ?? null,
+          priceHKD: input.priceHKD,
+          photoUrls: input.photoUrls,
+          description: input.description ?? null
+        });
+        try {
+          const wtbUsers = await getMatchingWTBsForListing2(input.game, input.cardApiId ?? null, input.cardName);
+          const gameLabels = {
+            pokemon: "Pok\xE9mon",
+            yugioh: "\u904A\u6232\u738B",
+            mtg: "MTG",
+            digimon: "\u6578\u78BC\u66B4\u9F8D",
+            onepiece: "\u822A\u6D77\u738B",
+            dragonball: "\u9F8D\u73E0",
+            other: "\u5176\u4ED6"
           };
+          const gameLabel = gameLabels[input.game] ?? input.game;
+          for (const { userId } of wtbUsers) {
+            if (userId === ctx.user.id) continue;
+            sendPushToUser(userId, {
+              title: `\u{1F0CF} CardZzz \u6709\u65B0\u4E0A\u67B6`,
+              body: `${gameLabel}\uFF5C${input.cardName}\uFF5CHKD $${input.priceHKD}`,
+              url: `/cardzzz/market`
+            }).catch(() => {
+            });
+          }
+        } catch {
         }
-        if (input.game === "digimon") {
-          const offset = (input.page - 1) * 50;
-          const res = await fetch(
-            `https://digimoncard.io/api-public/search.php?series=${encodeURIComponent(input.setId)}&sort=id&sortdirection=asc&num=50&offset=${offset}`
-          );
-          const json = await res.json();
-          const cards = (Array.isArray(json) ? json : []).map((c) => ({
-            cardApiId: c.cardnumber ?? String(Math.random()),
-            cardName: c.name,
-            setName: input.setId,
-            setNumber: c.cardnumber,
-            rarity: c.rarity,
-            officialImageUrl: c.image_url
-          }));
-          return { cards, hasMore: cards.length === 50, total: cards.length };
-        }
-        return { cards: [], hasMore: false, total: 0 };
-      } catch {
-        return { cards: [], hasMore: false, total: 0 };
-      }
-    }),
-    // ── S3 presigned upload ──────────────────────────────────────────────────
-    signPhotoUpload: protectedProcedure.input(z2.object({
-      mimeType: z2.string().default("image/jpeg"),
-      fileName: z2.string().default("card.jpg")
-    })).mutation(async ({ input, ctx }) => {
-      const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-      const mime = (input.mimeType || "image/jpeg").toLowerCase();
-      if (!allowedMimes.includes(mime)) {
-        throw new TRPCError3({ code: "BAD_REQUEST", message: `\u4E0D\u652F\u63F4\u6B64\u683C\u5F0F\uFF08${mime}\uFF09` });
-      }
-      const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
-      const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const key = `card-listings/${ctx.user.id}/${uid}.${ext}`;
-      const signed = await storageSignPut(key, mime, 300);
-      return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl, key: signed.key };
-    }),
-    // ── Listing CRUD ─────────────────────────────────────────────────────────
-    createListing: protectedProcedure.input(z2.object({
-      game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
-      cardApiId: z2.string().optional(),
-      cardName: z2.string().min(1).max(200),
-      cardNameJa: z2.string().max(200).optional(),
-      setName: z2.string().max(200).optional(),
-      setNumber: z2.string().max(100).optional(),
-      rarity: z2.string().max(100).optional(),
-      officialImageUrl: z2.string().url().optional().or(z2.literal("")),
-      condition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]),
-      isGraded: z2.boolean().default(false),
-      gradingOrg: z2.string().max(20).optional(),
-      gradeScore: z2.string().max(10).optional(),
-      priceHKD: z2.number().int().min(1),
-      photoUrls: z2.array(z2.string()).max(6),
-      description: z2.string().max(1e3).optional()
-    })).mutation(async ({ input, ctx }) => {
-      const {
-        createCardListing: createCardListing2,
-        getMatchingWTBsForListing: getMatchingWTBsForListing2
-      } = await Promise.resolve().then(() => (init_db(), db_exports));
-      const result = await createCardListing2({
-        userId: ctx.user.id,
-        game: input.game,
-        cardApiId: input.cardApiId ?? null,
-        cardName: input.cardName,
-        cardNameJa: input.cardNameJa ?? null,
-        setName: input.setName ?? null,
-        setNumber: input.setNumber ?? null,
-        rarity: input.rarity ?? null,
-        officialImageUrl: input.officialImageUrl || null,
-        condition: input.condition,
-        isGraded: input.isGraded,
-        gradingOrg: input.gradingOrg ?? null,
-        gradeScore: input.gradeScore ?? null,
-        priceHKD: input.priceHKD,
-        photoUrls: input.photoUrls,
-        description: input.description ?? null
-      });
-      try {
-        const wtbUsers = await getMatchingWTBsForListing2(input.game, input.cardApiId ?? null, input.cardName);
-        const gameLabels = {
-          pokemon: "Pok\xE9mon",
-          yugioh: "\u904A\u6232\u738B",
-          mtg: "MTG",
-          digimon: "\u6578\u78BC\u66B4\u9F8D",
-          onepiece: "\u822A\u6D77\u738B",
-          dragonball: "\u9F8D\u73E0",
-          other: "\u5176\u4ED6"
-        };
-        const gameLabel = gameLabels[input.game] ?? input.game;
-        for (const { userId } of wtbUsers) {
-          if (userId === ctx.user.id) continue;
-          sendPushToUser(userId, {
-            title: `\u{1F0CF} CardZzz \u6709\u65B0\u4E0A\u67B6`,
-            body: `${gameLabel}\uFF5C${input.cardName}\uFF5CHKD $${input.priceHKD}`,
-            url: `/cardzzz/market`
-          }).catch(() => {
-          });
-        }
-      } catch {
-      }
-      return { id: result.id };
-    }),
-    getListings: publicProcedure.input(z2.object({
-      game: z2.string().optional(),
-      cardName: z2.string().optional(),
-      cardApiId: z2.string().optional(),
-      limit: z2.number().int().min(1).max(50).default(20),
-      offset: z2.number().int().min(0).default(0)
-    })).query(async ({ input }) => {
-      const { getCardListings: getCardListings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      return getCardListings2({
-        game: input.game || void 0,
-        status: "active",
-        cardName: input.cardName || void 0,
-        cardApiId: input.cardApiId || void 0,
-        limit: input.limit,
-        offset: input.offset
-      });
-    }),
-    getListingById: publicProcedure.input(z2.object({ id: z2.number().int() })).query(async ({ input }) => {
-      const { getCardListingById: getCardListingById2, incrementCardListingViews: incrementCardListingViews2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      const listing = await getCardListingById2(input.id);
-      if (!listing) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u4E0D\u5230\u6B64\u4E0A\u67B6\u8A18\u9304" });
-      incrementCardListingViews2(input.id).catch(() => {
-      });
-      return listing;
-    }),
-    updateListing: protectedProcedure.input(z2.object({
-      id: z2.number().int(),
-      priceHKD: z2.number().int().min(1).optional(),
-      description: z2.string().max(1e3).optional(),
-      photoUrls: z2.array(z2.string()).max(6).optional()
-    })).mutation(async ({ input, ctx }) => {
-      const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      await updateCardListing2(input.id, ctx.user.id, {
-        priceHKD: input.priceHKD,
-        description: input.description,
-        photoUrls: input.photoUrls
-      });
-      return { ok: true };
-    }),
-    removeListing: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
-      const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      await updateCardListing2(input.id, ctx.user.id, { status: "removed" });
-      return { ok: true };
-    }),
-    markSold: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
-      const { markCardListingSold: markCardListingSold2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      return markCardListingSold2(input.id, ctx.user.id);
-    }),
-    getMyListings: protectedProcedure.input(z2.object({
-      status: z2.string().optional(),
-      limit: z2.number().int().min(1).max(50).default(20),
-      offset: z2.number().int().min(0).default(0)
-    })).query(async ({ input, ctx }) => {
-      const { getCardListings: getCardListings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      return getCardListings2({
-        userId: ctx.user.id,
-        status: input.status || void 0,
-        limit: input.limit,
-        offset: input.offset
-      });
-    }),
-    // ── WTB (Want To Buy) ────────────────────────────────────────────────────
-    createWTB: protectedProcedure.input(z2.object({
-      game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
-      cardApiId: z2.string().optional(),
-      cardName: z2.string().min(1).max(200),
-      cardNameJa: z2.string().max(200).optional(),
-      setName: z2.string().max(200).optional(),
-      setNumber: z2.string().max(100).optional(),
-      officialImageUrl: z2.string().url().optional().or(z2.literal("")),
-      maxPriceHKD: z2.number().int().min(1).optional(),
-      minCondition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
-      notes: z2.string().max(500).optional()
-    })).mutation(async ({ input, ctx }) => {
-      const { createCardWTB: createCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      const result = await createCardWTB2({
-        userId: ctx.user.id,
-        game: input.game,
-        cardApiId: input.cardApiId ?? null,
-        cardName: input.cardName,
-        cardNameJa: input.cardNameJa ?? null,
-        setName: input.setName ?? null,
-        setNumber: input.setNumber ?? null,
-        officialImageUrl: input.officialImageUrl || null,
-        maxPriceHKD: input.maxPriceHKD ?? null,
-        minCondition: input.minCondition ?? null,
-        notes: input.notes ?? null
-      });
-      return { id: result.id };
-    }),
-    getWTBs: publicProcedure.input(z2.object({
-      game: z2.string().optional(),
-      limit: z2.number().int().min(1).max(50).default(30),
-      offset: z2.number().int().min(0).default(0)
-    })).query(async ({ input }) => {
-      const { getCardWTBs: getCardWTBs2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      return getCardWTBs2({
-        game: input.game || void 0,
-        isActive: true,
-        limit: input.limit,
-        offset: input.offset
-      });
-    }),
-    getMyWTBs: protectedProcedure.input(z2.object({
-      limit: z2.number().int().min(1).max(50).default(30),
-      offset: z2.number().int().min(0).default(0)
-    })).query(async ({ input, ctx }) => {
-      const { getCardWTBs: getCardWTBs2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      return getCardWTBs2({ userId: ctx.user.id, limit: input.limit, offset: input.offset });
-    }),
-    deactivateWTB: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
-      const { deactivateCardWTB: deactivateCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-      await deactivateCardWTB2(input.id, ctx.user.id);
-      return { ok: true };
-    })
-  })
+        return { id: result.id };
+      }),
+      getListings: publicProcedure.input(z2.object({
+        game: z2.string().optional(),
+        cardName: z2.string().optional(),
+        cardApiId: z2.string().optional(),
+        limit: z2.number().int().min(1).max(50).default(20),
+        offset: z2.number().int().min(0).default(0)
+      })).query(async ({ input }) => {
+        const { getCardListings: getCardListings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getCardListings2({
+          game: input.game || void 0,
+          status: "active",
+          cardName: input.cardName || void 0,
+          cardApiId: input.cardApiId || void 0,
+          limit: input.limit,
+          offset: input.offset
+        });
+      }),
+      getListingById: publicProcedure.input(z2.object({ id: z2.number().int() })).query(async ({ input }) => {
+        const { getCardListingById: getCardListingById2, incrementCardListingViews: incrementCardListingViews2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const listing = await getCardListingById2(input.id);
+        if (!listing) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u4E0D\u5230\u6B64\u4E0A\u67B6\u8A18\u9304" });
+        incrementCardListingViews2(input.id).catch(() => {
+        });
+        return listing;
+      }),
+      updateListing: protectedProcedure.input(z2.object({
+        id: z2.number().int(),
+        priceHKD: z2.number().int().min(1).optional(),
+        description: z2.string().max(1e3).optional(),
+        photoUrls: z2.array(z2.string()).max(6).optional()
+      })).mutation(async ({ input, ctx }) => {
+        const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await updateCardListing2(input.id, ctx.user.id, {
+          priceHKD: input.priceHKD,
+          description: input.description,
+          photoUrls: input.photoUrls
+        });
+        return { ok: true };
+      }),
+      removeListing: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await updateCardListing2(input.id, ctx.user.id, { status: "removed" });
+        return { ok: true };
+      }),
+      markSold: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { markCardListingSold: markCardListingSold2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return markCardListingSold2(input.id, ctx.user.id);
+      }),
+      getMyListings: protectedProcedure.input(z2.object({
+        status: z2.string().optional(),
+        limit: z2.number().int().min(1).max(50).default(20),
+        offset: z2.number().int().min(0).default(0)
+      })).query(async ({ input, ctx }) => {
+        const { getCardListings: getCardListings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getCardListings2({
+          userId: ctx.user.id,
+          status: input.status || void 0,
+          limit: input.limit,
+          offset: input.offset
+        });
+      }),
+      // ── WTB (Want To Buy) ────────────────────────────────────────────────────
+      createWTB: protectedProcedure.input(z2.object({
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
+        cardApiId: z2.string().optional(),
+        cardName: z2.string().min(1).max(200),
+        cardNameJa: z2.string().max(200).optional(),
+        setName: z2.string().max(200).optional(),
+        setNumber: z2.string().max(100).optional(),
+        officialImageUrl: z2.string().url().optional().or(z2.literal("")),
+        maxPriceHKD: z2.number().int().min(1).optional(),
+        minCondition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
+        notes: z2.string().max(500).optional()
+      })).mutation(async ({ input, ctx }) => {
+        const { createCardWTB: createCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const result = await createCardWTB2({
+          userId: ctx.user.id,
+          game: input.game,
+          cardApiId: input.cardApiId ?? null,
+          cardName: input.cardName,
+          cardNameJa: input.cardNameJa ?? null,
+          setName: input.setName ?? null,
+          setNumber: input.setNumber ?? null,
+          officialImageUrl: input.officialImageUrl || null,
+          maxPriceHKD: input.maxPriceHKD ?? null,
+          minCondition: input.minCondition ?? null,
+          notes: input.notes ?? null
+        });
+        return { id: result.id };
+      }),
+      getWTBs: publicProcedure.input(z2.object({
+        game: z2.string().optional(),
+        limit: z2.number().int().min(1).max(50).default(30),
+        offset: z2.number().int().min(0).default(0)
+      })).query(async ({ input }) => {
+        const { getCardWTBs: getCardWTBs2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getCardWTBs2({
+          game: input.game || void 0,
+          isActive: true,
+          limit: input.limit,
+          offset: input.offset
+        });
+      }),
+      getMyWTBs: protectedProcedure.input(z2.object({
+        limit: z2.number().int().min(1).max(50).default(30),
+        offset: z2.number().int().min(0).default(0)
+      })).query(async ({ input, ctx }) => {
+        const { getCardWTBs: getCardWTBs2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getCardWTBs2({ userId: ctx.user.id, limit: input.limit, offset: input.offset });
+      }),
+      deactivateWTB: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { deactivateCardWTB: deactivateCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await deactivateCardWTB2(input.id, ctx.user.id);
+        return { ok: true };
+      })
+    });
+  })()
 });
 function normaliseArr(rows) {
   if (Array.isArray(rows) && Array.isArray(rows[0])) return rows[0];

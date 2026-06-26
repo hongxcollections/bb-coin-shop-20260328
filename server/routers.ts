@@ -13530,7 +13530,24 @@ EXAMPLE OUTPUT (exact format):
         return { created: totalCreated };
       }),
   }),
-  cardTrading: router({
+  cardTrading: (() => {
+  // ── server-side in-memory cache for external card APIs ─────────────────
+  const _apiCache = new Map<string, { data: unknown; exp: number }>();
+  function _getCached<T>(key: string): T | null {
+    const e = _apiCache.get(key);
+    if (!e || e.exp < Date.now()) { _apiCache.delete(key); return null; }
+    return e.data as T;
+  }
+  function _setCache(key: string, data: unknown, ttlMs: number) {
+    _apiCache.set(key, { data, exp: Date.now() + ttlMs });
+  }
+  async function _fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response> {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try { return await fetch(url, { signal: ctrl.signal }); }
+    finally { clearTimeout(t); }
+  }
+  return router({
     // ── 外部卡牌 API 搜尋 ───────────────────────────────────────────────────
     searchCards: protectedProcedure
       .input(z.object({
@@ -13604,20 +13621,24 @@ EXAMPLE OUTPUT (exact format):
           setId: string; name: string; series?: string;
           releaseDate?: string; total?: number; logoUrl?: string | null; symbolUrl?: string | null;
         }
+        const cacheKey = `sets:${input.game}`;
+        const cached = _getCached<SetResult[]>(cacheKey);
+        if (cached) return cached;
         try {
+          let result: SetResult[] = [];
           if (input.game === 'pokemon') {
-            const res = await fetch('https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=250');
+            const res = await _fetchWithTimeout('https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=250', 10000);
             const json = await res.json() as any;
-            return (json.data ?? []).map((s: any): SetResult => ({
+            result = (json.data ?? []).map((s: any): SetResult => ({
               setId: s.id, name: s.name, series: s.series,
               releaseDate: s.releaseDate, total: s.total,
               logoUrl: s.images?.logo ?? null, symbolUrl: s.images?.symbol ?? null,
             }));
           }
-          if (input.game === 'yugioh') {
-            const res = await fetch('https://db.ygoprodeck.com/api/v7/cardsets.php');
+          else if (input.game === 'yugioh') {
+            const res = await _fetchWithTimeout('https://db.ygoprodeck.com/api/v7/cardsets.php', 10000);
             const json = await res.json() as any;
-            return (Array.isArray(json) ? json : [])
+            result = (Array.isArray(json) ? json : [])
               .map((s: any): SetResult => ({
                 setId: s.set_name, name: s.set_name, series: s.set_code,
                 releaseDate: s.tcg_date ?? '', total: s.num_of_cards,
@@ -13626,11 +13647,11 @@ EXAMPLE OUTPUT (exact format):
               .sort((a: SetResult, b: SetResult) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''))
               .slice(0, 300);
           }
-          if (input.game === 'mtg') {
-            const res = await fetch('https://api.scryfall.com/sets');
+          else if (input.game === 'mtg') {
+            const res = await _fetchWithTimeout('https://api.scryfall.com/sets', 10000);
             const json = await res.json() as any;
             const validTypes = ['core', 'expansion', 'masters', 'draft_innovation', 'commander', 'funny'];
-            return (json.data ?? [])
+            result = (json.data ?? [])
               .filter((s: any) => validTypes.includes(s.set_type) && (s.card_count ?? 0) > 0)
               .slice(0, 150)
               .map((s: any): SetResult => ({
@@ -13639,7 +13660,7 @@ EXAMPLE OUTPUT (exact format):
                 logoUrl: s.icon_svg_uri ?? null, symbolUrl: s.icon_svg_uri ?? null,
               }));
           }
-          if (input.game === 'digimon') {
+          else if (input.game === 'digimon') {
             const sets: SetResult[] = [
               { setId: 'BT1', name: 'BT-01 新生進化', series: 'Booster', releaseDate: '2020-04-24', total: 112 },
               { setId: 'BT2', name: 'BT-02 究極力量', series: 'Booster', releaseDate: '2020-07-30', total: 112 },
@@ -13662,9 +13683,10 @@ EXAMPLE OUTPUT (exact format):
               { setId: 'EX3', name: 'EX-03 龍族咆哮', series: 'Extra', releaseDate: '2022-09-30', total: 61 },
               { setId: 'EX4', name: 'EX-04 異形存在', series: 'Extra', releaseDate: '2023-03-31', total: 61 },
             ];
-            return sets.sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
+            result = sets.sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
           }
-          return [];
+          if (result.length > 0) _setCache(cacheKey, result, 24 * 60 * 60 * 1000);
+          return result;
         } catch {
           return [];
         }
@@ -13683,13 +13705,17 @@ EXAMPLE OUTPUT (exact format):
           setName?: string; setNumber?: string; rarity?: string; officialImageUrl?: string;
         }
         const pageSize = 30;
+        const cacheKey = `setCards:${input.game}:${input.setId}:${input.page}`;
+        const cached = _getCached<{ cards: CardResult[]; hasMore: boolean; total: number }>(cacheKey);
+        if (cached) return cached;
         try {
+          let result: { cards: CardResult[]; hasMore: boolean; total: number } = { cards: [], hasMore: false, total: 0 };
           if (input.game === 'pokemon') {
-            const res = await fetch(
+            const res = await _fetchWithTimeout(
               `https://api.pokemontcg.io/v2/cards?q=set.id:${encodeURIComponent(input.setId)}&orderBy=number&pageSize=${pageSize}&page=${input.page}`
             );
             const json = await res.json() as any;
-            return {
+            result = {
               cards: (json.data ?? []).map((c: any): CardResult => ({
                 cardApiId: c.id, cardName: c.name,
                 setName: c.set?.name, setNumber: c.number,
@@ -13698,10 +13724,9 @@ EXAMPLE OUTPUT (exact format):
               hasMore: (json.page ?? 1) * pageSize < (json.totalCount ?? 0),
               total: json.totalCount ?? 0,
             };
-          }
-          if (input.game === 'yugioh') {
+          } else if (input.game === 'yugioh') {
             const offset = (input.page - 1) * 50;
-            const res = await fetch(
+            const res = await _fetchWithTimeout(
               `https://db.ygoprodeck.com/api/v7/cards.php?cardset=${encodeURIComponent(input.setId)}&num=50&offset=${offset}`
             );
             const json = await res.json() as any;
@@ -13712,14 +13737,13 @@ EXAMPLE OUTPUT (exact format):
               rarity: c.card_sets?.find((s: any) => s.set_name === input.setId)?.set_rarity ?? c.card_sets?.[0]?.set_rarity,
               officialImageUrl: c.card_images?.[0]?.image_url,
             }));
-            return { cards, hasMore: cards.length === 50, total: cards.length };
-          }
-          if (input.game === 'mtg') {
-            const res = await fetch(
+            result = { cards, hasMore: cards.length === 50, total: cards.length };
+          } else if (input.game === 'mtg') {
+            const res = await _fetchWithTimeout(
               `https://api.scryfall.com/cards/search?q=set:${encodeURIComponent(input.setId)}&order=collector_number&dir=asc&page=${input.page}`
             );
             const json = await res.json() as any;
-            return {
+            result = {
               cards: (json.data ?? []).map((c: any): CardResult => ({
                 cardApiId: c.id, cardName: c.name,
                 setName: c.set_name, setNumber: c.collector_number,
@@ -13730,10 +13754,9 @@ EXAMPLE OUTPUT (exact format):
               hasMore: json.has_more ?? false,
               total: json.total_cards ?? 0,
             };
-          }
-          if (input.game === 'digimon') {
+          } else if (input.game === 'digimon') {
             const offset = (input.page - 1) * 50;
-            const res = await fetch(
+            const res = await _fetchWithTimeout(
               `https://digimoncard.io/api-public/search.php?series=${encodeURIComponent(input.setId)}&sort=id&sortdirection=asc&num=50&offset=${offset}`
             );
             const json = await res.json() as any;
@@ -13743,9 +13766,10 @@ EXAMPLE OUTPUT (exact format):
               setNumber: c.cardnumber, rarity: c.rarity,
               officialImageUrl: c.image_url,
             }));
-            return { cards, hasMore: cards.length === 50, total: cards.length };
+            result = { cards, hasMore: cards.length === 50, total: cards.length };
           }
-          return { cards: [], hasMore: false, total: 0 };
+          if (result.cards.length > 0) _setCache(cacheKey, result, 60 * 60 * 1000);
+          return result;
         } catch {
           return { cards: [], hasMore: false, total: 0 };
         }
@@ -13971,7 +13995,7 @@ EXAMPLE OUTPUT (exact format):
         await deactivateCardWTB(input.id, ctx.user.id);
         return { ok: true };
       }),
-  }),
+  }); })(),
 });
 export type AppRouter = typeof appRouter;
 
