@@ -13995,6 +13995,20 @@ EXAMPLE OUTPUT (exact format):
         await deactivateCardWTB(input.id, ctx.user.id);
         return { ok: true };
       }),
+
+    openRoomWithSeller: protectedProcedure
+      .input(z.object({ listingId: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getCardListingById, getOrCreateChatRoom } = await import('./db');
+        const listing = await getCardListingById(input.listingId);
+        if (!listing) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到此上架記錄' });
+        const sellerId: number = listing.userId;
+        if (sellerId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '唔可以同自己對話' });
+        // sentinel: auctionId = -sellerId, 每個買家對每個賣家共用同一對話間
+        const result = await getOrCreateChatRoom(-sellerId, ctx.user.id, sellerId);
+        if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
+        return { roomId: result.room.id };
+      }),
   }); })(),
 });
 export type AppRouter = typeof appRouter;

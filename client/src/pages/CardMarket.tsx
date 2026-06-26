@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList } from "lucide-react";
 
 const GAMES = [
   { id: "", label: "全部" },
@@ -207,13 +207,24 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [contacting, setContacting] = useState(false);
   const photos = listing.photoUrls.length ? listing.photoUrls : (listing.officialImageUrl ? [listing.officialImageUrl] : []);
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#7c3aed" };
   const rarityBadge = getRarityShort(listing.rarity);
+  const openRoomMut = trpc.cardTrading.openRoomWithSeller.useMutation();
 
-  function handleContact() {
-    if (!isAuthenticated) { toast.info("請先登入"); return; }
-    navigate(`/messages`);
+  async function handleContact() {
+    if (!isAuthenticated) { toast.info("請先登入"); navigate("/login"); return; }
+    setContacting(true);
+    try {
+      const { roomId } = await openRoomMut.mutateAsync({ listingId: listing.id });
+      onClose();
+      navigate(`/messages/${roomId}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "無法開啟對話，請稍後再試");
+    } finally {
+      setContacting(false);
+    }
   }
 
   return (
@@ -297,9 +308,11 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
           {isAuthenticated && user?.id !== listing.userId ? (
             <button
               onClick={handleContact}
-              className="w-full py-3 rounded-2xl font-black text-sm"
+              disabled={contacting}
+              className="w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
               style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
             >
+              {contacting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               私訊賣家洽購
             </button>
           ) : !isAuthenticated ? (
@@ -372,13 +385,25 @@ export default function CardMarket() {
             <p className="text-xs mb-3" style={{ color: "rgba(0,0,0,0.6)" }}>
               內建完整高清卡牌圖鑑，透明成交，一鍵查價、光速成交
             </p>
-            <button
-              onClick={() => navigate("/cardzzz/market/sell")}
-              className="text-sm font-black px-4 py-1.5 rounded-full"
-              style={{ background: "rgba(0,0,0,0.15)", color: "#111827", border: "1px solid rgba(0,0,0,0.15)" }}
-            >
-              瀏覽全部系列
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => navigate("/cardzzz/market/sell")}
+                className="text-sm font-black px-4 py-1.5 rounded-full"
+                style={{ background: "rgba(0,0,0,0.15)", color: "#111827", border: "1px solid rgba(0,0,0,0.15)" }}
+              >
+                瀏覽全部系列
+              </button>
+              {isAuthenticated && (
+                <button
+                  onClick={() => navigate("/cardzzz/market/my")}
+                  className="text-sm font-black px-4 py-1.5 rounded-full flex items-center gap-1.5"
+                  style={{ background: "rgba(255,255,255,0.25)", color: "#111827", border: "1px solid rgba(0,0,0,0.15)" }}
+                >
+                  <ClipboardList className="w-3.5 h-3.5" />
+                  我的清單
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

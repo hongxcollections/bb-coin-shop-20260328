@@ -24944,6 +24944,16 @@ EXAMPLE OUTPUT (exact format):
         const { deactivateCardWTB: deactivateCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await deactivateCardWTB2(input.id, ctx.user.id);
         return { ok: true };
+      }),
+      openRoomWithSeller: protectedProcedure.input(z2.object({ listingId: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getCardListingById: getCardListingById2, getOrCreateChatRoom: getOrCreateChatRoom2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const listing = await getCardListingById2(input.listingId);
+        if (!listing) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u5514\u5230\u6B64\u4E0A\u67B6\u8A18\u9304" });
+        const sellerId = listing.userId;
+        if (sellerId === ctx.user.id) throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5514\u53EF\u4EE5\u540C\u81EA\u5DF1\u5C0D\u8A71" });
+        const result = await getOrCreateChatRoom2(-sellerId, ctx.user.id, sellerId);
+        if (!result) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "\u5EFA\u7ACB\u5C0D\u8A71\u5931\u6557" });
+        return { roomId: result.room.id };
       })
     });
   })()
