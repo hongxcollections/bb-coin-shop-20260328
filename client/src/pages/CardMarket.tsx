@@ -215,6 +215,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
 
   async function handleContact() {
     if (!isAuthenticated) { toast.info("請先登入"); navigate("/login"); return; }
+    if (user?.id === listing.userId) { toast.error("這是你自己的上架記錄，無法私訊自己"); return; }
     setContacting(true);
     try {
       const { roomId } = await openRoomMut.mutateAsync({ listingId: listing.id });
@@ -305,27 +306,15 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
         </div>
 
         <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
-          {isAuthenticated && user?.id !== listing.userId ? (
-            <button
-              onClick={handleContact}
-              disabled={contacting}
-              className="w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
-            >
-              {contacting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              私訊賣家洽購
-            </button>
-          ) : !isAuthenticated ? (
-            <button
-              onClick={() => navigate("/login")}
-              className="w-full py-3 rounded-2xl font-black text-sm"
-              style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
-            >
-              登入後洽購
-            </button>
-          ) : (
-            <div className="text-center text-xs py-2" style={{ color: "#9ca3af" }}>這是你的上架記錄</div>
-          )}
+          <button
+            onClick={handleContact}
+            disabled={contacting}
+            className="w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
+            style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
+          >
+            {contacting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            私訊賣家洽購
+          </button>
         </div>
       </div>
     </div>
@@ -373,23 +362,23 @@ export default function CardMarket() {
 
       <div className="max-w-lg mx-auto px-4 pt-4">
         {/* Hero Banner */}
-        <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #FFDE00 0%, #F97316 60%, #FFB800 100%)" }}>
-          <div className="absolute inset-0 opacity-15" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)" }} />
+        <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%)" }}>
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)" }} />
           <div className="relative z-10">
-            <div className="text-[10px] font-black mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: "rgba(0,0,0,0.12)", color: "#111827", letterSpacing: "0.1em" }}>
+            <div className="text-[10px] font-black mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", letterSpacing: "0.1em" }}>
               PREMIUM TRADING HUB
             </div>
-            <h2 className="text-lg font-black leading-tight mb-1" style={{ color: "#111827" }}>
+            <h2 className="text-lg font-black leading-tight mb-1" style={{ color: "#fff" }}>
               免費、極簡、方便快捷<br />全系列圖鑑卡牌交易空間
             </h2>
-            <p className="text-xs mb-3" style={{ color: "rgba(0,0,0,0.6)" }}>
+            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.75)" }}>
               內建完整高清卡牌圖鑑，透明成交，一鍵查價、光速成交
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => navigate("/cardzzz/market/sell")}
                 className="text-sm font-black px-4 py-1.5 rounded-full"
-                style={{ background: "rgba(0,0,0,0.15)", color: "#111827", border: "1px solid rgba(0,0,0,0.15)" }}
+                style={{ background: "rgba(255,255,255,0.18)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
               >
                 瀏覽全部系列
               </button>
@@ -397,7 +386,7 @@ export default function CardMarket() {
                 <button
                   onClick={() => navigate("/cardzzz/market/my")}
                   className="text-sm font-black px-4 py-1.5 rounded-full flex items-center gap-1.5"
-                  style={{ background: "rgba(255,255,255,0.25)", color: "#111827", border: "1px solid rgba(0,0,0,0.15)" }}
+                  style={{ background: "rgba(255,255,255,0.18)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
                 >
                   <ClipboardList className="w-3.5 h-3.5" />
                   我的清單
