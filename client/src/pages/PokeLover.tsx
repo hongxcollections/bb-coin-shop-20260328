@@ -420,7 +420,7 @@ function PokeShareMenu({ result, savedCardId }: { result: PokeResult; savedCardI
         type="button"
         onClick={handleOpen}
         className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full"
-        style={{ background: "rgba(255,222,0,0.15)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}
+        style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
       >
         <Share2 className="w-3.5 h-3.5" /> 分享
       </button>
@@ -515,9 +515,9 @@ function PokeBallUpload({ onFiles, disabled }: { onFiles: (files: File[]) => voi
           <Upload className="w-6 h-6" style={{ color: "#333" }} />
         </div>
       </div>
-      <p className="text-sm font-semibold" style={{ color: "#FFDE00" }}>點擊或拖放卡片圖片</p>
-      <p className="text-xs mt-1" style={{ color: "rgba(255,222,0,0.6)" }}>Pokemon・航海王・MTG・遊戲王・龍珠・數碼暴龍等</p>
-      <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>支援 JPG / PNG / WEBP</p>
+      <p className="text-sm font-semibold" style={{ color: "#CC0000" }}>點擊或拖放卡片圖片</p>
+      <p className="text-xs mt-1" style={{ color: "#6b7280" }}>Pokemon・航海王・MTG・遊戲王・龍珠・數碼暴龍等</p>
+      <p className="text-xs" style={{ color: "#9ca3af" }}>支援 JPG / PNG / WEBP</p>
       <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={e => { const files = Array.from(e.target.files ?? []).filter(f => f.type.startsWith("image/")); if (files.length) onFiles(files); e.target.value = ""; }} />
     </div>
   );
@@ -530,7 +530,7 @@ function SpinningBall() {
         className="animate-spin"
         style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "4px solid #222", boxShadow: "0 4px 20px rgba(204,0,0,0.4)" }}
       />
-      <p className="text-sm font-semibold animate-pulse" style={{ color: "#FFDE00" }}>AI 正在識別卡片...</p>
+      <p className="text-sm font-semibold animate-pulse" style={{ color: "#CC0000" }}>AI 正在識別卡片...</p>
     </div>
   );
 }
@@ -777,6 +777,8 @@ export default function CardZzz() {
   }, [processFile]);
 
   const handleMultipleFiles = useCallback((files: File[]) => {
+    toast.info("AI 圖片識別功能暫時停用，敬請期待", { className: "bb-toast-info" });
+    return;
     if (files.length === 1) {
       setIsBatchMode(false);
       setBatchTotal(0);
@@ -899,7 +901,7 @@ export default function CardZzz() {
   const rarityColor = result?.rarity ? (RARITY_COLOR[result.rarity] ?? "#9C27B0") : "#9C27B0";
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "linear-gradient(160deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", color: "#fff" }}>
+    <div className="min-h-screen pb-20" style={{ background: "#fff", color: "#111827" }}>
       <Header />
 
       {lightboxOpen && imagePreview && (
@@ -907,14 +909,14 @@ export default function CardZzz() {
       )}
 
       <div className="max-w-lg mx-auto px-4 pt-4">
-        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12 }}>
+        <div ref={shareCardRef} style={{ background: "#fff", borderRadius: 12 }}>
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
+          <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #e5e7eb" }} />
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#FFDE00", textShadow: "0 2px 8px rgba(255,222,0,0.4)" }}>
+            <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#CC0000" }}>
               CardZzz
             </h1>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI 智能 CardZzz 卡片鑑定 · 市場估價</p>
+            <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>AI 智能 CardZzz 卡片鑑定 · 市場估價</p>
           </div>
         </div>
 
@@ -922,16 +924,16 @@ export default function CardZzz() {
         {history.length > 0 && !imagePreview && !isAnalyzing && (
           <div data-share-skip="true" className="mb-4 mt-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>最近記錄</p>
+              <p className="text-[10px] font-bold" style={{ color: "#9ca3af" }}>最近記錄</p>
               {!historySelectMode ? (
                 <button onClick={() => { setHistorySelectMode(true); setSelectedHistoryIds(new Set()); }}
-                  className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                  className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: "#9ca3af", border: "1px solid #e5e7eb" }}>
                   管理
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
                   <button onClick={() => setSelectedHistoryIds(new Set(history.map(h => h.id)))}
-                    className="text-[10px]" style={{ color: "rgba(255,222,0,0.7)" }}>全選</button>
+                    className="text-[10px]" style={{ color: "#F97316" }}>全選</button>
                   <button
                     onClick={() => {
                       const kept = history.filter(h => !selectedHistoryIds.has(h.id));
@@ -941,11 +943,11 @@ export default function CardZzz() {
                       setSelectedHistoryIds(new Set());
                     }}
                     className="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                    style={{ background: selectedHistoryIds.size > 0 ? "rgba(244,67,54,0.2)" : "rgba(255,255,255,0.06)", color: selectedHistoryIds.size > 0 ? "#f44336" : "rgba(255,255,255,0.3)", border: `1px solid ${selectedHistoryIds.size > 0 ? "rgba(244,67,54,0.4)" : "rgba(255,255,255,0.1)"}` }}>
+                    style={{ background: selectedHistoryIds.size > 0 ? "rgba(244,67,54,0.08)" : "#f3f4f6", color: selectedHistoryIds.size > 0 ? "#f44336" : "#9ca3af", border: `1px solid ${selectedHistoryIds.size > 0 ? "rgba(244,67,54,0.25)" : "#e5e7eb"}` }}>
                     {selectedHistoryIds.size > 0 ? `刪除 (${selectedHistoryIds.size})` : "刪除"}
                   </button>
                   <button onClick={() => { setHistorySelectMode(false); setSelectedHistoryIds(new Set()); }}
-                    className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>取消</button>
+                    className="text-[10px]" style={{ color: "#9ca3af" }}>取消</button>
                 </div>
               )}
             </div>
@@ -971,24 +973,24 @@ export default function CardZzz() {
                       }
                     }}
                     className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl p-2 relative"
-                    style={{ background: isSelected ? "rgba(244,67,54,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${isSelected ? "rgba(244,67,54,0.5)" : "rgba(255,255,255,0.08)"}`, width: 80 }}
+                    style={{ background: isSelected ? "rgba(244,67,54,0.06)" : "#f8f9fa", border: `1px solid ${isSelected ? "rgba(244,67,54,0.3)" : "#e5e7eb"}`, width: 80 }}
                   >
                     {historySelectMode && (
                       <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
-                        style={{ background: isSelected ? "#f44336" : "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                        style={{ background: isSelected ? "#f44336" : "#e5e7eb", border: "1px solid #d1d5db" }}>
                         {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                       </div>
                     )}
                     {item.imageThumb ? (
                       <img src={item.imageThumb} alt="" className="rounded-lg object-cover" style={{ width: 52, height: 72 }} />
                     ) : (
-                      <div className="rounded-lg flex items-center justify-center" style={{ width: 52, height: 72, background: "rgba(255,222,0,0.08)" }}>
+                      <div className="rounded-lg flex items-center justify-center" style={{ width: 52, height: 72, background: "#f3f4f6" }}>
                         <span style={{ fontSize: 24 }}>🃏</span>
                       </div>
                     )}
-                    <p className="text-[9px] text-center leading-tight font-semibold line-clamp-2" style={{ color: "rgba(255,255,255,0.7)", width: "100%" }}>{item.cardName}</p>
+                    <p className="text-[9px] text-center leading-tight font-semibold line-clamp-2" style={{ color: "#6b7280", width: "100%" }}>{item.cardName}</p>
                     {item.gradeEstimate != null && (
-                      <span className="text-[9px] font-black px-1.5 rounded" style={{ background: "rgba(156,39,176,0.2)", color: "#CE93D8" }}>PSA {item.gradeEstimate}</span>
+                      <span className="text-[9px] font-black px-1.5 rounded" style={{ background: "rgba(124,58,237,0.1)", color: "#7c3aed" }}>PSA {item.gradeEstimate}</span>
                     )}
                   </button>
                 );
@@ -998,7 +1000,7 @@ export default function CardZzz() {
         )}
 
         <div className="rounded-2xl p-px mt-5 mb-6" style={{ background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)" }}>
-          <div className="rounded-2xl p-6 flex flex-col items-center" style={{ background: "#13131f" }}>
+          <div className="rounded-2xl p-6 flex flex-col items-center" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
             {isAnalyzing ? (
               <SpinningBall />
             ) : imagePreview && result ? (
@@ -1013,7 +1015,7 @@ export default function CardZzz() {
                     src={imagePreview}
                     alt="Card"
                     className="rounded-xl object-cover"
-                    style={{ width: 90, height: 126, border: "2px solid rgba(255,222,0,0.3)" }}
+                    style={{ width: 90, height: 126, border: "2px solid #e5e7eb" }}
                   />
                   <div
                     className="absolute inset-0 rounded-xl flex items-end justify-center pb-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1024,12 +1026,12 @@ export default function CardZzz() {
                 </button>
                 <div className="flex-1 min-w-0">
                   {result.cardGame && (
-                    <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full mb-1" style={{ background: "rgba(255,222,0,0.15)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}>
+                    <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full mb-1" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
                       {result.cardGame}
                     </span>
                   )}
-                  <p className="text-xl font-black leading-tight" style={{ color: "#FFDE00" }}>{result.cardName ?? "未知卡片"}</p>
-                  {result.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{result.cardNameJa}</p>}
+                  <p className="text-xl font-black leading-tight" style={{ color: "#CC0000" }}>{result.cardName ?? "未知卡片"}</p>
+                  {result.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{result.cardNameJa}</p>}
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {(result.types ?? []).map(t => <TypeBadge key={t} type={t} />)}
                     {result.rarity && (
@@ -1039,10 +1041,10 @@ export default function CardZzz() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2">
-                    {result.hp && <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>HP <span className="font-bold text-white">{result.hp}</span></span>}
-                    {result.set && <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{result.set}{result.setNumber ? ` #${result.setNumber}` : ""}</span>}
-                    {result.releaseYear && <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{result.releaseYear}</span>}
-                    {result.language && <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{result.language}</span>}
+                    {result.hp && <span className="text-xs" style={{ color: "#6b7280" }}>HP <span className="font-bold" style={{ color: "#111827" }}>{result.hp}</span></span>}
+                    {result.set && <span className="text-xs" style={{ color: "#6b7280" }}>{result.set}{result.setNumber ? ` #${result.setNumber}` : ""}</span>}
+                    {result.releaseYear && <span className="text-xs" style={{ color: "#9ca3af" }}>{result.releaseYear}</span>}
+                    {result.language && <span className="text-xs" style={{ color: "#9ca3af" }}>{result.language}</span>}
                   </div>
                 </div>
               </div>
@@ -1059,7 +1061,7 @@ export default function CardZzz() {
             <button
               onClick={() => navigate("/cardzzz/market")}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
-              style={{ background: "rgba(204,0,0,0.12)", border: "1px solid rgba(204,0,0,0.3)", color: "#FF6B6B" }}
+              style={{ background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.2)", color: "#CC0000" }}
             >
               <Tag className="w-4 h-4" />
               交易市場
@@ -1068,7 +1070,7 @@ export default function CardZzz() {
               <button
                 onClick={() => navigate("/cardzzz/market/sell")}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
-                style={{ background: "rgba(255,222,0,0.10)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}
+                style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}
               >
                 <DollarSign className="w-4 h-4" />
                 出售卡牌
@@ -1082,22 +1084,22 @@ export default function CardZzz() {
             <button
               onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; }}
               className="text-xs px-3 py-1 rounded-full font-medium"
-              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}>
+              style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
               ↩ 重新上載
             </button>
             <button
               onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; navigate("/cardzzz"); }}
               className="text-xs px-3 py-1 rounded-full font-medium"
-              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}>
+              style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
               回主頁
             </button>
             {isAuthenticated && (
               <div className="ml-auto flex items-center gap-1.5">
-                <button onClick={() => navigate("/cardzzz/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(204,0,0,0.15)", border: "1px solid rgba(204,0,0,0.35)", color: "#FF6B6B" }}>
+                <button onClick={() => navigate("/cardzzz/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.2)", color: "#CC0000" }}>
                   <DollarSign className="w-3.5 h-3.5" />
                   出售
                 </button>
-                <button onClick={() => navigate("/cardzzz/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
+                <button onClick={() => navigate("/cardzzz/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}>
                   <BookOpen className="w-3.5 h-3.5" />
                   卡冊
                 </button>
@@ -1108,26 +1110,26 @@ export default function CardZzz() {
 
         {/* A2 — 批量分析進度 */}
         {isBatchMode && (isAnalyzing || batchDone > 0) && (
-          <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,222,0,0.08)", border: "1px solid rgba(255,222,0,0.2)" }}>
+          <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.2)" }}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.8)" }}>
+              <p className="text-xs font-bold" style={{ color: "#F97316" }}>
                 批量分析 {isAnalyzing ? `${Math.min(batchDone + 1, batchTotal)}/${batchTotal}` : `完成 ${batchDone}/${batchTotal}`}
               </p>
               {!isAnalyzing && (
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                <span className="text-[10px]" style={{ color: "#9ca3af" }}>
                   合計估值 HKD${batchSummary.reduce((s, r) => s + (r.value ?? 0), 0).toLocaleString("en-HK")}
                 </span>
               )}
             </div>
-            <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: "rgba(255,255,255,0.1)" }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((batchDone / Math.max(batchTotal, 1)) * 100)}%`, background: "linear-gradient(90deg, #CC0000, #FFDE00)" }} />
+            <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: "#e5e7eb" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((batchDone / Math.max(batchTotal, 1)) * 100)}%`, background: "linear-gradient(90deg, #CC0000, #F97316)" }} />
             </div>
             {!isAnalyzing && batchSummary.length > 0 && (
               <div className="mt-2 flex flex-col gap-1">
                 {batchSummary.map((r, i) => (
                   <div key={i} className="flex items-center justify-between text-[10px]">
-                    <span className="truncate" style={{ color: "rgba(255,255,255,0.6)", maxWidth: "70%" }}>{r.name}</span>
-                    <span style={{ color: r.value ? "#FFDE00" : "rgba(255,255,255,0.3)" }}>{r.value ? `HKD$${r.value.toLocaleString()}` : "N/A"}</span>
+                    <span className="truncate" style={{ color: "#6b7280", maxWidth: "70%" }}>{r.name}</span>
+                    <span style={{ color: r.value ? "#CC0000" : "#d1d5db" }}>{r.value ? `HKD$${r.value.toLocaleString()}` : "N/A"}</span>
                   </div>
                 ))}
               </div>
@@ -1141,13 +1143,13 @@ export default function CardZzz() {
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#f44336" }} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold" style={{ color: "#f44336" }}>分析失敗</p>
-              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{analysisError}</p>
+              <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>{analysisError}</p>
             </div>
             {pendingFileData && (
               <button
                 onClick={handleRetry}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0"
-                style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.3)", color: "#FFDE00" }}
+                style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}
               >
                 <RefreshCcw className="w-3 h-3" />
                 重試
@@ -1159,7 +1161,7 @@ export default function CardZzz() {
         {isAnalyzing && (
           <div data-share-skip="true" className="mt-4 flex flex-col gap-4">
             {/* 步驟進度 */}
-            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div className="rounded-xl p-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
               {[
                 { icon: "📷", label: "分析卡片圖像" },
                 { icon: "🔍", label: "識別名稱 / 系列 / 稀有度" },
@@ -1171,13 +1173,13 @@ export default function CardZzz() {
                   <div key={i} className="flex items-center gap-3 py-2">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
                       style={{
-                        background: done ? "rgba(76,175,80,0.2)" : active ? "rgba(255,222,0,0.15)" : "rgba(255,255,255,0.05)",
-                        border: done ? "1px solid #4CAF50" : active ? "1px solid rgba(255,222,0,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                        background: done ? "rgba(76,175,80,0.12)" : active ? "rgba(249,115,22,0.1)" : "#f3f4f6",
+                        border: done ? "1px solid #4CAF50" : active ? "1px solid rgba(249,115,22,0.4)" : "1px solid #e5e7eb",
                       }}
                     >
-                      {done ? "✓" : active ? <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#FFDE00" }} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>}
+                      {done ? "✓" : active ? <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#F97316" }} /> : <span style={{ color: "#d1d5db" }}>·</span>}
                     </div>
-                    <span className="text-sm" style={{ color: done ? "#4CAF50" : active ? "#FFDE00" : "rgba(255,255,255,0.25)" }}>
+                    <span className="text-sm" style={{ color: done ? "#16a34a" : active ? "#F97316" : "#d1d5db" }}>
                       {s.icon} {s.label}
                     </span>
                   </div>
@@ -1186,10 +1188,10 @@ export default function CardZzz() {
             </div>
 
             {/* 四大評級機構對照 */}
-            <div data-share-skip="true" className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div data-share-skip="true" className="rounded-xl p-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
               <div className="flex items-center gap-2 mb-3">
-                <Star className="w-3.5 h-3.5" style={{ color: "#FFDE00" }} />
-                <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.7)" }}>四大評級機構對照</p>
+                <Star className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
+                <p className="text-xs font-bold" style={{ color: "#F97316" }}>四大評級機構對照</p>
               </div>
               {/* 機構標題 */}
               <div className="grid grid-cols-5 gap-1 mb-2">
@@ -1201,7 +1203,7 @@ export default function CardZzz() {
                 ].map(({ name, color, note }) => (
                   <div key={name} className="col-span-1 flex flex-col items-center">
                     <span className="text-[10px] font-black" style={{ color }}>{name}</span>
-                    <span className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>{note}</span>
+                    <span className="text-[8px]" style={{ color: "#9ca3af" }}>{note}</span>
                   </div>
                 ))}
                 <div className="col-span-1" />
@@ -1221,10 +1223,10 @@ export default function CardZzz() {
                       <span className="text-[11px] font-black" style={{ color: row.color }}>{v}</span>
                     </div>
                   ))}
-                  <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>{row.label}</span>
+                  <span className="text-[10px]" style={{ color: "#9ca3af" }}>{row.label}</span>
                 </div>
               ))}
-              <p className="text-[9px] mt-3" style={{ color: "rgba(255,255,255,0.2)" }}>* BGS 最嚴格，同張卡評分通常比 PSA 低 0.5–1 級　* 以上僅作參考，實際評分以各機構為準</p>
+              <p className="text-[9px] mt-3" style={{ color: "#9ca3af" }}>* BGS 最嚴格，同張卡評分通常比 PSA 低 0.5–1 級　* 以上僅作參考，實際評分以各機構為準</p>
             </div>
           </div>
         )}
@@ -1232,8 +1234,8 @@ export default function CardZzz() {
         {result && !result.isNotSupportedCard && (
           <>
             {result.attacks && result.attacks.length > 0 && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>技能</p>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+                <p className="text-xs font-bold mb-3" style={{ color: "#6b7280" }}>技能</p>
                 <div className="flex flex-col gap-2">
                   {result.attacks.map((atk, i) => (
                     <div key={i} className="flex items-center justify-between">
@@ -1243,22 +1245,22 @@ export default function CardZzz() {
                             <div key={ci} style={{ width: 12, height: 12, borderRadius: "50%", background: TYPE_COLORS[c]?.bg ?? "#888", border: "1px solid rgba(0,0,0,0.3)" }} />
                           ))}
                         </div>
-                        <span className="text-sm font-semibold text-white">{atk.name}</span>
+                        <span className="text-sm font-semibold" style={{ color: "#111827" }}>{atk.name}</span>
                       </div>
-                      {atk.damage && <span className="text-sm font-black" style={{ color: "#FFDE00" }}>{atk.damage}</span>}
+                      {atk.damage && <span className="text-sm font-black" style={{ color: "#CC0000" }}>{atk.damage}</span>}
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>品相評估</p>
-              <p className="text-base font-black text-white">{result.condition ?? "—"}</p>
-              {result.conditionNote && <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>{result.conditionNote}</p>}
+            <div className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+              <p className="text-xs font-bold mb-3" style={{ color: "#6b7280" }}>品相評估</p>
+              <p className="text-base font-black" style={{ color: "#111827" }}>{result.condition ?? "—"}</p>
+              {result.conditionNote && <p className="text-xs mt-0.5 mb-3" style={{ color: "#6b7280" }}>{result.conditionNote}</p>}
               {(result.gradeEstimate != null || result.bgsEstimate != null || result.cgcEstimate != null || result.tagEstimate != null) && (
                 <div className="mt-3">
-                  <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>估計評級</p>
+                  <p className="text-[10px] font-bold mb-2" style={{ color: "#9ca3af" }}>估計評級</p>
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { label: "PSA",  value: result.gradeEstimate, max: 10, color: "#9C27B0" },
@@ -1266,12 +1268,12 @@ export default function CardZzz() {
                       { label: "CGC",  value: result.cgcEstimate,   max: 10, color: "#4CAF50" },
                       { label: "TAG",  value: result.tagEstimate,   max: 10, color: "#FF9800" },
                     ].map(({ label, value, color }) => (
-                      <div key={label} className="flex flex-col items-center rounded-lg py-2" style={{ background: value != null ? `${color}18` : "rgba(255,255,255,0.03)", border: `1px solid ${value != null ? color + "44" : "rgba(255,255,255,0.06)"}` }}>
-                        <span className="text-[9px] font-bold mb-1" style={{ color: value != null ? color : "rgba(255,255,255,0.25)" }}>{label}</span>
-                        <span className="text-base font-black leading-none" style={{ color: value != null ? color : "rgba(255,255,255,0.2)" }}>
+                      <div key={label} className="flex flex-col items-center rounded-lg py-2" style={{ background: value != null ? `${color}12` : "#f8f9fa", border: `1px solid ${value != null ? color + "33" : "#e5e7eb"}` }}>
+                        <span className="text-[9px] font-bold mb-1" style={{ color: value != null ? color : "#d1d5db" }}>{label}</span>
+                        <span className="text-base font-black leading-none" style={{ color: value != null ? color : "#d1d5db" }}>
                           {value != null ? value : "—"}
                         </span>
-                        {value != null && <span className="text-[9px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>/10</span>}
+                        {value != null && <span className="text-[9px] mt-0.5" style={{ color: "#9ca3af" }}>/10</span>}
                       </div>
                     ))}
                   </div>
@@ -1296,14 +1298,14 @@ export default function CardZzz() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{result.authenticityWarning}</p>
-                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>* AI 判斷僅供參考，建議向專業機構送評確認</p>
+                  <p className="text-xs" style={{ color: "#6b7280" }}>{result.authenticityWarning}</p>
+                  <p className="text-[10px] mt-1.5" style={{ color: "#9ca3af" }}>* AI 判斷僅供參考，建議向專業機構送評確認</p>
                 </div>
               </div>
             )}
 
-            <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,222,0,0.07)", border: "1px solid rgba(255,222,0,0.2)" }}>
-              <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,222,0,0.7)" }}>參考市場價格</p>
+            <div className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+              <p className="text-xs font-bold mb-3" style={{ color: "#6b7280" }}>參考市場價格</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: "裸卡 NM", value: result.marketPriceHKD },
@@ -1311,34 +1313,34 @@ export default function CardZzz() {
                   { label: "PSA 10", value: result.psa10HKD },
                 ].map(({ label, value }) => (
                   <div key={label} className="text-center">
-                    <p className="text-[10px] mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</p>
-                    <p className="text-sm font-black" style={{ color: value ? "#FFDE00" : "rgba(255,255,255,0.3)" }}>
+                    <p className="text-[10px] mb-1" style={{ color: "#9ca3af" }}>{label}</p>
+                    <p className="text-sm font-black" style={{ color: value ? "#CC0000" : "#d1d5db" }}>
                       {value ? `$${value.toLocaleString("en-HK")}` : "N/A"}
                     </p>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] mt-2 text-center" style={{ color: "rgba(255,255,255,0.3)" }}>* AI 估算僅供參考，實際成交價以市場為準</p>
+              <p className="text-[10px] mt-2 text-center" style={{ color: "#9ca3af" }}>* AI 估算僅供參考，實際成交價以市場為準</p>
             </div>
 
             {(psa9 > 0 || psa10 > 0) && (
-              <div data-share-skip="true" className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div data-share-skip="true" className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4" style={{ color: "#FFDE00" }} />
-                  <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>送評計算器</p>
+                  <Zap className="w-4 h-4" style={{ color: "#F97316" }} />
+                  <p className="text-xs font-bold" style={{ color: "#111827" }}>送評計算器</p>
                 </div>
 
                 {/* B1 — 評級機構選擇 */}
                 <div className="mb-3">
-                  <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>評級機構</p>
+                  <p className="text-[10px] mb-1.5" style={{ color: "#9ca3af" }}>評級機構</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {(["PSA", "BGS", "CGC", "TAG"] as GradingOrg[]).map(org => (
                       <button key={org} onClick={() => setGradingOrg(org)}
                         className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
                         style={{
-                          background: gradingOrg === org ? "rgba(255,222,0,0.2)" : "rgba(255,255,255,0.05)",
-                          border: `1px solid ${gradingOrg === org ? "rgba(255,222,0,0.5)" : "rgba(255,255,255,0.1)"}`,
-                          color: gradingOrg === org ? "#FFDE00" : "rgba(255,255,255,0.4)",
+                          background: gradingOrg === org ? "rgba(249,115,22,0.1)" : "#f3f4f6",
+                          border: `1px solid ${gradingOrg === org ? "rgba(249,115,22,0.35)" : "#e5e7eb"}`,
+                          color: gradingOrg === org ? "#F97316" : "#6b7280",
                         }}>{org}</button>
                     ))}
                   </div>
@@ -1346,54 +1348,54 @@ export default function CardZzz() {
 
                 {/* B1 — 服務 tier */}
                 <div className="mb-3">
-                  <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>服務等級</p>
+                  <p className="text-[10px] mb-1.5" style={{ color: "#9ca3af" }}>服務等級</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {Object.entries(GRADING_FEES[gradingOrg]).map(([tier, fee]) => (
                       <button key={tier} onClick={() => setGradingTier(tier)}
                         className="px-2.5 py-1 rounded-lg text-[11px] transition-all"
                         style={{
-                          background: gradingTier === tier ? "rgba(255,222,0,0.15)" : "rgba(255,255,255,0.04)",
-                          border: `1px solid ${gradingTier === tier ? "rgba(255,222,0,0.4)" : "rgba(255,255,255,0.08)"}`,
-                          color: gradingTier === tier ? "#FFDE00" : "rgba(255,255,255,0.4)",
-                        }}>{tier} <span style={{ color: "rgba(255,255,255,0.35)" }}>HKD${fee}</span></button>
+                          background: gradingTier === tier ? "rgba(249,115,22,0.1)" : "#f3f4f6",
+                          border: `1px solid ${gradingTier === tier ? "rgba(249,115,22,0.35)" : "#e5e7eb"}`,
+                          color: gradingTier === tier ? "#F97316" : "#6b7280",
+                        }}>{tier} <span style={{ color: "#9ca3af" }}>HKD${fee}</span></button>
                     ))}
                   </div>
                 </div>
 
                 {/* D2 — 幣種切換 */}
                 <div className="mb-3">
-                  <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>顯示幣種</p>
+                  <p className="text-[10px] mb-1.5" style={{ color: "#9ca3af" }}>顯示幣種</p>
                   <div className="flex gap-1.5">
                     {(["HKD", "USD", "JPY"] as const).map(cur => (
                       <button key={cur} onClick={() => setCurrency(cur)}
                         className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
                         style={{
-                          background: currency === cur ? "rgba(100,180,255,0.2)" : "rgba(255,255,255,0.04)",
-                          border: `1px solid ${currency === cur ? "rgba(100,180,255,0.5)" : "rgba(255,255,255,0.08)"}`,
-                          color: currency === cur ? "#64B4FF" : "rgba(255,255,255,0.35)",
+                          background: currency === cur ? "rgba(33,150,243,0.1)" : "#f3f4f6",
+                          border: `1px solid ${currency === cur ? "rgba(33,150,243,0.35)" : "#e5e7eb"}`,
+                          color: currency === cur ? "#2196F3" : "#6b7280",
                         }}>{cur}</button>
                     ))}
                   </div>
                 </div>
 
                 <div className="mb-3">
-                  <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>你的買入價 (HKD)</p>
+                  <p className="text-xs mb-1" style={{ color: "#6b7280" }}>你的買入價 (HKD)</p>
                   <input
                     type="number"
                     value={rawPriceInput}
                     onChange={e => setRawPriceInput(e.target.value)}
                     placeholder="輸入買入價"
-                    className="w-full px-3 py-2 text-sm outline-none text-white placeholder-gray-500"
-                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "10px" }}
+                    className="w-full px-3 py-2 text-sm outline-none placeholder-gray-400"
+                    style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "10px", color: "#111827" }}
                   />
                 </div>
                 {rawPrice > 0 && (
                   <div className="flex flex-col gap-2">
                     {psa9 > 0 && (
-                      <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa9 > 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)" }}>
+                      <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa9 > 0 ? "rgba(22,163,74,0.08)" : "rgba(220,38,38,0.06)", border: `1px solid ${profitPsa9 > 0 ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.15)"}` }}>
                         <div>
-                          <p className="text-xs font-bold text-white">{gradingOrg} 9 得標</p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtCurrency(psa9)} − {fmtCurrency(rawPrice)} − 送評 {fmtCurrency(selectedFee)}</p>
+                          <p className="text-xs font-bold" style={{ color: "#111827" }}>{gradingOrg} 9 得標</p>
+                          <p className="text-[10px]" style={{ color: "#9ca3af" }}>{fmtCurrency(psa9)} − {fmtCurrency(rawPrice)} − 送評 {fmtCurrency(selectedFee)}</p>
                         </div>
                         <p className="text-sm font-black" style={{ color: profitPsa9 > 0 ? "#4CAF50" : "#f44336" }}>
                           {profitPsa9 > 0 ? "+" : ""}{fmtCurrency(profitPsa9)}
@@ -1401,10 +1403,10 @@ export default function CardZzz() {
                       </div>
                     )}
                     {psa10 > 0 && (
-                      <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa10 > 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)" }}>
+                      <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa10 > 0 ? "rgba(22,163,74,0.08)" : "rgba(220,38,38,0.06)", border: `1px solid ${profitPsa10 > 0 ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.15)"}` }}>
                         <div>
-                          <p className="text-xs font-bold text-white">{gradingOrg} 10 得標</p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtCurrency(psa10)} − {fmtCurrency(rawPrice)} − 送評 {fmtCurrency(selectedFee)}</p>
+                          <p className="text-xs font-bold" style={{ color: "#111827" }}>{gradingOrg} 10 得標</p>
+                          <p className="text-[10px]" style={{ color: "#9ca3af" }}>{fmtCurrency(psa10)} − {fmtCurrency(rawPrice)} − 送評 {fmtCurrency(selectedFee)}</p>
                         </div>
                         <p className="text-sm font-black" style={{ color: profitPsa10 > 0 ? "#4CAF50" : "#f44336" }}>
                           {profitPsa10 > 0 ? "+" : ""}{fmtCurrency(profitPsa10)}
@@ -1426,9 +1428,9 @@ export default function CardZzz() {
             )}
 
             {result.funFact && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>💡 冷知識</p>
-                <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>{result.funFact}</p>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+                <p className="text-xs" style={{ color: "#9ca3af" }}>💡 冷知識</p>
+                <p className="text-sm mt-1" style={{ color: "#111827" }}>{result.funFact}</p>
               </div>
             )}
 
@@ -1437,7 +1439,7 @@ export default function CardZzz() {
               <button
                 onClick={() => toast.info("本站搜尋功能開發中，敬請期待", { className: "bb-toast-info" })}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
-                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.1)", cursor: "not-allowed" }}
+                style={{ background: "#f3f4f6", color: "#d1d5db", border: "1px solid #e5e7eb", cursor: "not-allowed" }}
               >
                 <Search className="w-4 h-4" />
                 本站搜尋
@@ -1462,7 +1464,7 @@ export default function CardZzz() {
               <button
                 onClick={handleShareImage}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
+                style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", color: "#6b7280" }}
               >
                 {shareGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Images className="w-4 h-4" />}
                 {shareGenerating ? "生成中..." : "圖卡分享"}
@@ -1473,9 +1475,9 @@ export default function CardZzz() {
                   disabled={savingCard || savedCardId !== null}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
                   style={{
-                    background: savedCardId !== null ? "rgba(76,175,80,0.15)" : "rgba(255,222,0,0.12)",
-                    border: `1px solid ${savedCardId !== null ? "rgba(76,175,80,0.4)" : "rgba(255,222,0,0.3)"}`,
-                    color: savedCardId !== null ? "#4CAF50" : "#FFDE00",
+                    background: savedCardId !== null ? "rgba(22,163,74,0.08)" : "rgba(249,115,22,0.1)",
+                    border: `1px solid ${savedCardId !== null ? "rgba(22,163,74,0.25)" : "rgba(249,115,22,0.3)"}`,
+                    color: savedCardId !== null ? "#16a34a" : "#F97316",
                     opacity: savingCard ? 0.6 : 1,
                   }}
                 >
@@ -1486,7 +1488,7 @@ export default function CardZzz() {
                 <button
                   onClick={() => navigate("/login")}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)" }}
+                  style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", color: "#9ca3af" }}
                 >
                   <BookmarkPlus className="w-4 h-4" />
                   登入存卡冊
@@ -1495,8 +1497,8 @@ export default function CardZzz() {
             </div>
 
             {result.ebaySearchQuery && (
-              <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>更多市場參考</p>
+              <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+                <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "#F97316" }}>更多市場參考</p>
                 <div className="grid grid-cols-2 gap-2">
                   <a
                     href={`https://auctions.yahoo.co.jp/search/search?p=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&va=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1`}
@@ -1506,17 +1508,17 @@ export default function CardZzz() {
                   >
                     <span className="text-base">🇯🇵</span>
                     <span className="text-[10px] font-bold leading-tight" style={{ color: "#FF4444" }}>ヤフオク!</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本成交</span>
+                    <span className="text-[9px]" style={{ color: "#9ca3af" }}>日本成交</span>
                   </a>
                   <a
                     href={`https://jp.mercari.com/search?keyword=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&status=sold_out`}
                     target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(255,0,86,0.1)", border: "1px solid rgba(255,0,86,0.2)" }}
+                    style={{ background: "rgba(255,0,86,0.06)", border: "1px solid rgba(255,0,86,0.15)" }}
                   >
                     <span className="text-base">🛍️</span>
                     <span className="text-[10px] font-bold leading-tight" style={{ color: "#FF0056" }}>Mercari JP</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本二手</span>
+                    <span className="text-[9px]" style={{ color: "#9ca3af" }}>日本二手</span>
                   </a>
                   <a
                     href={`https://www.tcgplayer.com/search/pokemon/product?q=${encodeURIComponent(result.ebaySearchQuery)}&view=grid`}
@@ -1526,23 +1528,23 @@ export default function CardZzz() {
                   >
                     <span className="text-base">🃏</span>
                     <span className="text-[10px] font-bold leading-tight" style={{ color: "#4E8EFF" }}>TCGplayer</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>美國市場</span>
+                    <span className="text-[9px]" style={{ color: "#9ca3af" }}>美國市場</span>
                   </a>
                   <a
                     href={`https://www.pricecharting.com/search-products?q=${encodeURIComponent(result.ebaySearchQuery)}&type=pokemon`}
                     target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(100,180,255,0.1)", border: "1px solid rgba(100,180,255,0.2)" }}
+                    style={{ background: "rgba(33,150,243,0.06)", border: "1px solid rgba(33,150,243,0.15)" }}
                   >
                     <span className="text-base">📊</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#64B4FF" }}>PriceCharting</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>國際走勢</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#2196F3" }}>PriceCharting</span>
+                    <span className="text-[9px]" style={{ color: "#9ca3af" }}>國際走勢</span>
                   </a>
                 </div>
 
                 {/* 延伸參考 — 移除平台列表 */}
-                <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                  <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.7)", textShadow: "0 0 8px rgba(255,255,255,0.3)", letterSpacing: "0.14em" }}>延伸參考</p>
+                <div className="mt-3 pt-3" style={{ borderTop: "1px solid #e5e7eb" }}>
+                  <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "#9ca3af", letterSpacing: "0.14em" }}>延伸參考</p>
                   <div className="flex flex-col gap-2">
                     {[
                       { name: "SNKRDUNK", domain: "snkrdunk.com", url: "https://snkrdunk.com", desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊" },
@@ -1559,13 +1561,13 @@ export default function CardZzz() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex flex-col gap-0.5 px-2 py-1.5 rounded-lg"
-                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                        style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}
                       >
-                        <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.55)" }}>
+                        <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: "#374151" }}>
                           <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" className="w-3 h-3 rounded-sm" style={{ flexShrink: 0 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                           {name}
                         </span>
-                        <span className="text-[10px] leading-snug" style={{ color: "rgba(255,255,255,0.3)" }}>{desc}</span>
+                        <span className="text-[10px] leading-snug" style={{ color: "#9ca3af" }}>{desc}</span>
                       </a>
                     ))}
                   </div>
@@ -1575,7 +1577,7 @@ export default function CardZzz() {
 
             {/* Share footer — visible in generated image */}
             <div style={{ textAlign: "center", paddingTop: 10, paddingBottom: 10 }}>
-              <span style={{ fontSize: 10, background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              <span style={{ fontSize: 10, color: "#9ca3af" }}>
                 hongxcollections.com · CardZzz AI
               </span>
             </div>
@@ -1585,8 +1587,8 @@ export default function CardZzz() {
 
         {!imagePreview && !analysisError && (
           <>
-            <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <p className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>CardZzz 可以做到</p>
+            <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+              <p className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ color: "#F97316" }}>CardZzz 可以做到</p>
               {[
                 "識別卡片名稱、系列、卡號、稀有度",
                 "參考市場估價（裸卡 / PSA 9 / PSA 10）",
@@ -1601,20 +1603,20 @@ export default function CardZzz() {
               ].map((t, i) => (
                 <div key={i} className="flex items-start gap-2 mb-1.5">
                   <span style={{ color: "#CC0000", flexShrink: 0 }}>●</span>
-                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{t}</p>
+                  <p className="text-xs" style={{ color: "#6b7280" }}>{t}</p>
                 </div>
               ))}
             </div>
 
             {/* 主頁靜態市場參考 */}
-            <div data-share-skip="true" className="rounded-xl p-3 mt-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>更多市場參考</p>
+            <div data-share-skip="true" className="rounded-xl p-3 mt-2" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+              <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "#F97316" }}>更多市場參考</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { emoji: "🇯🇵", name: "ヤフオク!", sub: "日本成交", color: "#FF4444", bg: "rgba(255,50,50,0.1)", border: "rgba(255,50,50,0.2)", url: "https://auctions.yahoo.co.jp/search/search?p=pokemon&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1" },
-                  { emoji: "🛍️", name: "Mercari JP", sub: "日本二手", color: "#FF0056", bg: "rgba(255,0,86,0.1)", border: "rgba(255,0,86,0.2)", url: "https://jp.mercari.com/search?keyword=pokemon&status=sold_out" },
-                  { emoji: "🃏", name: "TCGplayer", sub: "美國市場", color: "#4E8EFF", bg: "rgba(26,106,255,0.1)", border: "rgba(26,106,255,0.2)", url: "https://www.tcgplayer.com/search/pokemon/product?view=grid" },
-                  { emoji: "📊", name: "PriceCharting", sub: "國際走勢", color: "#64B4FF", bg: "rgba(100,180,255,0.1)", border: "rgba(100,180,255,0.2)", url: "https://www.pricecharting.com/category/pokemon-cards" },
+                  { emoji: "🇯🇵", name: "ヤフオク!", sub: "日本成交", color: "#FF4444", bg: "rgba(255,50,50,0.06)", border: "rgba(255,50,50,0.15)", url: "https://auctions.yahoo.co.jp/search/search?p=pokemon&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1" },
+                  { emoji: "🛍️", name: "Mercari JP", sub: "日本二手", color: "#FF0056", bg: "rgba(255,0,86,0.06)", border: "rgba(255,0,86,0.15)", url: "https://jp.mercari.com/search?keyword=pokemon&status=sold_out" },
+                  { emoji: "🃏", name: "TCGplayer", sub: "美國市場", color: "#4E8EFF", bg: "rgba(26,106,255,0.06)", border: "rgba(26,106,255,0.15)", url: "https://www.tcgplayer.com/search/pokemon/product?view=grid" },
+                  { emoji: "📊", name: "PriceCharting", sub: "國際走勢", color: "#2196F3", bg: "rgba(33,150,243,0.06)", border: "rgba(33,150,243,0.15)", url: "https://www.pricecharting.com/category/pokemon-cards" },
                 ].map(({ emoji, name, sub, color, bg, border, url }) => (
                   <a key={name} href={url} target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
@@ -1622,13 +1624,13 @@ export default function CardZzz() {
                   >
                     <span className="text-base">{emoji}</span>
                     <span className="text-[10px] font-bold leading-tight" style={{ color }}>{name}</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>{sub}</span>
+                    <span className="text-[9px]" style={{ color: "#9ca3af" }}>{sub}</span>
                   </a>
                 ))}
               </div>
 
-              <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.7)", textShadow: "0 0 8px rgba(255,255,255,0.3)", letterSpacing: "0.14em" }}>延伸參考</p>
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid #e5e7eb" }}>
+                <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "#9ca3af", letterSpacing: "0.14em" }}>延伸參考</p>
                 <div className="flex flex-col gap-2">
                   {[
                     { name: "SNKRDUNK", domain: "snkrdunk.com", url: "https://snkrdunk.com", desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊" },
@@ -1641,13 +1643,13 @@ export default function CardZzz() {
                   ].map(({ name, domain, url, desc }) => (
                     <a key={name} href={url} target="_blank" rel="noopener noreferrer"
                       className="flex flex-col gap-0.5 px-2 py-1.5 rounded-lg"
-                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                      style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}
                     >
-                      <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.55)" }}>
+                      <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: "#374151" }}>
                         <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" className="w-3 h-3 rounded-sm" style={{ flexShrink: 0 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                         {name}
                       </span>
-                      <span className="text-[10px] leading-snug" style={{ color: "rgba(255,255,255,0.3)" }}>{desc}</span>
+                      <span className="text-[10px] leading-snug" style={{ color: "#9ca3af" }}>{desc}</span>
                     </a>
                   ))}
                 </div>

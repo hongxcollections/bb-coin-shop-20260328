@@ -74,13 +74,10 @@ export default function CardMarketSell() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [game, setGame] = useState<GameId | "">("");
 
-  // Step 2: browse or search tab
   const [step2Tab, setStep2Tab] = useState<Step2Tab>("browse");
-  // Browse mode: set selection
   const [selectedSet, setSelectedSet] = useState<SetResult | null>(null);
   const [setCardPage, setSetCardPage] = useState(1);
   const [accCards, setAccCards] = useState<CardResult[]>([]);
-  // Search mode
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CardResult[]>([]);
 
@@ -89,7 +86,6 @@ export default function CardMarketSell() {
   const [manualSet, setManualSet] = useState("");
   const [manualSetNo, setManualSetNo] = useState("");
 
-  // Sell-specific
   const [condition, setCondition] = useState<"NM" | "LP" | "MP" | "HP" | "DMG">("NM");
   const [isGraded, setIsGraded] = useState(false);
   const [gradingOrg, setGradingOrg] = useState("PSA");
@@ -100,7 +96,6 @@ export default function CardMarketSell() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // WTB-specific
   const [maxPriceStr, setMaxPriceStr] = useState("");
   const [wtbCondition, setWtbCondition] = useState<"NM" | "LP" | "MP" | "HP" | "DMG" | "">("NM");
   const [wtbNotes, setWtbNotes] = useState("");
@@ -115,22 +110,16 @@ export default function CardMarketSell() {
 
   const isBrowsable = game && BROWSABLE_GAMES.includes(game as GameId);
 
-  // Sets query — only for browsable games, when in browse tab, no set selected yet
   const setsQuery = trpc.cardTrading.getSets.useQuery(
     { game: game as BrowsableGame },
     { enabled: !!isBrowsable && step2Tab === "browse" && step === 2 && !selectedSet, staleTime: 300000 }
   );
 
-  // Set cards query — when a set is selected
   const setCardsQuery = trpc.cardTrading.getSetCards.useQuery(
     { game: game as BrowsableGame, setId: selectedSet?.setId ?? "", page: setCardPage },
-    {
-      enabled: !!selectedSet && !!isBrowsable,
-      staleTime: 120000,
-    }
+    { enabled: !!selectedSet && !!isBrowsable, staleTime: 120000 }
   );
 
-  // Accumulate cards across pages when set cards query data changes
   const prevSetRef = useRef<string | null>(null);
   useEffect(() => {
     if (!setCardsQuery.data || !selectedSet) return;
@@ -276,11 +265,11 @@ export default function CardMarketSell() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen pb-20 flex flex-col" style={{ background: "linear-gradient(160deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", color: "#fff" }}>
+      <div className="min-h-screen pb-20 flex flex-col" style={{ background: "#fff" }}>
         <Header />
         <div className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
           <span style={{ fontSize: 48 }}>🔒</span>
-          <p className="text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>請先登入才可上架或求購</p>
+          <p className="text-sm" style={{ color: "#6b7280" }}>請先登入才可上架或求購</p>
           <button onClick={() => navigate("/login")} className="px-6 py-2 rounded-full font-bold text-sm" style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}>
             前往登入
           </button>
@@ -290,30 +279,30 @@ export default function CardMarketSell() {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "linear-gradient(160deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", color: "#fff" }}>
+    <div className="min-h-screen pb-20" style={{ background: "#f8f9fa", color: "#111827" }}>
       <Header />
       <div className="max-w-lg mx-auto px-4 pt-4">
         {/* Back + title */}
         <div className="flex items-center gap-3 mb-5">
-          <button onClick={() => navigate("/cardzzz/market")} className="p-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
-            <ChevronLeft className="w-4 h-4" style={{ color: "rgba(255,255,255,0.7)" }} />
+          <button onClick={() => navigate("/cardzzz/market")} className="p-1.5 rounded-full" style={{ background: "#f3f4f6", border: "1px solid #e5e7eb" }}>
+            <ChevronLeft className="w-4 h-4" style={{ color: "#6b7280" }} />
           </button>
-          <h1 className="text-xl font-black" style={{ color: "#FFDE00" }}>CardZzz 市場</h1>
+          <h1 className="text-xl font-black" style={{ color: "#CC0000" }}>CardZzz 市場</h1>
         </div>
 
         {/* Mode toggle */}
-        <div className="flex gap-2 mb-5 p-1 rounded-2xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <div className="flex gap-2 mb-5 p-1 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
           <button
             onClick={() => { setMode("sell"); setStep(1); }}
             className="flex-1 py-2 rounded-xl font-bold text-sm transition-all"
-            style={mode === "sell" ? { background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" } : { color: "rgba(255,255,255,0.5)" }}
+            style={mode === "sell" ? { background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" } : { color: "#9ca3af" }}
           >
             上架出售
           </button>
           <button
             onClick={() => { setMode("wtb"); setStep(1); }}
             className="flex-1 py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
-            style={mode === "wtb" ? { background: "rgba(255,222,0,0.2)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.35)" } : { color: "rgba(255,255,255,0.5)" }}
+            style={mode === "wtb" ? { background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" } : { color: "#9ca3af" }}
           >
             <ShoppingBag className="w-3.5 h-3.5" />
             求購 WTB
@@ -325,10 +314,10 @@ export default function CardMarketSell() {
           {[1, 2, 3].map(s => (
             <div key={s} className="flex items-center gap-2 flex-1">
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                style={step >= s ? { background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" } : { background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }}>
+                style={step >= s ? { background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" } : { background: "#f3f4f6", color: "#d1d5db", border: "1px solid #e5e7eb" }}>
                 {step > s ? <Check className="w-3 h-3" /> : s}
               </div>
-              {s < 3 && <div className="flex-1 h-px" style={{ background: step > s ? "rgba(204,0,0,0.5)" : "rgba(255,255,255,0.1)" }} />}
+              {s < 3 && <div className="flex-1 h-px" style={{ background: step > s ? "rgba(204,0,0,0.3)" : "#e5e7eb" }} />}
             </div>
           ))}
         </div>
@@ -336,7 +325,7 @@ export default function CardMarketSell() {
         {/* ── Step 1: Choose game ──────────────────────────── */}
         {step === 1 && (
           <div>
-            <p className="text-sm font-bold mb-3" style={{ color: "rgba(255,255,255,0.7)" }}>選擇遊戲類型</p>
+            <p className="text-sm font-bold mb-3" style={{ color: "#6b7280" }}>選擇遊戲類型</p>
             <div className="grid grid-cols-2 gap-2">
               {GAMES.map(g => (
                 <button
@@ -353,10 +342,10 @@ export default function CardMarketSell() {
                     setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) ? "browse" : "search");
                   }}
                   className="flex items-center gap-3 p-3 rounded-2xl transition-all"
-                  style={{ background: game === g.id ? "rgba(204,0,0,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${game === g.id ? "rgba(204,0,0,0.5)" : "rgba(255,255,255,0.08)"}` }}
+                  style={{ background: game === g.id ? "rgba(204,0,0,0.08)" : "#fff", border: `1px solid ${game === g.id ? "rgba(204,0,0,0.3)" : "#e5e7eb"}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                 >
                   <span style={{ fontSize: 24 }}>{g.emoji}</span>
-                  <span className="text-sm font-bold" style={{ color: game === g.id ? "#FFDE00" : "rgba(255,255,255,0.8)" }}>{g.label}</span>
+                  <span className="text-sm font-bold" style={{ color: game === g.id ? "#CC0000" : "#111827" }}>{g.label}</span>
                 </button>
               ))}
             </div>
@@ -368,13 +357,13 @@ export default function CardMarketSell() {
           <div>
             {/* Tab toggle — only for browsable games */}
             {isBrowsable && (
-              <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
                 <button
                   onClick={() => { setStep2Tab("browse"); setSearchResults([]); }}
                   className="flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                   style={step2Tab === "browse"
-                    ? { background: "rgba(255,222,0,0.18)", color: "#FFDE00" }
-                    : { color: "rgba(255,255,255,0.45)" }}
+                    ? { background: "rgba(249,115,22,0.1)", color: "#F97316" }
+                    : { color: "#9ca3af" }}
                 >
                   <Grid3x3 className="w-3.5 h-3.5" />
                   按系列瀏覽
@@ -383,8 +372,8 @@ export default function CardMarketSell() {
                   onClick={() => { setStep2Tab("search"); setSelectedSet(null); setAccCards([]); prevSetRef.current = null; }}
                   className="flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                   style={step2Tab === "search"
-                    ? { background: "rgba(255,255,255,0.12)", color: "#fff" }
-                    : { color: "rgba(255,255,255,0.45)" }}
+                    ? { background: "rgba(204,0,0,0.08)", color: "#CC0000" }
+                    : { color: "#9ca3af" }}
                 >
                   <Search className="w-3.5 h-3.5" />
                   搜尋
@@ -396,17 +385,16 @@ export default function CardMarketSell() {
             {step2Tab === "browse" && isBrowsable && (
               <div>
                 {!selectedSet ? (
-                  /* Set list */
                   <div>
-                    <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    <p className="text-xs mb-3" style={{ color: "#9ca3af" }}>
                       選擇系列，瀏覽所有高清卡牌圖鑑
                     </p>
                     {setsQuery.isLoading ? (
                       <div className="flex justify-center py-12">
-                        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#FFDE00" }} />
+                        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#CC0000" }} />
                       </div>
                     ) : setsQuery.error ? (
-                      <div className="text-center py-8 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+                      <div className="text-center py-8 text-sm" style={{ color: "#9ca3af" }}>
                         無法載入系列，請切換「搜尋」模式
                       </div>
                     ) : (
@@ -416,7 +404,7 @@ export default function CardMarketSell() {
                             key={s.setId}
                             onClick={() => handleSelectSet(s)}
                             className="flex items-center gap-3 p-3 rounded-xl text-left transition-all"
-                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                            style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                           >
                             {s.logoUrl ? (
                               <img
@@ -427,46 +415,45 @@ export default function CardMarketSell() {
                                 onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                               />
                             ) : (
-                              <div className="flex-shrink-0 flex items-center justify-center rounded-lg" style={{ width: 56, height: 32, background: "rgba(255,222,0,0.08)" }}>
+                              <div className="flex-shrink-0 flex items-center justify-center rounded-lg" style={{ width: 56, height: 32, background: "#f3f4f6" }}>
                                 <span style={{ fontSize: 18 }}>🃏</span>
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold leading-tight line-clamp-1" style={{ color: "#fff" }}>{s.name}</p>
+                              <p className="text-xs font-bold leading-tight line-clamp-1" style={{ color: "#111827" }}>{s.name}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                {s.series && <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{s.series}</span>}
-                                {s.total && <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{s.total} 張</span>}
-                                {s.releaseDate && <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>{s.releaseDate.substring(0, 7)}</span>}
+                                {s.series && <span className="text-[10px]" style={{ color: "#9ca3af" }}>{s.series}</span>}
+                                {s.total && <span className="text-[10px]" style={{ color: "#9ca3af" }}>{s.total} 張</span>}
+                                {s.releaseDate && <span className="text-[10px]" style={{ color: "#d1d5db" }}>{s.releaseDate.substring(0, 7)}</span>}
                               </div>
                             </div>
-                            <ChevronLeft className="w-3 h-3 flex-shrink-0 rotate-180" style={{ color: "rgba(255,255,255,0.3)" }} />
+                            <ChevronLeft className="w-3 h-3 flex-shrink-0 rotate-180" style={{ color: "#d1d5db" }} />
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
                 ) : (
-                  /* Card grid inside set */
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <button
                         onClick={handleBackToSets}
                         className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full"
-                        style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}
+                        style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
                       >
                         <ChevronLeft className="w-3 h-3" />
                         返回
                       </button>
-                      <p className="text-xs font-bold flex-1 min-w-0 line-clamp-1" style={{ color: "#FFDE00" }}>{selectedSet.name}</p>
+                      <p className="text-xs font-bold flex-1 min-w-0 line-clamp-1" style={{ color: "#CC0000" }}>{selectedSet.name}</p>
                       {selectedSet.total && (
-                        <span className="text-[10px] flex-shrink-0" style={{ color: "rgba(255,255,255,0.35)" }}>{selectedSet.total} 張</span>
+                        <span className="text-[10px] flex-shrink-0" style={{ color: "#9ca3af" }}>{selectedSet.total} 張</span>
                       )}
                     </div>
 
                     {setCardsQuery.isLoading && accCards.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 gap-3">
-                        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#FFDE00" }} />
-                        <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>載入卡牌圖鑑中...</p>
+                        <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#CC0000" }} />
+                        <p className="text-xs" style={{ color: "#9ca3af" }}>載入卡牌圖鑑中...</p>
                       </div>
                     ) : (
                       <div>
@@ -478,7 +465,7 @@ export default function CardMarketSell() {
                                 key={card.cardApiId}
                                 onClick={() => handleSelectCard(card)}
                                 className="flex flex-col rounded-xl overflow-hidden text-left transition-all"
-                                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                               >
                                 <div className="relative w-full" style={{ paddingBottom: "140%" }}>
                                   {card.officialImageUrl ? (
@@ -489,27 +476,27 @@ export default function CardMarketSell() {
                                       loading="lazy"
                                     />
                                   ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(255,222,0,0.05)" }}>
+                                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#f8f9fa" }}>
                                       <span style={{ fontSize: 24 }}>🃏</span>
                                     </div>
                                   )}
                                   {rBadge && (
                                     <div className="absolute top-1 right-1">
-                                      <span className="text-[8px] font-black px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.8)", color: "#FFDE00" }}>
+                                      <span className="text-[8px] font-black px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.75)", color: "#F97316" }}>
                                         {rBadge}
                                       </span>
                                     </div>
                                   )}
                                   {card.setNumber && (
                                     <div className="absolute bottom-1 left-1">
-                                      <span className="text-[8px] px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.65)", color: "rgba(255,255,255,0.7)" }}>
+                                      <span className="text-[8px] px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.55)", color: "rgba(255,255,255,0.85)" }}>
                                         {card.setNumber}
                                       </span>
                                     </div>
                                   )}
                                 </div>
                                 <div className="px-1.5 py-1.5">
-                                  <p className="text-[10px] font-bold leading-tight line-clamp-2" style={{ color: "#fff" }}>{card.cardName}</p>
+                                  <p className="text-[10px] font-bold leading-tight line-clamp-2" style={{ color: "#111827" }}>{card.cardName}</p>
                                 </div>
                               </button>
                             );
@@ -520,14 +507,14 @@ export default function CardMarketSell() {
                             onClick={handleLoadMore}
                             disabled={setCardsQuery.isFetching}
                             className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
-                            style={{ background: "rgba(255,222,0,0.1)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.25)" }}
+                            style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
                           >
                             {setCardsQuery.isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                             載入更多卡牌
                           </button>
                         )}
                         {accCards.length === 0 && !setCardsQuery.isLoading && (
-                          <div className="text-center py-8 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>此系列暫無卡牌資料</div>
+                          <div className="text-center py-8 text-xs" style={{ color: "#9ca3af" }}>此系列暫無卡牌資料</div>
                         )}
                       </div>
                     )}
@@ -539,7 +526,7 @@ export default function CardMarketSell() {
             {/* ── Search mode ── */}
             {(step2Tab === "search" || !isBrowsable) && (
               <div>
-                <p className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.35)" }}>
+                <p className="text-xs mb-4" style={{ color: "#9ca3af" }}>
                   {isBrowsable ? "輸入卡名搜尋，或切換「按系列瀏覽」" : "請手動填寫卡牌資料"}
                 </p>
 
@@ -551,13 +538,13 @@ export default function CardMarketSell() {
                       onKeyDown={e => e.key === "Enter" && handleSearch()}
                       placeholder="輸入卡牌名稱搜尋..."
                       className="flex-1 px-3 py-2 text-sm"
-                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                      style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                     />
                     <button
                       onClick={handleSearch}
                       disabled={isSearching || !searchQuery.trim()}
                       className="px-3 py-2 rounded-xl font-bold text-sm flex items-center gap-1.5"
-                      style={{ background: "rgba(255,222,0,0.15)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}
+                      style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
                     >
                       {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     </button>
@@ -573,33 +560,33 @@ export default function CardMarketSell() {
                           key={i}
                           onClick={() => { setSelectedCard(r); setStep(3); }}
                           className="flex flex-col rounded-xl overflow-hidden text-left"
-                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                          style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                         >
                           <div className="relative w-full" style={{ paddingBottom: "140%" }}>
                             {r.officialImageUrl ? (
                               <img src={r.officialImageUrl} alt={r.cardName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                             ) : (
-                              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(255,222,0,0.05)" }}>
+                              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#f8f9fa" }}>
                                 <span style={{ fontSize: 24 }}>🃏</span>
                               </div>
                             )}
                             {rBadge && (
                               <div className="absolute top-1 right-1">
-                                <span className="text-[8px] font-black px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.8)", color: "#FFDE00" }}>
+                                <span className="text-[8px] font-black px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.75)", color: "#F97316" }}>
                                   {rBadge}
                                 </span>
                               </div>
                             )}
                             {r.setNumber && (
                               <div className="absolute bottom-1 left-1">
-                                <span className="text-[8px] px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.65)", color: "rgba(255,255,255,0.7)" }}>
+                                <span className="text-[8px] px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.55)", color: "rgba(255,255,255,0.85)" }}>
                                   {r.setNumber}
                                 </span>
                               </div>
                             )}
                           </div>
                           <div className="px-1.5 py-1.5">
-                            <p className="text-[10px] font-bold leading-tight line-clamp-2" style={{ color: "#fff" }}>{r.cardName}</p>
+                            <p className="text-[10px] font-bold leading-tight line-clamp-2" style={{ color: "#111827" }}>{r.cardName}</p>
                           </div>
                         </button>
                       );
@@ -608,38 +595,38 @@ export default function CardMarketSell() {
                 )}
 
                 {/* Manual entry */}
-                <div className="p-4 rounded-2xl mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>手動填寫</p>
+                <div className="p-4 rounded-2xl mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                  <p className="text-xs font-bold mb-3" style={{ color: "#6b7280" }}>手動填寫</p>
                   <div className="flex flex-col gap-3">
                     <div>
-                      <label className="text-xs mb-1 block" style={{ color: "rgba(255,255,255,0.5)" }}>卡牌名稱 *</label>
+                      <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>卡牌名稱 *</label>
                       <input
                         value={manualName}
                         onChange={e => setManualName(e.target.value)}
                         placeholder="例：Charizard / 噴火龍"
                         className="w-full px-3 py-2 text-sm"
-                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                        style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                       />
                     </div>
                     <div className="flex gap-2">
                       <div className="flex-1">
-                        <label className="text-xs mb-1 block" style={{ color: "rgba(255,255,255,0.5)" }}>系列名稱</label>
+                        <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>系列名稱</label>
                         <input
                           value={manualSet}
                           onChange={e => setManualSet(e.target.value)}
                           placeholder="例：Base Set"
                           className="w-full px-3 py-2 text-sm"
-                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                          style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                         />
                       </div>
                       <div style={{ width: 100 }}>
-                        <label className="text-xs mb-1 block" style={{ color: "rgba(255,255,255,0.5)" }}>卡號</label>
+                        <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>卡號</label>
                         <input
                           value={manualSetNo}
                           onChange={e => setManualSetNo(e.target.value)}
                           placeholder="4/102"
                           className="w-full px-3 py-2 text-sm"
-                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                          style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                         />
                       </div>
                     </div>
@@ -647,7 +634,7 @@ export default function CardMarketSell() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(1)} className="flex-1 py-2.5 rounded-2xl text-sm font-bold" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}>
+                  <button onClick={() => setStep(1)} className="flex-1 py-2.5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                     上一步
                   </button>
                   <button
@@ -664,7 +651,7 @@ export default function CardMarketSell() {
             {/* Back button for browse mode */}
             {step2Tab === "browse" && isBrowsable && (
               <div className="mt-4">
-                <button onClick={() => setStep(1)} className="w-full py-2.5 rounded-2xl text-sm font-bold" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}>
+                <button onClick={() => setStep(1)} className="w-full py-2.5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                   上一步
                 </button>
               </div>
@@ -676,22 +663,22 @@ export default function CardMarketSell() {
         {step === 3 && (
           <div>
             {/* Card preview */}
-            <div className="flex items-center gap-3 mb-5 p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <div className="flex items-center gap-3 mb-5 p-3 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               {cardImg ? (
                 <img src={cardImg} alt="" className="rounded-xl object-cover flex-shrink-0" style={{ width: 48, height: 66 }} />
               ) : (
-                <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 48, height: 66, background: "rgba(255,222,0,0.08)" }}>
+                <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 48, height: 66, background: "#f3f4f6" }}>
                   <span style={{ fontSize: 28 }}>🃏</span>
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-black" style={{ color: "#FFDE00" }}>{cardName || "（未填卡名）"}</p>
-                {cardSet && <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>{cardSet}</p>}
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full mt-1 inline-block" style={{ background: "rgba(255,222,0,0.12)", color: "#FFDE00" }}>
+                <p className="text-xs font-black" style={{ color: "#CC0000" }}>{cardName || "（未填卡名）"}</p>
+                {cardSet && <p className="text-[10px]" style={{ color: "#9ca3af" }}>{cardSet}</p>}
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full mt-1 inline-block" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
                   {GAMES.find(g => g.id === game)?.label}
                 </span>
               </div>
-              <button onClick={() => setStep(2)} className="text-[10px] px-2 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>
+              <button onClick={() => setStep(2)} className="text-[10px] px-2 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                 更換
               </button>
             </div>
@@ -700,7 +687,7 @@ export default function CardMarketSell() {
               <>
                 {/* Photos */}
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "rgba(255,255,255,0.7)" }}>實物相片（最多 6 張）*</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>實物相片（最多 6 張）*</label>
                   <div className="flex gap-2 flex-wrap">
                     {photos.map((url, i) => (
                       <div key={i} className="relative rounded-xl overflow-hidden" style={{ width: 72, height: 100 }}>
@@ -719,20 +706,20 @@ export default function CardMarketSell() {
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploading}
                         className="rounded-xl flex flex-col items-center justify-center gap-1"
-                        style={{ width: 72, height: 100, background: "rgba(255,255,255,0.05)", border: "2px dashed rgba(255,255,255,0.15)" }}
+                        style={{ width: 72, height: 100, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
                       >
-                        {uploading ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} /> : <Plus className="w-5 h-5" style={{ color: "rgba(255,255,255,0.4)" }} />}
-                        <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>{uploading ? "上載中" : "加相片"}</span>
+                        {uploading ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: "#9ca3af" }} /> : <Plus className="w-5 h-5" style={{ color: "#9ca3af" }} />}
+                        <span className="text-[9px]" style={{ color: "#9ca3af" }}>{uploading ? "上載中" : "加相片"}</span>
                       </button>
                     )}
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handlePhotoUpload(e.target.files)} />
-                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>請上載實物相片，增加買家信心</p>
+                  <p className="text-[10px] mt-1.5" style={{ color: "#9ca3af" }}>請上載實物相片，增加買家信心</p>
                 </div>
 
                 {/* Condition */}
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "rgba(255,255,255,0.7)" }}>品相</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>品相</label>
                   <div className="flex flex-col gap-1.5">
                     {CONDITIONS.map(c => (
                       <button
@@ -740,26 +727,26 @@ export default function CardMarketSell() {
                         onClick={() => setCondition(c.id)}
                         className="flex items-center justify-between p-2.5 rounded-xl transition-all"
                         style={condition === c.id
-                          ? { background: "rgba(204,0,0,0.15)", border: "1px solid rgba(204,0,0,0.4)" }
-                          : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+                          ? { background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.3)" }
+                          : { background: "#fff", border: "1px solid #e5e7eb" }}
                       >
-                        <span className="text-xs font-bold" style={{ color: condition === c.id ? "#fff" : "rgba(255,255,255,0.7)" }}>{c.label}</span>
-                        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{c.desc}</span>
+                        <span className="text-xs font-bold" style={{ color: condition === c.id ? "#CC0000" : "#111827" }}>{c.label}</span>
+                        <span className="text-[10px]" style={{ color: "#9ca3af" }}>{c.desc}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Graded toggle */}
-                <div className="mb-4 p-3 rounded-2xl flex items-center justify-between" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="mb-4 p-3 rounded-2xl flex items-center justify-between" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
                   <div>
-                    <p className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.8)" }}>評級卡</p>
-                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>PSA / BGS / CGC 等</p>
+                    <p className="text-sm font-bold" style={{ color: "#111827" }}>評級卡</p>
+                    <p className="text-xs" style={{ color: "#9ca3af" }}>PSA / BGS / CGC 等</p>
                   </div>
                   <button
                     onClick={() => setIsGraded(p => !p)}
                     className="w-12 h-6 rounded-full transition-all relative"
-                    style={{ background: isGraded ? "#CC0000" : "rgba(255,255,255,0.15)" }}
+                    style={{ background: isGraded ? "#CC0000" : "#e5e7eb" }}
                   >
                     <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: isGraded ? 26 : 2 }} />
                   </button>
@@ -768,24 +755,24 @@ export default function CardMarketSell() {
                 {isGraded && (
                   <div className="flex gap-2 mb-4">
                     <div className="flex-1">
-                      <label className="text-xs mb-1 block" style={{ color: "rgba(255,255,255,0.5)" }}>評級機構</label>
+                      <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評級機構</label>
                       <select
                         value={gradingOrg}
                         onChange={e => setGradingOrg(e.target.value)}
                         className="w-full px-3 py-2 text-sm"
-                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                        style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                       >
-                        {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => <option key={o} value={o} style={{ background: "#1a1a2e" }}>{o}</option>)}
+                        {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div style={{ width: 100 }}>
-                      <label className="text-xs mb-1 block" style={{ color: "rgba(255,255,255,0.5)" }}>評分</label>
+                      <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評分</label>
                       <input
                         value={gradeScore}
                         onChange={e => setGradeScore(e.target.value)}
                         placeholder="10 / 9.5"
                         className="w-full px-3 py-2 text-sm"
-                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                        style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                       />
                     </div>
                   </div>
@@ -793,35 +780,35 @@ export default function CardMarketSell() {
 
                 {/* Price */}
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "rgba(255,255,255,0.7)" }}>售價 (HKD) *</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>售價 (HKD) *</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "#9ca3af" }}>$</span>
                     <input
                       value={priceStr}
                       onChange={e => setPriceStr(e.target.value)}
                       placeholder="0"
                       inputMode="numeric"
                       className="w-full pl-7 pr-3 py-3 text-lg font-black"
-                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#FFDE00", outline: "none" }}
+                      style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#CC0000", outline: "none" }}
                     />
                   </div>
                 </div>
 
                 {/* Description */}
                 <div className="mb-6">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "rgba(255,255,255,0.7)" }}>備註說明（可選）</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>備註說明（可選）</label>
                   <textarea
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="例：背面有輕微花痕，不影響正面觀感"
                     rows={3}
                     className="w-full px-3 py-2.5 text-sm resize-none"
-                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                    style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                   />
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(2)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}>
+                  <button onClick={() => setStep(2)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                     上一步
                   </button>
                   <button
@@ -839,22 +826,22 @@ export default function CardMarketSell() {
               /* WTB mode */
               <>
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "rgba(255,255,255,0.7)" }}>最高出價 (HKD)（可選）</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>最高出價 (HKD)（可選）</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "#9ca3af" }}>$</span>
                     <input
                       value={maxPriceStr}
                       onChange={e => setMaxPriceStr(e.target.value)}
                       placeholder="留空代表面議"
                       inputMode="numeric"
                       className="w-full pl-7 pr-3 py-3 text-lg font-black"
-                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#FFDE00", outline: "none" }}
+                      style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#F97316", outline: "none" }}
                     />
                   </div>
                 </div>
 
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "rgba(255,255,255,0.7)" }}>最低品相要求（可選）</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>最低品相要求（可選）</label>
                   <div className="flex flex-wrap gap-1.5">
                     {(["", "NM", "LP", "MP", "HP", "DMG"] as const).map(c => (
                       <button
@@ -862,8 +849,8 @@ export default function CardMarketSell() {
                         onClick={() => setWtbCondition(c)}
                         className="text-xs px-3 py-1.5 rounded-full font-bold transition-all"
                         style={wtbCondition === c
-                          ? { background: "rgba(255,222,0,0.2)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.4)" }
-                          : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }
+                          ? { background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.3)" }
+                          : { background: "#fff", color: "#9ca3af", border: "1px solid #e5e7eb" }
                         }
                       >
                         {c || "不限"}
@@ -873,26 +860,26 @@ export default function CardMarketSell() {
                 </div>
 
                 <div className="mb-6">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "rgba(255,255,255,0.7)" }}>備註（可選）</label>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>備註（可選）</label>
                   <textarea
                     value={wtbNotes}
                     onChange={e => setWtbNotes(e.target.value)}
                     placeholder="例：需要英文版，或日版均可"
                     rows={3}
                     className="w-full px-3 py-2.5 text-sm resize-none"
-                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", outline: "none" }}
+                    style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                   />
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(2)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}>
+                  <button onClick={() => setStep(2)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                     上一步
                   </button>
                   <button
                     onClick={handleSubmitWTB}
                     disabled={submitting}
                     className="flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
-                    style={{ background: "rgba(255,222,0,0.2)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.4)" }}
+                    style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.3)" }}
                   >
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
                     登記求購
