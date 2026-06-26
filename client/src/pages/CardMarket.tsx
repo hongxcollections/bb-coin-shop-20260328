@@ -228,7 +228,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
       <div className="flex-1" />
       <div
         className="w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden flex flex-col"
