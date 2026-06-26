@@ -905,9 +905,17 @@ export default function CardMarketSell() {
           style={{ maxHeight: "90vh" }}
           onClick={e => e.stopPropagation()}
         >
-          {/* Drag handle */}
-          <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          {/* Drag handle + close */}
+          <div className="flex items-center justify-between px-4 pt-3 pb-1 flex-shrink-0">
+            <div className="w-8" />
             <div className="w-10 h-1 rounded-full" style={{ background: "#e5e7eb" }} />
+            <button
+              onClick={() => setPreviewCard(null)}
+              className="w-8 h-8 flex items-center justify-center rounded-full"
+              style={{ background: "#f3f4f6", color: "#6b7280" }}
+            >
+              ✕
+            </button>
           </div>
 
           {/* Scrollable content */}
