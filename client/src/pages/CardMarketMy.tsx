@@ -110,7 +110,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
             onClick={handleSave}
             disabled={saving}
             className="w-full py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2"
-            style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}
+            style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             儲存更改
@@ -261,7 +261,7 @@ export default function CardMarketMy() {
         <div className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
           <span style={{ fontSize: 48 }}>🔒</span>
           <p className="text-sm" style={{ color: "#6b7280" }}>請先登入</p>
-          <button onClick={() => navigate("/login")} className="px-6 py-2 rounded-full font-bold text-sm" style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}>
+          <button onClick={() => navigate("/login")} className="px-6 py-2 rounded-full font-bold text-sm" style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
             前往登入
           </button>
         </div>
@@ -296,7 +296,7 @@ export default function CardMarketMy() {
             <ChevronLeft className="w-4 h-4" style={{ color: "#6b7280" }} />
           </button>
           <h1 className="text-xl font-black flex-1" style={{ color: "#111827" }}>我的卡牌清單</h1>
-          <button onClick={() => navigate("/cardzzz/market/sell")} className="text-xs px-3 py-1.5 rounded-full font-bold" style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}>
+          <button onClick={() => navigate("/cardzzz/market/sell")} className="text-xs px-3 py-1.5 rounded-full font-bold" style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
             + 上架
           </button>
         </div>
@@ -309,7 +309,7 @@ export default function CardMarketMy() {
               onClick={() => setTab(t.id)}
               className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
               style={tab === t.id
-                ? { background: t.id === "wtb" ? "rgba(249,115,22,0.12)" : "linear-gradient(90deg, #CC0000, #FF4444)", color: t.id === "wtb" ? "#F97316" : "#fff" }
+                ? { background: t.id === "wtb" ? "rgba(249,115,22,0.12)" : "linear-gradient(90deg, #FFDE00, #FFB800)", color: t.id === "wtb" ? "#F97316" : "#111827" }
                 : { color: "#9ca3af" }}
             >
               {t.id === "wtb" && <ShoppingBag className="w-3 h-3" />}

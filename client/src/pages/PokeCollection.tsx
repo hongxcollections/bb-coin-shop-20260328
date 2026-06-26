@@ -231,7 +231,7 @@ export default function PokeCollection() {
           <BookOpen className="w-12 h-12 mb-4" style={{ color: "rgba(204,0,0,0.3)" }} />
           <p className="font-bold mb-2" style={{ color: "#111827" }}>請先登入</p>
           <p className="text-xs text-center mb-4" style={{ color: "#9ca3af" }}>登入後可儲存 Pokémon 卡片到你的卡冊</p>
-          <button onClick={() => navigate("/login")} className="px-6 py-2.5 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #CC0000, #FF5252)", color: "#fff" }}>
+          <button onClick={() => navigate("/login")} className="px-6 py-2.5 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #FFDE00, #FFB800)", color: "#111827" }}>
             立即登入
           </button>
         </div>
@@ -337,9 +337,9 @@ export default function PokeCollection() {
                 <button key={k} onClick={() => setSortBy(k)}
                   className="text-[10px] font-bold px-2 py-1 rounded-lg transition-all"
                   style={{
-                    background: sortBy === k ? "rgba(204,0,0,0.08)" : "#fff",
-                    border: `1px solid ${sortBy === k ? "rgba(204,0,0,0.2)" : "#e5e7eb"}`,
-                    color: sortBy === k ? "#CC0000" : "#9ca3af",
+                    background: sortBy === k ? "rgba(255,222,0,0.15)" : "#fff",
+                    border: `1px solid ${sortBy === k ? "rgba(255,222,0,0.4)" : "#e5e7eb"}`,
+                    color: sortBy === k ? "#111827" : "#9ca3af",
                   }}>
                   {k === "date" ? "最新" : k === "value" ? "估值" : "名稱"}
                 </button>
@@ -348,9 +348,9 @@ export default function PokeCollection() {
             <button onClick={() => setGroupBySet(g => !g)}
               className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg transition-all"
               style={{
-                background: groupBySet ? "rgba(204,0,0,0.08)" : "#fff",
-                border: `1px solid ${groupBySet ? "rgba(204,0,0,0.2)" : "#e5e7eb"}`,
-                color: groupBySet ? "#CC0000" : "#9ca3af",
+                background: groupBySet ? "rgba(255,222,0,0.15)" : "#fff",
+                border: `1px solid ${groupBySet ? "rgba(255,222,0,0.4)" : "#e5e7eb"}`,
+                color: groupBySet ? "#111827" : "#9ca3af",
               }}>
               <Layers className="w-3 h-3" />
               按套裝
@@ -388,7 +388,7 @@ export default function PokeCollection() {
             </p>
             {!search && (
               <button onClick={() => navigate("/cardzzz")} className="mt-2 px-4 py-2 rounded-xl text-xs font-bold"
-                style={{ background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.2)", color: "#CC0000" }}>
+                style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)", color: "#111827" }}>
                 去分析卡片
               </button>
             )}
@@ -444,7 +444,7 @@ export default function PokeCollection() {
               {/* Chips: set + rarity + condition */}
               <div className="flex flex-wrap gap-1.5 mb-4">
                 {selectedCard.cardSet && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.2)", color: "#CC0000" }}>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)", color: "#111827" }}>
                     {selectedCard.cardSet}
                   </span>
                 )}
@@ -530,7 +530,7 @@ export default function PokeCollection() {
                 <button
                   onClick={() => navigate("/cardzzz")}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold"
-                  style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}>
+                  style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
                   再分析卡片
                 </button>
               </div>

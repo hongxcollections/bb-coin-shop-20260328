@@ -252,7 +252,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                 {listing.game && (
-                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(204,0,0,0.08)", color: "#CC0000", border: "1px solid rgba(204,0,0,0.2)" }}>
+                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
                     {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
                   </span>
                 )}
@@ -279,7 +279,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
           )}
 
           <div className="flex items-center gap-2 mb-4 p-3 rounded-xl" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: "rgba(204,0,0,0.1)", color: "#CC0000" }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: "rgba(255,222,0,0.18)", color: "#111827" }}>
               {(listing.sellerName ?? "S").charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
@@ -298,7 +298,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             <button
               onClick={handleContact}
               className="w-full py-3 rounded-2xl font-black text-sm"
-              style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}
+              style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
             >
               私訊賣家洽購
             </button>
@@ -306,7 +306,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             <button
               onClick={() => navigate("/login")}
               className="w-full py-3 rounded-2xl font-black text-sm"
-              style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}
+              style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
             >
               登入後洽購
             </button>
@@ -360,22 +360,22 @@ export default function CardMarket() {
 
       <div className="max-w-lg mx-auto px-4 pt-4">
         {/* Hero Banner */}
-        <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #CC0000 0%, #FF4444 60%, #FF6B35 100%)" }}>
+        <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #FFDE00 0%, #F97316 60%, #FFB800 100%)" }}>
           <div className="absolute inset-0 opacity-15" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)" }} />
           <div className="relative z-10">
-            <div className="text-[10px] font-black mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.95)", letterSpacing: "0.1em" }}>
+            <div className="text-[10px] font-black mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: "rgba(0,0,0,0.12)", color: "#111827", letterSpacing: "0.1em" }}>
               PREMIUM TRADING HUB
             </div>
-            <h2 className="text-lg font-black leading-tight mb-1" style={{ color: "#fff" }}>
+            <h2 className="text-lg font-black leading-tight mb-1" style={{ color: "#111827" }}>
               免費、極簡、方便快捷<br />全系列圖鑑卡牌交易空間
             </h2>
-            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.85)" }}>
+            <p className="text-xs mb-3" style={{ color: "rgba(0,0,0,0.6)" }}>
               內建完整高清卡牌圖鑑，透明成交，一鍵查價、光速成交
             </p>
             <button
               onClick={() => navigate("/cardzzz/market/sell")}
               className="text-sm font-black px-4 py-1.5 rounded-full"
-              style={{ background: "rgba(255,255,255,0.25)", color: "#fff", border: "1px solid rgba(255,255,255,0.4)" }}
+              style={{ background: "rgba(0,0,0,0.15)", color: "#111827", border: "1px solid rgba(0,0,0,0.15)" }}
             >
               瀏覽全部系列
             </button>
@@ -420,7 +420,7 @@ export default function CardMarket() {
               onClick={() => setGame(g.id)}
               className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
               style={game === g.id
-                ? { background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }
+                ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }
                 : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }
               }
             >
@@ -439,7 +439,7 @@ export default function CardMarket() {
 
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "#e5e7eb", borderTopColor: "#CC0000" }} />
+            <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "#e5e7eb", borderTopColor: "#F97316" }} />
           </div>
         ) : recentListings.length === 0 ? (
           <div className="flex flex-col items-center py-12 gap-3">
@@ -448,7 +448,7 @@ export default function CardMarket() {
             {isAuthenticated && (
               <button onClick={() => navigate("/cardzzz/market/sell")}
                 className="text-sm px-4 py-2 rounded-full font-bold"
-                style={{ background: "rgba(204,0,0,0.08)", color: "#CC0000", border: "1px solid rgba(204,0,0,0.2)" }}>
+                style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
                 立即上架
               </button>
             )}
@@ -512,7 +512,7 @@ export default function CardMarket() {
           <button
             onClick={() => { if (isAuthenticated) navigate("/cardzzz/market/sell"); else navigate("/login"); }}
             className="px-6 py-2.5 rounded-full font-black text-sm"
-            style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}
+            style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
           >
             立即刊登商品
           </button>
@@ -524,7 +524,7 @@ export default function CardMarket() {
         <button
           onClick={() => navigate("/cardzzz/market/sell")}
           className="fixed z-40 rounded-full shadow-xl flex items-center gap-2 font-black text-sm"
-          style={{ bottom: 76, right: 16, background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff", padding: "12px 18px", boxShadow: "0 4px 20px rgba(204,0,0,0.35)" }}
+          style={{ bottom: 76, right: 16, background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827", padding: "12px 18px", boxShadow: "0 4px 20px rgba(255,222,0,0.45)" }}
         >
           <Plus className="w-4 h-4" />
           上架

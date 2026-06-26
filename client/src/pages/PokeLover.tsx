@@ -473,18 +473,19 @@ function TypeBadge({ type }: { type: string }) {
   );
 }
 
-function PokeBallUpload({ onFiles, disabled }: { onFiles: (files: File[]) => void; disabled: boolean }) {
+function PokeBallUpload({ onFiles, disabled, onBlockedClick }: { onFiles: (files: File[]) => void; disabled: boolean; onBlockedClick?: () => void }) {
   const ref = useRef<HTMLInputElement>(null);
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (onBlockedClick) { onBlockedClick(); return; }
     const f = e.dataTransfer.files[0];
     if (f && f.type.startsWith("image/")) onFiles([f]);
-  }, [onFiles]);
+  }, [onFiles, onBlockedClick]);
 
   return (
     <div
       className="flex flex-col items-center gap-4 cursor-pointer"
-      onClick={() => !disabled && ref.current?.click()}
+      onClick={() => { if (onBlockedClick) { onBlockedClick(); return; } if (!disabled) ref.current?.click(); }}
       onDrop={handleDrop}
       onDragOver={e => e.preventDefault()}
     >
@@ -492,9 +493,9 @@ function PokeBallUpload({ onFiles, disabled }: { onFiles: (files: File[]) => voi
         <div
           className="absolute inset-0 rounded-full"
           style={{
-            background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)",
+            background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)",
             border: "5px solid #222",
-            boxShadow: "0 8px 32px rgba(204,0,0,0.4), 0 2px 8px rgba(0,0,0,0.5)",
+            boxShadow: "0 8px 32px rgba(255,222,0,0.5), 0 2px 8px rgba(0,0,0,0.3)",
           }}
         />
         <div
@@ -528,7 +529,7 @@ function SpinningBall() {
     <div className="flex flex-col items-center gap-4">
       <div
         className="animate-spin"
-        style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "4px solid #222", boxShadow: "0 4px 20px rgba(204,0,0,0.4)" }}
+        style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "4px solid #222", boxShadow: "0 4px 20px rgba(255,222,0,0.5)" }}
       />
       <p className="text-sm font-semibold animate-pulse" style={{ color: "#CC0000" }}>AI 正在識別卡片...</p>
     </div>
@@ -911,7 +912,7 @@ export default function CardZzz() {
       <div className="max-w-lg mx-auto px-4 pt-4">
         <div ref={shareCardRef} style={{ background: "#fff", borderRadius: 12 }}>
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #e5e7eb" }} />
+          <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #e5e7eb" }} />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#CC0000" }}>
               CardZzz
@@ -999,7 +1000,7 @@ export default function CardZzz() {
           </div>
         )}
 
-        <div className="rounded-2xl p-px mt-5 mb-6" style={{ background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)" }}>
+        <div className="rounded-2xl p-px mt-5 mb-6" style={{ background: "linear-gradient(135deg, #FFDE00, #F97316, #FFDE00)" }}>
           <div className="rounded-2xl p-6 flex flex-col items-center" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
             {isAnalyzing ? (
               <SpinningBall />
@@ -1051,7 +1052,7 @@ export default function CardZzz() {
             ) : imagePreview ? (
               <SpinningBall />
             ) : (
-              <PokeBallUpload onFiles={handleMultipleFiles} disabled={isAnalyzing} />
+              <PokeBallUpload onFiles={handleMultipleFiles} disabled={isAnalyzing} onBlockedClick={() => toast.info("AI 圖片識別功能暫時停用，敬請期待", { className: "bb-toast-info" })} />
             )}
           </div>
         </div>
@@ -1061,7 +1062,7 @@ export default function CardZzz() {
             <button
               onClick={() => navigate("/cardzzz/market")}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
-              style={{ background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.2)", color: "#CC0000" }}
+              style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.35)", color: "#111827" }}
             >
               <Tag className="w-4 h-4" />
               交易市場
@@ -1095,7 +1096,7 @@ export default function CardZzz() {
             </button>
             {isAuthenticated && (
               <div className="ml-auto flex items-center gap-1.5">
-                <button onClick={() => navigate("/cardzzz/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.2)", color: "#CC0000" }}>
+                <button onClick={() => navigate("/cardzzz/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)", color: "#111827" }}>
                   <DollarSign className="w-3.5 h-3.5" />
                   出售
                 </button>
@@ -1122,7 +1123,7 @@ export default function CardZzz() {
               )}
             </div>
             <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: "#e5e7eb" }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((batchDone / Math.max(batchTotal, 1)) * 100)}%`, background: "linear-gradient(90deg, #CC0000, #F97316)" }} />
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((batchDone / Math.max(batchTotal, 1)) * 100)}%`, background: "linear-gradient(90deg, #FFDE00, #F97316)" }} />
             </div>
             {!isAnalyzing && batchSummary.length > 0 && (
               <div className="mt-2 flex flex-col gap-1">
@@ -1675,7 +1676,7 @@ export default function CardZzz() {
         >
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333", flexShrink: 0 }} />
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #333", flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: 20, fontWeight: 900, color: "#FFDE00", lineHeight: 1 }}>CardZzz</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 CardZzz 卡片鑑定 · 市場估價</div>
@@ -1683,7 +1684,7 @@ export default function CardZzz() {
           </div>
 
           {/* Card info box */}
-          <div style={{ borderRadius: 16, padding: 1, background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)", marginBottom: 14 }}>
+          <div style={{ borderRadius: 16, padding: 1, background: "linear-gradient(135deg, #FFDE00, #F97316, #FFDE00)", marginBottom: 14 }}>
             <div style={{ borderRadius: 14, padding: 18, background: "#13131f", display: "flex", gap: 14, alignItems: "flex-start" }}>
               {imagePreview && (
                 <img src={imagePreview} alt="" style={{ width: 88, height: 124, borderRadius: 10, objectFit: "cover", border: "2px solid rgba(255,222,0,0.3)", flexShrink: 0 }} />

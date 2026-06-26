@@ -270,7 +270,7 @@ export default function CardMarketSell() {
         <div className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
           <span style={{ fontSize: 48 }}>🔒</span>
           <p className="text-sm" style={{ color: "#6b7280" }}>請先登入才可上架或求購</p>
-          <button onClick={() => navigate("/login")} className="px-6 py-2 rounded-full font-bold text-sm" style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}>
+          <button onClick={() => navigate("/login")} className="px-6 py-2 rounded-full font-bold text-sm" style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
             前往登入
           </button>
         </div>
@@ -295,7 +295,7 @@ export default function CardMarketSell() {
           <button
             onClick={() => { setMode("sell"); setStep(1); }}
             className="flex-1 py-2 rounded-xl font-bold text-sm transition-all"
-            style={mode === "sell" ? { background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" } : { color: "#9ca3af" }}
+            style={mode === "sell" ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" } : { color: "#9ca3af" }}
           >
             上架出售
           </button>
@@ -314,10 +314,10 @@ export default function CardMarketSell() {
           {[1, 2, 3].map(s => (
             <div key={s} className="flex items-center gap-2 flex-1">
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                style={step >= s ? { background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" } : { background: "#f3f4f6", color: "#d1d5db", border: "1px solid #e5e7eb" }}>
+                style={step >= s ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" } : { background: "#f3f4f6", color: "#d1d5db", border: "1px solid #e5e7eb" }}>
                 {step > s ? <Check className="w-3 h-3" /> : s}
               </div>
-              {s < 3 && <div className="flex-1 h-px" style={{ background: step > s ? "rgba(204,0,0,0.3)" : "#e5e7eb" }} />}
+              {s < 3 && <div className="flex-1 h-px" style={{ background: step > s ? "rgba(255,222,0,0.5)" : "#e5e7eb" }} />}
             </div>
           ))}
         </div>
@@ -342,7 +342,7 @@ export default function CardMarketSell() {
                     setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) ? "browse" : "search");
                   }}
                   className="flex items-center gap-3 p-3 rounded-2xl transition-all"
-                  style={{ background: game === g.id ? "rgba(204,0,0,0.08)" : "#fff", border: `1px solid ${game === g.id ? "rgba(204,0,0,0.3)" : "#e5e7eb"}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+                  style={{ background: game === g.id ? "rgba(255,222,0,0.15)" : "#fff", border: `1px solid ${game === g.id ? "rgba(255,222,0,0.4)" : "#e5e7eb"}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                 >
                   <span style={{ fontSize: 24 }}>{g.emoji}</span>
                   <span className="text-sm font-bold" style={{ color: game === g.id ? "#CC0000" : "#111827" }}>{g.label}</span>
@@ -372,7 +372,7 @@ export default function CardMarketSell() {
                   onClick={() => { setStep2Tab("search"); setSelectedSet(null); setAccCards([]); prevSetRef.current = null; }}
                   className="flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                   style={step2Tab === "search"
-                    ? { background: "rgba(204,0,0,0.08)", color: "#CC0000" }
+                    ? { background: "rgba(255,222,0,0.15)", color: "#111827" }
                     : { color: "#9ca3af" }}
                 >
                   <Search className="w-3.5 h-3.5" />
@@ -640,7 +640,7 @@ export default function CardMarketSell() {
                   <button
                     onClick={() => { if (manualName.trim()) { setSelectedCard(null); setStep(3); } else { toast.error("請先搜尋選擇卡牌，或手動填寫名稱"); } }}
                     className="flex-1 py-2.5 rounded-2xl text-sm font-bold"
-                    style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}
+                    style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
                   >
                     手動填寫繼續
                   </button>
@@ -727,7 +727,7 @@ export default function CardMarketSell() {
                         onClick={() => setCondition(c.id)}
                         className="flex items-center justify-between p-2.5 rounded-xl transition-all"
                         style={condition === c.id
-                          ? { background: "rgba(204,0,0,0.08)", border: "1px solid rgba(204,0,0,0.3)" }
+                          ? { background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)" }
                           : { background: "#fff", border: "1px solid #e5e7eb" }}
                       >
                         <span className="text-xs font-bold" style={{ color: condition === c.id ? "#CC0000" : "#111827" }}>{c.label}</span>
@@ -746,7 +746,7 @@ export default function CardMarketSell() {
                   <button
                     onClick={() => setIsGraded(p => !p)}
                     className="w-12 h-6 rounded-full transition-all relative"
-                    style={{ background: isGraded ? "#CC0000" : "#e5e7eb" }}
+                    style={{ background: isGraded ? "#FFDE00" : "#e5e7eb" }}
                   >
                     <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: isGraded ? 26 : 2 }} />
                   </button>
@@ -815,7 +815,7 @@ export default function CardMarketSell() {
                     onClick={handleSubmitSell}
                     disabled={submitting}
                     className="flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
-                    style={{ background: "linear-gradient(90deg, #CC0000, #FF4444)", color: "#fff" }}
+                    style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
                   >
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     確認上架
