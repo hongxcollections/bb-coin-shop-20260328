@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Upload, X, ChevronLeft, Loader2, Check, Plus, ShoppingBag, Grid3x3, ChevronRight } from "lucide-react";
+import { Search, Upload, X, ChevronLeft, Loader2, Check, Plus, ShoppingBag, Grid3x3, ChevronRight, Share2, Heart } from "lucide-react";
 
 const GAMES = [
   { id: "pokemon", label: "Pokémon", emoji: "⚡" },
@@ -100,6 +100,7 @@ export default function CardMarketSell() {
   const [wtbCondition, setWtbCondition] = useState<"NM" | "LP" | "MP" | "HP" | "DMG" | "">("NM");
   const [wtbNotes, setWtbNotes] = useState("");
 
+  const [previewCard, setPreviewCard] = useState<CardResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -464,7 +465,7 @@ export default function CardMarketSell() {
                             return (
                               <button
                                 key={card.cardApiId}
-                                onClick={() => handleSelectCard(card)}
+                                onClick={() => setPreviewCard(card)}
                                 className="flex flex-col rounded-xl overflow-hidden text-left transition-all"
                                 style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                               >
@@ -559,7 +560,7 @@ export default function CardMarketSell() {
                       return (
                         <button
                           key={i}
-                          onClick={() => { setSelectedCard(r); setStep(3); }}
+                          onClick={() => setPreviewCard(r)}
                           className="flex flex-col rounded-xl overflow-hidden text-left"
                           style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                         >
@@ -892,5 +893,111 @@ export default function CardMarketSell() {
         )}
       </div>
     </div>
+
+    {/* ── Card Preview Bottom Sheet ── */}
+    {previewCard && (
+      <div className="fixed inset-0 z-[9999] flex items-end" onClick={() => setPreviewCard(null)}>
+        <div className="absolute inset-0 bg-black/60" />
+        <div
+          className="relative z-10 w-full bg-white rounded-t-3xl shadow-2xl flex flex-col"
+          style={{ maxHeight: "90vh" }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+            <div className="w-10 h-1 rounded-full" style={{ background: "#e5e7eb" }} />
+          </div>
+
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto px-4 pt-2 pb-2">
+            {/* Large card image */}
+            <div className="relative w-full mb-4 rounded-2xl overflow-hidden shadow-lg"
+              style={{ paddingBottom: "140%", background: "#f3f4f6" }}>
+              {previewCard.officialImageUrl ? (
+                <img
+                  src={previewCard.officialImageUrl}
+                  alt={previewCard.cardName}
+                  className="absolute inset-0 w-full h-full object-contain"
+                  style={{ background: "#1a1a2e" }}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#f8f9fa" }}>
+                  <span style={{ fontSize: 64 }}>🃏</span>
+                </div>
+              )}
+            </div>
+
+            {/* Card info */}
+            <p className="text-sm font-black mb-0.5" style={{ color: "#111827" }}>{previewCard.cardName}</p>
+            {previewCard.cardNameJa && (
+              <p className="text-xs mb-1" style={{ color: "#6b7280" }}>{previewCard.cardNameJa}</p>
+            )}
+            {(previewCard.setName || previewCard.setNumber) && (
+              <p className="text-xs" style={{ color: "#9ca3af" }}>
+                {[previewCard.setName, previewCard.setNumber].filter(Boolean).join(" · ")}
+              </p>
+            )}
+            {previewCard.rarity && (
+              <p className="text-xs mt-1" style={{ color: "#F97316" }}>{previewCard.rarity}</p>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex-shrink-0 px-4 pt-3 pb-1" style={{ borderTop: "1px solid #f3f4f6" }}>
+            <div className="flex gap-2">
+              {/* 加入收藏清單 */}
+              <button
+                onClick={() => {
+                  setMode("wtb");
+                  setSelectedCard(previewCard);
+                  setStep(3);
+                  setPreviewCard(null);
+                }}
+                className="flex-1 py-3 rounded-2xl font-bold text-sm flex flex-col items-center gap-1"
+                style={{ background: "#f8f9fa", color: "#111827", border: "1px solid #e5e7eb" }}
+              >
+                <Heart className="w-4 h-4" style={{ color: "#dc2626" }} />
+                <span className="text-[11px] leading-tight text-center">加入收藏<br />清單</span>
+              </button>
+
+              {/* Share */}
+              <button
+                onClick={() => {
+                  const text = [previewCard.cardName, previewCard.setName, previewCard.setNumber].filter(Boolean).join(" · ");
+                  if (navigator.share) {
+                    navigator.share({ title: previewCard.cardName, text }).catch(() => {});
+                  } else {
+                    navigator.clipboard?.writeText(text).then(() => toast.success("已複製卡牌資訊"));
+                  }
+                }}
+                className="py-3 px-5 rounded-2xl font-bold text-sm flex flex-col items-center gap-1"
+                style={{ background: "#f8f9fa", color: "#111827", border: "1px solid #e5e7eb" }}
+              >
+                <Share2 className="w-4 h-4" style={{ color: "#6b7280" }} />
+                <span className="text-[11px]">分享</span>
+              </button>
+
+              {/* 我要賣這張卡 */}
+              <button
+                onClick={() => {
+                  setMode("sell");
+                  setSelectedCard(previewCard);
+                  setStep(3);
+                  setPreviewCard(null);
+                }}
+                className="flex-1 py-3 rounded-2xl font-black text-sm flex flex-col items-center gap-1"
+                style={{ background: "linear-gradient(135deg, #FFDE00, #FFB800)", color: "#111827" }}
+              >
+                <span style={{ fontSize: 16 }}>🏷️</span>
+                <span className="text-[11px] leading-tight text-center">我要賣<br />這張卡</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom spacer */}
+          <div className="h-6 flex-shrink-0" />
+        </div>
+      </div>
+    )}
   );
 }
