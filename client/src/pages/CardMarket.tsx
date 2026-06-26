@@ -304,7 +304,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
           </div>
         </div>
 
-        <div className="flex-shrink-0 px-4 pt-3 pb-2" style={{ background: "#fff", borderTop: "1px solid #f3f4f6" }}>
+        <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
           {isAuthenticated && user?.id !== listing.userId ? (
             <button
               onClick={handleContact}
@@ -327,7 +327,6 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             <div className="text-center text-xs py-2" style={{ color: "#9ca3af" }}>這是你的上架記錄</div>
           )}
         </div>
-        <div className="h-6 flex-shrink-0" style={{ background: "#fff" }} />
       </div>
     </div>
   );

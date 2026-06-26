@@ -953,7 +953,7 @@ export default function CardMarketSell() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex-shrink-0 px-4 pt-3 pb-1" style={{ borderTop: "1px solid #f3f4f6" }}>
+          <div className="flex-shrink-0 px-4 pt-3" style={{ borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
             <div className="flex gap-2">
               {/* 加入收藏清單 */}
               <button
