@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
@@ -249,10 +249,20 @@ export default function CardMarketMy() {
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>("active");
 
-  const { data: activeListings = [], refetch: refetchActive } = trpc.cardTrading.getMyListings.useQuery({ status: "active", limit: 50 }, { enabled: isAuthenticated });
-  const { data: soldListings = [], refetch: refetchSold } = trpc.cardTrading.getMyListings.useQuery({ status: "sold", limit: 50 }, { enabled: isAuthenticated });
-  const { data: removedListings = [], refetch: refetchRemoved } = trpc.cardTrading.getMyListings.useQuery({ status: "removed", limit: 50 }, { enabled: isAuthenticated });
-  const { data: myWTBs = [], refetch: refetchWTBs } = trpc.cardTrading.getMyWTBs.useQuery({ limit: 50 }, { enabled: isAuthenticated });
+  const { data: activeListings = [], refetch: refetchActive } = trpc.cardTrading.getMyListings.useQuery({ status: "active", limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
+  const { data: soldListings = [], refetch: refetchSold } = trpc.cardTrading.getMyListings.useQuery({ status: "sold", limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
+  const { data: removedListings = [], refetch: refetchRemoved } = trpc.cardTrading.getMyListings.useQuery({ status: "removed", limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
+  const { data: myWTBs = [], refetch: refetchWTBs } = trpc.cardTrading.getMyWTBs.useQuery({ limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      refetchActive();
+      refetchSold();
+      refetchRemoved();
+      refetchWTBs();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
