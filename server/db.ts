@@ -8161,7 +8161,7 @@ export async function getCardListings(opts: {
   const limit = opts.limit ?? 20;
   const offset = opts.offset ?? 0;
   params.push(limit, offset);
-  const [rows]: any = await pool.execute(
+  const [rows]: any = await pool.query(
     `SELECT l.*, u.name as sellerName
      FROM cardListings l
      LEFT JOIN users u ON u.id = l.userId
