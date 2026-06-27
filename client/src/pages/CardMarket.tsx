@@ -71,96 +71,61 @@ interface Listing {
   status: string; views: number; createdAt: string; sellerName: string | null;
 }
 
-function CardPhotoLightbox({ photos, initialIndex, onClose }: {
-  photos: string[]; initialIndex: number; onClose: () => void;
+function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }: {
+  photos: string[]; initialIndex: number; cardName: string; priceHKD: number; onClose: () => void;
 }) {
   const [idx, setIdx] = useState(initialIndex);
+  const [mode, setMode] = useState<"portrait" | "landscape">("portrait");
+  const [displayScale, setDisplayScale] = useState(1);
+  const scaleRef = useRef(1);
+  const touchRef = useRef({ lastDist: null as number | null, startX: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
-  const stateRef = useRef({
-    scale: 1, tx: 0, ty: 0,
-    lastDist: null as number | null,
-    lastMidX: 0, lastMidY: 0,
-    lastSingleX: 0, lastSingleY: 0,
-    isPanning: false,
-    touchStartX: 0,
-  });
-  const [transform, setTransform] = useState({ scale: 1, tx: 0, ty: 0 });
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  function applyTransform() {
-    const s = stateRef.current;
-    setTransform({ scale: s.scale, tx: s.tx, ty: s.ty });
-  }
+  // Reset scale when photo or mode changes
+  useEffect(() => { scaleRef.current = 1; setDisplayScale(1); }, [idx, mode]);
 
+  // Scroll landscape strip to correct photo when idx changes
   useEffect(() => {
-    const s = stateRef.current;
-    s.scale = 1; s.tx = 0; s.ty = 0;
-    setTransform({ scale: 1, tx: 0, ty: 0 });
-  }, [idx]);
+    if (mode === "landscape" && scrollRef.current) {
+      scrollRef.current.scrollTo({ left: idx * scrollRef.current.offsetWidth, behavior: "smooth" });
+    }
+  }, [idx, mode]);
 
+  // Pinch-to-zoom handler — attaches to portrait img or landscape container
   useEffect(() => {
-    const el = imgRef.current;
+    const el = mode === "portrait" ? imgRef.current : scrollRef.current;
     if (!el) return;
     function getDist(t: TouchList) {
-      const dx = t[0].clientX - t[1].clientX;
-      const dy = t[0].clientY - t[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-    function getMid(t: TouchList) {
-      return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
-    }
-    function clamp(s: typeof stateRef.current) {
-      const maxTx = Math.max(0, (el!.offsetWidth * s.scale - window.innerWidth) / 2);
-      const maxTy = Math.max(0, (el!.offsetHeight * s.scale - window.innerHeight) / 2);
-      s.tx = Math.max(-maxTx, Math.min(maxTx, s.tx));
-      s.ty = Math.max(-maxTy, Math.min(maxTy, s.ty));
+      return Math.sqrt((t[0].clientX - t[1].clientX) ** 2 + (t[0].clientY - t[1].clientY) ** 2);
     }
     function onStart(e: TouchEvent) {
-      const s = stateRef.current;
       if (e.touches.length === 2) {
-        s.lastDist = getDist(e.touches);
-        const mid = getMid(e.touches);
-        s.lastMidX = mid.x; s.lastMidY = mid.y;
-        s.isPanning = false;
-      } else {
-        s.touchStartX = e.touches[0].clientX;
-        s.lastSingleX = e.touches[0].clientX;
-        s.lastSingleY = e.touches[0].clientY;
-        s.isPanning = true;
+        touchRef.current.lastDist = getDist(e.touches);
+      } else if (e.touches.length === 1) {
+        touchRef.current.startX = e.touches[0].clientX;
       }
     }
     function onMove(e: TouchEvent) {
-      e.preventDefault();
-      const s = stateRef.current;
-      if (e.touches.length === 2 && s.lastDist !== null) {
+      if (e.touches.length === 2 && touchRef.current.lastDist !== null) {
+        e.preventDefault();
         const dist = getDist(e.touches);
-        const mid = getMid(e.touches);
-        const newScale = Math.min(8, Math.max(1, s.scale * (dist / s.lastDist)));
-        s.tx = mid.x - (mid.x - s.tx) * (newScale / s.scale) + (mid.x - s.lastMidX);
-        s.ty = mid.y - (mid.y - s.ty) * (newScale / s.scale) + (mid.y - s.lastMidY);
-        s.scale = newScale;
-        s.lastDist = dist; s.lastMidX = mid.x; s.lastMidY = mid.y;
-        clamp(s); applyTransform();
-      } else if (e.touches.length === 1 && s.isPanning && s.scale > 1) {
-        s.tx += e.touches[0].clientX - s.lastSingleX;
-        s.ty += e.touches[0].clientY - s.lastSingleY;
-        s.lastSingleX = e.touches[0].clientX;
-        s.lastSingleY = e.touches[0].clientY;
-        clamp(s); applyTransform();
+        const newScale = Math.min(8, Math.max(1, scaleRef.current * (dist / touchRef.current.lastDist)));
+        scaleRef.current = newScale;
+        setDisplayScale(newScale);
+        touchRef.current.lastDist = dist;
       }
     }
     function onEnd(e: TouchEvent) {
-      const s = stateRef.current;
-      if (e.touches.length < 2) s.lastDist = null;
-      if (e.touches.length === 0) {
-        s.isPanning = false;
-        if (s.scale <= 1) {
-          s.scale = 1; s.tx = 0; s.ty = 0; applyTransform();
-          const deltaX = (e.changedTouches[0]?.clientX ?? s.touchStartX) - s.touchStartX;
-          if (Math.abs(deltaX) > 50) {
-            if (deltaX < 0) setIdx(i => Math.min(i + 1, photos.length - 1));
-            else setIdx(i => Math.max(i - 1, 0));
-          }
-        } else { clamp(s); applyTransform(); }
+      if (e.touches.length < 2) touchRef.current.lastDist = null;
+      // Portrait swipe-to-navigate (only when not zoomed)
+      if (e.touches.length === 0 && mode === "portrait" && scaleRef.current <= 1.05) {
+        const deltaX = (e.changedTouches[0]?.clientX ?? touchRef.current.startX) - touchRef.current.startX;
+        if (Math.abs(deltaX) > 50) {
+          if (deltaX < 0) setIdx(i => Math.min(i + 1, photos.length - 1));
+          else setIdx(i => Math.max(i - 1, 0));
+          scaleRef.current = 1; setDisplayScale(1);
+        }
       }
     }
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -171,35 +136,89 @@ function CardPhotoLightbox({ photos, initialIndex, onClose }: {
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  }, [idx, photos.length]);
+  }, [mode, idx, photos.length]);
+
+  function resetScale() { scaleRef.current = 1; setDisplayScale(1); }
 
   return (
-    <div
-      style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.97)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}
-      onClick={onClose}
-    >
-      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.12)", border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2, flexShrink: 0 }}>
-        <X style={{ width: 18, height: 18, color: "rgba(255,255,255,0.8)" }} />
-      </button>
-      {photos.length > 1 && idx > 0 && (
-        <button onClick={e => { e.stopPropagation(); setIdx(i => i - 1); }} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 22, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, cursor: "pointer" }}>‹</button>
-      )}
-      {photos.length > 1 && idx < photos.length - 1 && (
-        <button onClick={e => { e.stopPropagation(); setIdx(i => i + 1); }} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 22, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, cursor: "pointer" }}>›</button>
-      )}
-      <img
-        ref={imgRef}
-        src={photos[idx]}
-        style={{ maxWidth: "100vw", maxHeight: "100vh", objectFit: "contain", display: "block", transform: `translate(${transform.tx}px,${transform.ty}px) scale(${transform.scale})`, transformOrigin: "center center", userSelect: "none", WebkitUserSelect: "none", touchAction: "none", cursor: transform.scale > 1 ? "grab" : "zoom-out", willChange: "transform" }}
-        onDoubleClick={() => { const s = stateRef.current; s.scale = 1; s.tx = 0; s.ty = 0; applyTransform(); }}
-        onClick={e => e.stopPropagation()}
-      />
-      {photos.length > 1 && (
-        <div style={{ position: "absolute", bottom: 44, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6 }}>
-          {photos.map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === idx ? "#fff" : "rgba(255,255,255,0.3)", transition: "background 0.2s" }} />)}
+    <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", display: "flex", flexDirection: "column" }}>
+      {/* Header: card name + price + close */}
+      <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+          <p style={{ color: "#fff", fontSize: 14, fontWeight: 700, lineHeight: 1.3, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cardName}</p>
+          <p style={{ color: "#F97316", fontSize: 17, fontWeight: 900, letterSpacing: "-0.3px" }}>HKD ${priceHKD.toLocaleString()}</p>
+        </div>
+        <button onClick={onClose} style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+          <X style={{ width: 18, height: 18, color: "rgba(255,255,255,0.8)" }} />
+        </button>
+      </div>
+
+      {/* Mode toggle */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 10, flexShrink: 0 }}>
+        {(["portrait", "landscape"] as const).map(m => (
+          <button key={m} onClick={() => setMode(m)} style={{ padding: "5px 18px", borderRadius: 20, border: "1px solid", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", background: mode === m ? "#F97316" : "transparent", color: mode === m ? "#fff" : "rgba(255,255,255,0.5)", borderColor: mode === m ? "#F97316" : "rgba(255,255,255,0.25)" }}>
+            {m === "portrait" ? "直立" : "橫向"}
+          </button>
+        ))}
+      </div>
+
+      {/* Image area */}
+      <div style={{ flex: 1, overflow: "hidden", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {mode === "portrait" ? (
+          <>
+            {photos.length > 1 && idx > 0 && (
+              <button onClick={() => setIdx(i => i - 1)} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 22, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, cursor: "pointer" }}>‹</button>
+            )}
+            {photos.length > 1 && idx < photos.length - 1 && (
+              <button onClick={() => setIdx(i => i + 1)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 22, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, cursor: "pointer" }}>›</button>
+            )}
+            <img
+              ref={imgRef}
+              src={photos[idx]}
+              alt=""
+              style={{ maxWidth: "calc(100% - 88px)", maxHeight: "100%", objectFit: "contain", display: "block", transform: `scale(${displayScale})`, transformOrigin: "center center", userSelect: "none", WebkitUserSelect: "none" as any, touchAction: "none", willChange: "transform" }}
+              onDoubleClick={resetScale}
+              draggable={false}
+            />
+          </>
+        ) : (
+          /* Landscape: horizontal scroll strip, one photo per "page" */
+          <div
+            ref={scrollRef}
+            style={{ display: "flex", width: "100%", height: "100%", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" as any, touchAction: "pan-x" }}
+            onScroll={e => {
+              const el = e.currentTarget;
+              const newIdx = Math.round(el.scrollLeft / Math.max(1, el.offsetWidth));
+              if (newIdx !== idx) { setIdx(newIdx); scaleRef.current = 1; setDisplayScale(1); }
+            }}
+          >
+            {photos.map((photo, i) => (
+              <div key={i} style={{ flex: "0 0 100%", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", scrollSnapAlign: "start" }}>
+                <img
+                  src={photo}
+                  alt=""
+                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block", transform: i === idx ? `scale(${displayScale})` : undefined, transformOrigin: "center center", userSelect: "none", WebkitUserSelect: "none" as any, touchAction: "none" }}
+                  onDoubleClick={resetScale}
+                  draggable={false}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dots indicator (portrait only) */}
+      {photos.length > 1 && mode === "portrait" && (
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, padding: "10px 0 2px", flexShrink: 0 }}>
+          {photos.map((_, i) => (
+            <div key={i} onClick={() => setIdx(i)} style={{ width: 7, height: 7, borderRadius: "50%", background: i === idx ? "#F97316" : "rgba(255,255,255,0.3)", transition: "background 0.2s", cursor: "pointer" }} />
+          ))}
         </div>
       )}
-      <p style={{ position: "absolute", bottom: 18, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 10, pointerEvents: "none" }}>雙指縮放 · 左右滑動換圖 · 雙擊重設</p>
+
+      <p style={{ textAlign: "center", color: "rgba(255,255,255,0.28)", fontSize: 10, padding: "4px 0 14px", flexShrink: 0, pointerEvents: "none" }}>
+        {mode === "portrait" ? "雙指縮放 · 左右滑動換圖 · 雙擊重設" : "左右滑動切換 · 雙指縮放"}
+      </p>
     </div>
   );
 }
@@ -484,7 +503,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
           </div>
         </div>
 
-        {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} onClose={() => setLightboxOpen(false)} />}
+        {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} cardName={listing.cardName} priceHKD={listing.priceHKD} onClose={() => setLightboxOpen(false)} />}
 
         <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
           <button
