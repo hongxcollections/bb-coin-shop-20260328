@@ -199,7 +199,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
               </button>
             </div>
             <div
-              className="p-3 flex gap-2 transition-opacity"
+              className="p-3 flex flex-col gap-2.5 transition-opacity"
               style={{
                 borderTop: "1px solid #e5e7eb", background: "#fff",
                 borderRadius: "0 0 16px 16px",
@@ -207,8 +207,8 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
                 pointerEvents: isGraded ? "auto" : "none",
               }}
             >
-              <div className="flex-1">
-                <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評級機構</label>
+              <div>
+                <label className="text-xs mb-1.5 block" style={{ color: "#6b7280" }}>評級機構</label>
                 <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
                   {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => (
                     <button
@@ -223,8 +223,8 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
                   ))}
                 </div>
               </div>
-              <div style={{ width: 110 }}>
-                <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評分</label>
+              <div>
+                <label className="text-xs mb-1.5 block" style={{ color: "#6b7280" }}>評分</label>
                 <input
                   value={gradeScore}
                   onChange={e => setGradeScore(e.target.value)}
