@@ -165,48 +165,52 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
             <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handlePhotoUpload(e.target.files)} />
           </div>
 
-          {/* Condition */}
+          {/* 裸卡 / 評級卡 二選一 */}
           <div>
-            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>品相</label>
-            <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-              {CONDITIONS.map(c => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setCondition(c.id as typeof condition)}
-                  className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all"
-                  style={condition === c.id
-                    ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
-                    : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
-                >{c.label}</button>
-              ))}
+            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>卡牌類型</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsGraded(false)}
+                className="flex-shrink-0 text-xs px-4 py-1.5 rounded-full font-bold transition-all"
+                style={!isGraded
+                  ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                  : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+              >裸卡 Raw</button>
+              <button
+                type="button"
+                onClick={() => setIsGraded(true)}
+                className="flex-shrink-0 text-xs px-4 py-1.5 rounded-full font-bold transition-all"
+                style={isGraded
+                  ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                  : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+              >評級卡</button>
             </div>
           </div>
 
-          {/* Graded toggle + fields */}
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 16 }}>
-            <div className="p-3 flex items-center justify-between" style={{ background: "#f8f9fa", borderRadius: "16px 16px 0 0" }}>
-              <div>
-                <p className="text-sm font-bold" style={{ color: "#111827" }}>評級卡</p>
-                <p className="text-xs" style={{ color: "#9ca3af" }}>PSA / BGS / CGC 等</p>
+          {/* 裸卡：顯示品相 */}
+          {!isGraded && (
+            <div>
+              <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>品相</label>
+              <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                {CONDITIONS.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCondition(c.id as typeof condition)}
+                    className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all"
+                    style={condition === c.id
+                      ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                      : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+                  >{c.label}</button>
+                ))}
               </div>
-              <button
-                onClick={() => setIsGraded(p => !p)}
-                className="w-12 h-6 rounded-full transition-all relative flex-shrink-0"
-                style={{ background: isGraded ? "#FFDE00" : "#e5e7eb" }}
-              >
-                <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: isGraded ? 26 : 2 }} />
-              </button>
             </div>
-            <div
-              className="p-3 flex flex-col gap-2.5 transition-opacity"
-              style={{
-                borderTop: "1px solid #e5e7eb", background: "#fff",
-                borderRadius: "0 0 16px 16px",
-                opacity: isGraded ? 1 : 0.4,
-                pointerEvents: isGraded ? "auto" : "none",
-              }}
-            >
+          )}
+
+          {/* 評級卡：顯示評級機構 + 評分 */}
+          {isGraded && (
+            <div className="flex flex-col gap-2.5">
               <div>
                 <label className="text-xs mb-1.5 block" style={{ color: "#6b7280" }}>評級機構</label>
                 <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
@@ -234,7 +238,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
                 />
               </div>
             </div>
-          </div>
+          )}
 
           {/* Price */}
           <div>

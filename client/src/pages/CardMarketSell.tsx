@@ -722,39 +722,50 @@ export default function CardMarketSell() {
                   <p className="text-[10px] mt-1.5" style={{ color: "#9ca3af" }}>請上載實物相片，增加買家信心</p>
                 </div>
 
-                {/* Condition */}
+                {/* 裸卡 / 評級卡 二選一 */}
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>品相</label>
-                  <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-                    {CONDITIONS.map(c => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setCondition(c.id as typeof condition)}
-                        className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all"
-                        style={condition === c.id
-                          ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
-                          : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
-                      >{c.label}</button>
-                    ))}
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>卡牌類型</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsGraded(false)}
+                      className="flex-shrink-0 text-xs px-4 py-1.5 rounded-full font-bold transition-all"
+                      style={!isGraded
+                        ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                        : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+                    >裸卡 Raw</button>
+                    <button
+                      type="button"
+                      onClick={() => setIsGraded(true)}
+                      className="flex-shrink-0 text-xs px-4 py-1.5 rounded-full font-bold transition-all"
+                      style={isGraded
+                        ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                        : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+                    >評級卡</button>
                   </div>
                 </div>
 
-                {/* Graded toggle */}
-                <div className="mb-4 p-3 rounded-2xl flex items-center justify-between" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
-                  <div>
-                    <p className="text-sm font-bold" style={{ color: "#111827" }}>評級卡</p>
-                    <p className="text-xs" style={{ color: "#9ca3af" }}>PSA / BGS / CGC 等</p>
+                {/* 裸卡：顯示品相 */}
+                {!isGraded && (
+                  <div className="mb-4">
+                    <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>品相</label>
+                    <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                      {CONDITIONS.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setCondition(c.id as typeof condition)}
+                          className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all"
+                          style={condition === c.id
+                            ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                            : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+                        >{c.label}</button>
+                      ))}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setIsGraded(p => !p)}
-                    className="w-12 h-6 rounded-full transition-all relative"
-                    style={{ background: isGraded ? "#FFDE00" : "#e5e7eb" }}
-                  >
-                    <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: isGraded ? 26 : 2 }} />
-                  </button>
-                </div>
+                )}
 
+                {/* 評級卡：顯示評級機構 + 評分 */}
                 {isGraded && (
                   <div className="mb-4">
                     <div className="mb-2">

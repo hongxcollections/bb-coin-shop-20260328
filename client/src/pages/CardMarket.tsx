@@ -347,7 +347,12 @@ function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }
             {listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}
           </p>
         )}
-        <p className="text-sm font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
+            {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : "裸卡"}
+          </span>
+        </div>
         <div className="flex items-center justify-between mt-1.5">
           <span className="text-[10px]" style={{ color: "#9ca3af" }}>
             成交 {listing.status === "sold" ? 1 : 0}
@@ -397,7 +402,12 @@ function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => vo
       <div className="p-2">
         <p className="text-xs font-black leading-tight line-clamp-2 mb-1" style={{ color: "#CC0000" }}>{listing.cardName}</p>
         {listing.setName && <p className="text-[10px] line-clamp-1 mb-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
-        <p className="text-sm font-black" style={{ color: "#111827" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-black" style={{ color: "#111827" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
+            {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : "裸卡"}
+          </span>
+        </div>
         <div className="flex items-center justify-between mt-1">
           <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.sellerName ?? "賣家"}</span>
           <span className="text-[10px]" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
