@@ -656,7 +656,7 @@ export default function CardMarket() {
         <ListingDetailSheet listing={selectedListing} onClose={() => setSelectedListing(null)} />
       )}
 
-      <div className="max-w-lg mx-auto px-4 pt-4">
+      <div className="max-w-lg mx-auto px-[5px] pt-4">
         {/* Hero Banner */}
         <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%)" }}>
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)" }} />

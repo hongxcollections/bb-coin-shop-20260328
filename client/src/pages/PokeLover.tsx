@@ -909,7 +909,7 @@ export default function CardZzz() {
         <ImageLightbox src={imagePreview} onClose={() => setLightboxOpen(false)} />
       )}
 
-      <div className="max-w-lg mx-auto px-4 pt-4">
+      <div className="max-w-lg mx-auto px-[5px] pt-4">
         <div ref={shareCardRef} style={{ background: "#fff", borderRadius: 12 }}>
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #e5e7eb" }} />

@@ -290,7 +290,7 @@ export default function PokeCollection() {
   return (
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa" }}>
       <Header />
-      <div className="max-w-lg mx-auto px-4 pt-4">
+      <div className="max-w-lg mx-auto px-[5px] pt-4">
         <button onClick={() => navigate("/cardzzz")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "#9ca3af" }}>
           <ChevronLeft className="w-4 h-4" /> 返回 CardZzz
         </button>

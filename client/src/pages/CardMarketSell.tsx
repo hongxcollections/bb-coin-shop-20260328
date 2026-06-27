@@ -286,7 +286,7 @@ export default function CardMarketSell() {
     <>
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa", color: "#111827" }}>
       <Header />
-      <div className="max-w-lg mx-auto px-4 pt-4">
+      <div className="max-w-lg mx-auto px-[5px] pt-4">
         {/* Back + title */}
         <div className="flex items-center gap-3 mb-5">
           <button onClick={() => navigate("/cardzzz/market")} className="p-1.5 rounded-full" style={{ background: "#f3f4f6", border: "1px solid #e5e7eb" }}>
