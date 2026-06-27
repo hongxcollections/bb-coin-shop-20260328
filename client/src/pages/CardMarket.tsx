@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X } from "lucide-react";
 
 const GAMES = [
   { id: "", label: "全部" },
@@ -17,12 +17,12 @@ const GAMES = [
   { id: "other", label: "其他" },
 ] as const;
 
-const CONDITION_LABELS: Record<string, { label: string; color: string }> = {
-  NM:  { label: "NM", color: "#16a34a" },
-  LP:  { label: "LP", color: "#65a30d" },
-  MP:  { label: "MP", color: "#d97706" },
-  HP:  { label: "HP", color: "#ea580c" },
-  DMG: { label: "DMG", color: "#dc2626" },
+const CONDITION_LABELS: Record<string, { label: string; full: string; color: string }> = {
+  NM:  { label: "NM", full: "NM — 近全新", color: "#16a34a" },
+  LP:  { label: "LP", full: "LP — 輕微磨損", color: "#65a30d" },
+  MP:  { label: "MP", full: "MP — 中度磨損", color: "#d97706" },
+  HP:  { label: "HP", full: "HP — 嚴重磨損", color: "#ea580c" },
+  DMG: { label: "DMG", full: "DMG — 損壞", color: "#dc2626" },
 };
 
 function timeAgo(dateStr: string | Date) {
@@ -67,7 +67,141 @@ interface Listing {
   officialImageUrl: string | null;
   condition: string; isGraded: boolean; gradingOrg: string | null; gradeScore: string | null;
   priceHKD: number; photoUrls: string[]; description: string | null;
+  deliveryMethod: string | null;
   status: string; views: number; createdAt: string; sellerName: string | null;
+}
+
+function CardPhotoLightbox({ photos, initialIndex, onClose }: {
+  photos: string[]; initialIndex: number; onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(initialIndex);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const stateRef = useRef({
+    scale: 1, tx: 0, ty: 0,
+    lastDist: null as number | null,
+    lastMidX: 0, lastMidY: 0,
+    lastSingleX: 0, lastSingleY: 0,
+    isPanning: false,
+    touchStartX: 0,
+  });
+  const [transform, setTransform] = useState({ scale: 1, tx: 0, ty: 0 });
+
+  function applyTransform() {
+    const s = stateRef.current;
+    setTransform({ scale: s.scale, tx: s.tx, ty: s.ty });
+  }
+
+  useEffect(() => {
+    const s = stateRef.current;
+    s.scale = 1; s.tx = 0; s.ty = 0;
+    setTransform({ scale: 1, tx: 0, ty: 0 });
+  }, [idx]);
+
+  useEffect(() => {
+    const el = imgRef.current;
+    if (!el) return;
+    function getDist(t: TouchList) {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    function getMid(t: TouchList) {
+      return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
+    }
+    function clamp(s: typeof stateRef.current) {
+      const maxTx = Math.max(0, (el!.offsetWidth * s.scale - window.innerWidth) / 2);
+      const maxTy = Math.max(0, (el!.offsetHeight * s.scale - window.innerHeight) / 2);
+      s.tx = Math.max(-maxTx, Math.min(maxTx, s.tx));
+      s.ty = Math.max(-maxTy, Math.min(maxTy, s.ty));
+    }
+    function onStart(e: TouchEvent) {
+      const s = stateRef.current;
+      if (e.touches.length === 2) {
+        s.lastDist = getDist(e.touches);
+        const mid = getMid(e.touches);
+        s.lastMidX = mid.x; s.lastMidY = mid.y;
+        s.isPanning = false;
+      } else {
+        s.touchStartX = e.touches[0].clientX;
+        s.lastSingleX = e.touches[0].clientX;
+        s.lastSingleY = e.touches[0].clientY;
+        s.isPanning = true;
+      }
+    }
+    function onMove(e: TouchEvent) {
+      e.preventDefault();
+      const s = stateRef.current;
+      if (e.touches.length === 2 && s.lastDist !== null) {
+        const dist = getDist(e.touches);
+        const mid = getMid(e.touches);
+        const newScale = Math.min(8, Math.max(1, s.scale * (dist / s.lastDist)));
+        s.tx = mid.x - (mid.x - s.tx) * (newScale / s.scale) + (mid.x - s.lastMidX);
+        s.ty = mid.y - (mid.y - s.ty) * (newScale / s.scale) + (mid.y - s.lastMidY);
+        s.scale = newScale;
+        s.lastDist = dist; s.lastMidX = mid.x; s.lastMidY = mid.y;
+        clamp(s); applyTransform();
+      } else if (e.touches.length === 1 && s.isPanning && s.scale > 1) {
+        s.tx += e.touches[0].clientX - s.lastSingleX;
+        s.ty += e.touches[0].clientY - s.lastSingleY;
+        s.lastSingleX = e.touches[0].clientX;
+        s.lastSingleY = e.touches[0].clientY;
+        clamp(s); applyTransform();
+      }
+    }
+    function onEnd(e: TouchEvent) {
+      const s = stateRef.current;
+      if (e.touches.length < 2) s.lastDist = null;
+      if (e.touches.length === 0) {
+        s.isPanning = false;
+        if (s.scale <= 1) {
+          s.scale = 1; s.tx = 0; s.ty = 0; applyTransform();
+          const deltaX = (e.changedTouches[0]?.clientX ?? s.touchStartX) - s.touchStartX;
+          if (Math.abs(deltaX) > 50) {
+            if (deltaX < 0) setIdx(i => Math.min(i + 1, photos.length - 1));
+            else setIdx(i => Math.max(i - 1, 0));
+          }
+        } else { clamp(s); applyTransform(); }
+      }
+    }
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [idx, photos.length]);
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.97)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}
+      onClick={onClose}
+    >
+      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.12)", border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2, flexShrink: 0 }}>
+        <X style={{ width: 18, height: 18, color: "rgba(255,255,255,0.8)" }} />
+      </button>
+      {photos.length > 1 && idx > 0 && (
+        <button onClick={e => { e.stopPropagation(); setIdx(i => i - 1); }} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 22, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, cursor: "pointer" }}>‹</button>
+      )}
+      {photos.length > 1 && idx < photos.length - 1 && (
+        <button onClick={e => { e.stopPropagation(); setIdx(i => i + 1); }} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, fontSize: 22, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, cursor: "pointer" }}>›</button>
+      )}
+      <img
+        ref={imgRef}
+        src={photos[idx]}
+        style={{ maxWidth: "100vw", maxHeight: "100vh", objectFit: "contain", display: "block", transform: `translate(${transform.tx}px,${transform.ty}px) scale(${transform.scale})`, transformOrigin: "center center", userSelect: "none", WebkitUserSelect: "none", touchAction: "none", cursor: transform.scale > 1 ? "grab" : "zoom-out", willChange: "transform" }}
+        onDoubleClick={() => { const s = stateRef.current; s.scale = 1; s.tx = 0; s.ty = 0; applyTransform(); }}
+        onClick={e => e.stopPropagation()}
+      />
+      {photos.length > 1 && (
+        <div style={{ position: "absolute", bottom: 44, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6 }}>
+          {photos.map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === idx ? "#fff" : "rgba(255,255,255,0.3)", transition: "background 0.2s" }} />)}
+        </div>
+      )}
+      <p style={{ position: "absolute", bottom: 18, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 10, pointerEvents: "none" }}>雙指縮放 · 左右滑動換圖 · 雙擊重設</p>
+    </div>
+  );
 }
 
 function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }) {
@@ -207,9 +341,11 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [contacting, setContacting] = useState(false);
+  const touchStartXRef = useRef(0);
   const photos = listing.photoUrls.length ? listing.photoUrls : (listing.officialImageUrl ? [listing.officialImageUrl] : []);
-  const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#7c3aed" };
+  const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, full: listing.condition, color: "#7c3aed" };
   const rarityBadge = getRarityShort(listing.rarity);
   const openRoomMut = trpc.cardTrading.openRoomWithSeller.useMutation();
 
@@ -245,14 +381,47 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
         </div>
 
         <div className="overflow-y-auto flex-1 px-4 pb-24">
+          {/* Photo carousel */}
           {photos.length > 0 && (
             <div className="mb-4">
-              <img src={photos[photoIdx]} alt="" className="w-full rounded-2xl object-contain" style={{ maxHeight: 260, background: "#f8f9fa" }} />
+              <div
+                className="w-full rounded-2xl overflow-hidden relative"
+                style={{ background: "#f8f9fa", cursor: "zoom-in" }}
+                onTouchStart={e => { touchStartXRef.current = e.touches[0].clientX; }}
+                onTouchEnd={e => {
+                  const delta = e.changedTouches[0].clientX - touchStartXRef.current;
+                  if (Math.abs(delta) > 45) {
+                    if (delta < 0) setPhotoIdx(i => Math.min(i + 1, photos.length - 1));
+                    else setPhotoIdx(i => Math.max(i - 1, 0));
+                  } else {
+                    setLightboxOpen(true);
+                  }
+                }}
+                onClick={() => setLightboxOpen(true)}
+              >
+                <img
+                  src={photos[photoIdx]}
+                  alt=""
+                  className="w-full object-contain"
+                  style={{ maxHeight: 280, display: "block" }}
+                  draggable={false}
+                />
+                {photos.length > 1 && (
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                    {photos.map((_, i) => (
+                      <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx ? "#CC0000" : "rgba(0,0,0,0.25)", transition: "background 0.2s" }} />
+                    ))}
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px]" style={{ background: "rgba(0,0,0,0.45)", color: "#fff" }}>
+                  點擊放大
+                </div>
+              </div>
               {photos.length > 1 && (
-                <div className="flex gap-1.5 mt-2 justify-center">
+                <div className="flex gap-1.5 mt-2">
                   {photos.map((p, i) => (
-                    <button key={i} onClick={() => setPhotoIdx(i)}>
-                      <img src={p} alt="" className="rounded-lg object-cover" style={{ width: 44, height: 44, border: i === photoIdx ? "2px solid #CC0000" : "2px solid #e5e7eb" }} />
+                    <button key={i} onClick={() => setPhotoIdx(i)} className="flex-shrink-0">
+                      <img src={p} alt="" className="rounded-lg object-cover" style={{ width: 40, height: 40, border: i === photoIdx ? "2px solid #CC0000" : "2px solid #e5e7eb" }} />
                     </button>
                   ))}
                 </div>
@@ -260,6 +429,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             </div>
           )}
 
+          {/* Title + Price */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
@@ -280,10 +450,19 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-2xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md" style={{ background: cond.color + "18", color: cond.color }}>
-                {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.label}
-              </span>
             </div>
+          </div>
+
+          {/* Info pills */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: cond.color + "18", color: cond.color, border: `1px solid ${cond.color}44` }}>
+              {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
+            </span>
+            {listing.deliveryMethod && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(14,165,233,0.08)", color: "#0284c7", border: "1px solid rgba(14,165,233,0.2)" }}>
+                {listing.deliveryMethod}
+              </span>
+            )}
           </div>
 
           {listing.description && (
@@ -304,6 +483,8 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             </div>
           </div>
         </div>
+
+        {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} onClose={() => setLightboxOpen(false)} />}
 
         <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
           <button
