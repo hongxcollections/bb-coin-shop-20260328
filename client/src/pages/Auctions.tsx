@@ -239,7 +239,7 @@ export default function Auctions() {
             {/* ── 統計格搬入 hero：副題下方，負 margin 凸出 hero 底部分隔線 ── */}
             <div className="grid grid-cols-3 gap-2 mt-3 max-w-md relative z-10 -mb-10">
               {(() => {
-                const activeCount = (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length;
+                const activeCount = (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length + (liveRounds ?? []).length;
                 const endedCount = (auctions ?? []).filter(a => a.status === 'ended' || new Date(a.endTime).getTime() <= Date.now()).length;
                 return [
                   { label: "活躍拍賣", value: activeCount, suffix: "件", icon: "🔨", color: "from-amber-400 to-orange-500" },

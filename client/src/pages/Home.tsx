@@ -1265,6 +1265,10 @@ export default function Home() {
       staleTime: 3000, // 3 秒內視為新鮮資料
     }
   );
+  const { data: homeLiveRounds } = trpc.groupAuctions.getActiveLiveRounds.useQuery(undefined, {
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
   // 計算每個分類的活躍拍賣數量（與「所有拍賣」頁一致）
   const categoryCounts: Record<string, number> = (() => {
@@ -1392,7 +1396,7 @@ export default function Home() {
   }, [paidFeatured]);
 
   const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
-  const activeCount = activeAuctions.length;
+  const activeCount = activeAuctions.length + (homeLiveRounds ?? []).length;
 
   // 精選拍品：選最快結標的前三件
   const heroAuctions = [...activeAuctions]
