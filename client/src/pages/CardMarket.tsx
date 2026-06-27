@@ -157,6 +157,8 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
       e.preventDefault();
       const z = Math.min(6, Math.max(1, pinchStartZoom.current * (pinchDist(e.touches) / pinchStartDist.current)));
       setLbZoom(z); lbZoomRef.current = z;
+      // keep image in place during pinch: always reset pan to 0
+      setLbPanX(0); setLbPanY(0);
     } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
       e.preventDefault();
       setLbPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);
@@ -168,6 +170,8 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
       e.preventDefault();
       const z = Math.min(6, Math.max(1, pinchStartZoom.current * (pinchDist(e.touches) / pinchStartDist.current)));
       setLbZoom(z); lbZoomRef.current = z;
+      // keep image in place during pinch: always reset pan to 0
+      setLbPanX(0); setLbPanY(0);
     } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
       e.preventDefault();
       setLbPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);

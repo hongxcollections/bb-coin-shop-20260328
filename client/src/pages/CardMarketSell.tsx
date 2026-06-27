@@ -725,16 +725,19 @@ export default function CardMarketSell() {
                 {/* Condition */}
                 <div className="mb-4">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>品相</label>
-                  <select
-                    value={condition}
-                    onChange={e => setCondition(e.target.value as typeof condition)}
-                    className="w-full px-3 py-2.5 text-sm font-bold"
-                    style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
-                  >
+                  <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
                     {CONDITIONS.map(c => (
-                      <option key={c.id} value={c.id}>{c.label} — {c.desc}</option>
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCondition(c.id as typeof condition)}
+                        className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all"
+                        style={condition === c.id
+                          ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                          : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+                      >{c.label}</button>
                     ))}
-                  </select>
+                  </div>
                 </div>
 
                 {/* Graded toggle */}
@@ -753,19 +756,24 @@ export default function CardMarketSell() {
                 </div>
 
                 {isGraded && (
-                  <div className="flex gap-2 mb-4">
-                    <div className="flex-1">
-                      <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評級機構</label>
-                      <select
-                        value={gradingOrg}
-                        onChange={e => setGradingOrg(e.target.value)}
-                        className="w-full px-3 py-2 text-sm"
-                        style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
-                      >
-                        {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
+                  <div className="mb-4">
+                    <div className="mb-2">
+                      <label className="text-xs mb-1.5 block" style={{ color: "#6b7280" }}>評級機構</label>
+                      <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                        {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => (
+                          <button
+                            key={o}
+                            type="button"
+                            onClick={() => setGradingOrg(o)}
+                            className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all"
+                            style={gradingOrg === o
+                              ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                              : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+                          >{o}</button>
+                        ))}
+                      </div>
                     </div>
-                    <div style={{ width: 100 }}>
+                    <div>
                       <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評分</label>
                       <input
                         value={gradeScore}
@@ -810,16 +818,19 @@ export default function CardMarketSell() {
                 {/* Delivery Method */}
                 <div className="mb-6">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>交收方法</label>
-                  <select
-                    value={deliveryMethod}
-                    onChange={e => setDeliveryMethod(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm font-bold"
-                    style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
-                  >
-                    <option value="面交相約">面交相約</option>
-                    <option value="郵寄">郵寄</option>
-                    <option value="面交或郵寄">面交或郵寄</option>
-                  </select>
+                  <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                    {["面交相約", "郵寄", "面交或郵寄"].map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setDeliveryMethod(m)}
+                        className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all"
+                        style={deliveryMethod === m
+                          ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid #FFB800" }
+                          : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+                      >{m}</button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
