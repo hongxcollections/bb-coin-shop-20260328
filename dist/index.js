@@ -7602,12 +7602,17 @@ async function bootstrapCardTradingTables() {
       priceHKD INT NOT NULL,
       photoUrlsJson TEXT,
       description TEXT,
+      deliveryMethod VARCHAR(50),
       status VARCHAR(20) NOT NULL DEFAULT 'active',
       views INT DEFAULT 0,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  try {
+    await pool.execute(`ALTER TABLE cardListings ADD COLUMN deliveryMethod VARCHAR(50)`);
+  } catch {
+  }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardWantToBuy (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -7716,8 +7721,8 @@ async function createCardListing(data) {
   const [res] = await pool.execute(
     `INSERT INTO cardListings
      (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, rarity, officialImageUrl,
-      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId,
       data.game,
@@ -7734,7 +7739,8 @@ async function createCardListing(data) {
       data.gradeScore ?? null,
       data.priceHKD,
       JSON.stringify(data.photoUrls),
-      data.description ?? null
+      data.description ?? null,
+      data.deliveryMethod ?? null
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId };
@@ -7759,6 +7765,26 @@ async function updateCardListing(id, userId, updates) {
   if (updates.photoUrls !== void 0) {
     sets.push("photoUrlsJson = ?");
     params.push(JSON.stringify(updates.photoUrls));
+  }
+  if (updates.condition !== void 0) {
+    sets.push("`condition` = ?");
+    params.push(updates.condition);
+  }
+  if (updates.isGraded !== void 0) {
+    sets.push("isGraded = ?");
+    params.push(updates.isGraded ? 1 : 0);
+  }
+  if (updates.gradingOrg !== void 0) {
+    sets.push("gradingOrg = ?");
+    params.push(updates.gradingOrg);
+  }
+  if (updates.gradeScore !== void 0) {
+    sets.push("gradeScore = ?");
+    params.push(updates.gradeScore);
+  }
+  if (updates.deliveryMethod !== void 0) {
+    sets.push("deliveryMethod = ?");
+    params.push(updates.deliveryMethod);
   }
   if (!sets.length) return;
   params.push(id, userId);
@@ -24781,7 +24807,8 @@ EXAMPLE OUTPUT (exact format):
         gradeScore: z2.string().max(10).optional(),
         priceHKD: z2.number().int().min(1),
         photoUrls: z2.array(z2.string()).max(6),
-        description: z2.string().max(1e3).optional()
+        description: z2.string().max(1e3).optional(),
+        deliveryMethod: z2.string().max(50).optional()
       })).mutation(async ({ input, ctx }) => {
         const {
           createCardListing: createCardListing2,
@@ -24803,7 +24830,8 @@ EXAMPLE OUTPUT (exact format):
           gradeScore: input.gradeScore ?? null,
           priceHKD: input.priceHKD,
           photoUrls: input.photoUrls,
-          description: input.description ?? null
+          description: input.description ?? null,
+          deliveryMethod: input.deliveryMethod ?? null
         });
         try {
           const wtbUsers = await getMatchingWTBsForListing2(input.game, input.cardApiId ?? null, input.cardName);
@@ -24859,13 +24887,23 @@ EXAMPLE OUTPUT (exact format):
         id: z2.number().int(),
         priceHKD: z2.number().int().min(1).optional(),
         description: z2.string().max(1e3).optional(),
-        photoUrls: z2.array(z2.string()).max(6).optional()
+        photoUrls: z2.array(z2.string()).max(6).optional(),
+        condition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
+        isGraded: z2.boolean().optional(),
+        gradingOrg: z2.string().max(20).optional().nullable(),
+        gradeScore: z2.string().max(10).optional().nullable(),
+        deliveryMethod: z2.string().max(50).optional().nullable()
       })).mutation(async ({ input, ctx }) => {
         const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await updateCardListing2(input.id, ctx.user.id, {
           priceHKD: input.priceHKD,
           description: input.description,
-          photoUrls: input.photoUrls
+          photoUrls: input.photoUrls,
+          condition: input.condition,
+          isGraded: input.isGraded,
+          gradingOrg: input.gradingOrg,
+          gradeScore: input.gradeScore,
+          deliveryMethod: input.deliveryMethod
         });
         return { ok: true };
       }),

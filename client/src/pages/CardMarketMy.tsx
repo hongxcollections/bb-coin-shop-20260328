@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X } from "lucide-react";
+import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X, Plus } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-provider";
 
 const CONDITION_LABELS: Record<string, { label: string; color: string }> = {
@@ -29,12 +29,21 @@ function timeAgo(dateStr: string | Date) {
   return `${Math.floor(hrs / 24)}日前`;
 }
 
+const CONDITIONS = [
+  { id: "NM", label: "NM — 近全新", desc: "無可見磨損" },
+  { id: "LP", label: "LP — 輕微磨損", desc: "輕微刮痕或折痕" },
+  { id: "MP", label: "MP — 中度磨損", desc: "明顯磨損但可辨別" },
+  { id: "HP", label: "HP — 嚴重磨損", desc: "大量磨損" },
+  { id: "DMG", label: "DMG — 損壞", desc: "破損/摺痕" },
+] as const;
+
 interface Listing {
   id: number; game: string; cardName: string; cardNameJa: string | null;
   setName: string | null; setNumber: string | null;
   officialImageUrl: string | null; condition: string;
   isGraded: boolean; gradingOrg: string | null; gradeScore: string | null;
   priceHKD: number; photoUrls: string[]; description: string | null;
+  deliveryMethod: string | null;
   status: string; views: number; createdAt: string;
 }
 
@@ -46,17 +55,53 @@ interface WTB {
 }
 
 function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClose: () => void; onSaved: () => void }) {
+  const [condition, setCondition] = useState(listing.condition as "NM" | "LP" | "MP" | "HP" | "DMG");
+  const [isGraded, setIsGraded] = useState(listing.isGraded);
+  const [gradingOrg, setGradingOrg] = useState(listing.gradingOrg ?? "PSA");
+  const [gradeScore, setGradeScore] = useState(listing.gradeScore ?? "");
   const [priceStr, setPriceStr] = useState(String(listing.priceHKD));
   const [desc, setDesc] = useState(listing.description ?? "");
+  const [deliveryMethod, setDeliveryMethod] = useState(listing.deliveryMethod ?? "面交或郵寄");
+  const [photos, setPhotos] = useState<string[]>(listing.photoUrls);
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const updateMut = trpc.cardTrading.updateListing.useMutation();
+  const signUploadMut = trpc.cardTrading.signPhotoUpload.useMutation();
+
+  async function handlePhotoUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const remaining = 6 - photos.length;
+    const toUpload = Array.from(files).slice(0, remaining);
+    setUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of toUpload) {
+        const { uploadUrl, finalUrl } = await signUploadMut.mutateAsync({ mimeType: file.type, fileName: file.name });
+        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+        urls.push(finalUrl);
+      }
+      setPhotos(p => [...p, ...urls]);
+    } catch { toast.error("上載相片失敗"); }
+    finally { setUploading(false); }
+  }
 
   async function handleSave() {
     const price = parseInt(priceStr, 10);
     if (!price || price < 1) { toast.error("請填寫有效售價"); return; }
     setSaving(true);
     try {
-      await updateMut.mutateAsync({ id: listing.id, priceHKD: price, description: desc.trim() || undefined });
+      await updateMut.mutateAsync({
+        id: listing.id,
+        priceHKD: price,
+        description: desc.trim() || undefined,
+        condition,
+        isGraded,
+        gradingOrg: isGraded ? gradingOrg : null,
+        gradeScore: isGraded ? gradeScore.trim() || null : null,
+        deliveryMethod,
+        photoUrls: photos,
+      });
       toast.success("已更新上架資料");
       onSaved();
       onClose();
@@ -68,53 +113,168 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
       <div className="flex-1" />
       <div
-        className="w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden"
-        style={{ background: "#fff", borderTop: "1px solid #e5e7eb" }}
+        className="w-full max-w-lg mx-auto rounded-t-3xl flex flex-col"
+        style={{ background: "#fff", borderTop: "1px solid #e5e7eb", maxHeight: "85vh" }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="px-4 pt-4 pb-2 flex justify-center">
+        {/* Handle */}
+        <div className="px-4 pt-4 pb-2 flex justify-center flex-shrink-0">
           <div className="w-10 h-1 rounded-full" style={{ background: "#d1d5db" }} />
         </div>
-        <div className="flex items-center justify-between px-4 pb-4">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
           <h3 className="text-base font-black" style={{ color: "#111827" }}>修改上架資料</h3>
-          <button onClick={onClose} className="text-xs px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>關閉</button>
+          <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "#f3f4f6", border: "1px solid #e5e7eb" }}>
+            <X className="w-3.5 h-3.5" style={{ color: "#6b7280" }} />
+          </button>
         </div>
-        <div className="px-4 pb-6 flex flex-col gap-4">
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 px-4 pb-6 flex flex-col gap-4">
+
+          {/* Photos */}
           <div>
-            <label className="text-xs mb-1.5 block" style={{ color: "#6b7280" }}>售價 (HKD)</label>
+            <label className="text-xs font-bold mb-2 block" style={{ color: "#6b7280" }}>實物相片（最多 6 張）</label>
+            <div className="flex gap-2 flex-wrap">
+              {photos.map((url, i) => (
+                <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(0,0,0,0.7)" }}
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
+              {photos.length < 6 && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="rounded-xl flex flex-col items-center justify-center gap-1 flex-shrink-0"
+                  style={{ width: 64, height: 88, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
+                >
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#9ca3af" }} /> : <Plus className="w-4 h-4" style={{ color: "#9ca3af" }} />}
+                  <span className="text-[9px]" style={{ color: "#9ca3af" }}>{uploading ? "上載中" : "加相片"}</span>
+                </button>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handlePhotoUpload(e.target.files)} />
+          </div>
+
+          {/* Condition */}
+          <div>
+            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>品相</label>
+            <select
+              value={condition}
+              onChange={e => setCondition(e.target.value as typeof condition)}
+              className="w-full px-3 py-2.5 text-sm font-bold"
+              style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+            >
+              {CONDITIONS.map(c => (
+                <option key={c.id} value={c.id}>{c.label} — {c.desc}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Graded toggle */}
+          <div className="p-3 rounded-2xl flex items-center justify-between" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
+            <div>
+              <p className="text-sm font-bold" style={{ color: "#111827" }}>評級卡</p>
+              <p className="text-xs" style={{ color: "#9ca3af" }}>PSA / BGS / CGC 等</p>
+            </div>
+            <button
+              onClick={() => setIsGraded(p => !p)}
+              className="w-12 h-6 rounded-full transition-all relative"
+              style={{ background: isGraded ? "#FFDE00" : "#e5e7eb" }}
+            >
+              <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: isGraded ? 26 : 2 }} />
+            </button>
+          </div>
+          {isGraded && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評級機構</label>
+                <select
+                  value={gradingOrg}
+                  onChange={e => setGradingOrg(e.target.value)}
+                  className="w-full px-3 py-2 text-sm"
+                  style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                >
+                  {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div style={{ width: 100 }}>
+                <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評分</label>
+                <input
+                  value={gradeScore}
+                  onChange={e => setGradeScore(e.target.value)}
+                  placeholder="10 / 9.5"
+                  className="w-full px-3 py-2 text-sm"
+                  style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Price */}
+          <div>
+            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>售價 (HKD)</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "#9ca3af" }}>$</span>
               <input
                 value={priceStr}
                 onChange={e => setPriceStr(e.target.value)}
                 inputMode="numeric"
-                className="w-full pl-7 pr-3 py-2 text-sm"
-                style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                className="w-full pl-7 pr-3 py-2.5 text-sm font-black"
+                style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#CC0000", outline: "none" }}
               />
             </div>
           </div>
+
+          {/* Delivery */}
           <div>
-            <label className="text-xs mb-1.5 block" style={{ color: "#6b7280" }}>備註說明</label>
+            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>交收方法</label>
+            <select
+              value={deliveryMethod}
+              onChange={e => setDeliveryMethod(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm font-bold"
+              style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+            >
+              <option value="面交相約">面交相約</option>
+              <option value="郵寄">郵寄</option>
+              <option value="面交或郵寄">面交或郵寄</option>
+            </select>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>備註說明</label>
             <textarea
               value={desc}
               onChange={e => setDesc(e.target.value)}
               rows={3}
+              placeholder="例：背面有輕微花痕，不影響正面觀感"
               className="w-full px-3 py-2 text-sm resize-none"
-              style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+              style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
             />
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2"
-            style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            儲存更改
-          </button>
+
+          {/* Save button */}
+          <div style={{ paddingBottom: 40 }}>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2"
+              style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              儲存更改
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -8108,12 +8108,14 @@ export async function bootstrapCardTradingTables() {
       priceHKD INT NOT NULL,
       photoUrlsJson TEXT,
       description TEXT,
+      deliveryMethod VARCHAR(50),
       status VARCHAR(20) NOT NULL DEFAULT 'active',
       views INT DEFAULT 0,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  try { await pool.execute(`ALTER TABLE cardListings ADD COLUMN deliveryMethod VARCHAR(50)`); } catch {}
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardWantToBuy (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8202,14 +8204,15 @@ export async function createCardListing(data: {
   setNumber?: string | null; rarity?: string | null; officialImageUrl?: string | null;
   condition: string; isGraded: boolean; gradingOrg?: string | null; gradeScore?: string | null;
   priceHKD: number; photoUrls: string[]; description?: string | null;
+  deliveryMethod?: string | null;
 }) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   const [res]: any = await pool.execute(
     `INSERT INTO cardListings
      (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, rarity, officialImageUrl,
-      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId, data.game, data.cardApiId ?? null,
       data.cardName, data.cardNameJa ?? null, data.setName ?? null,
@@ -8217,6 +8220,7 @@ export async function createCardListing(data: {
       data.condition, data.isGraded ? 1 : 0, data.gradingOrg ?? null,
       data.gradeScore ?? null, data.priceHKD,
       JSON.stringify(data.photoUrls), data.description ?? null,
+      data.deliveryMethod ?? null,
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
@@ -8224,6 +8228,8 @@ export async function createCardListing(data: {
 
 export async function updateCardListing(id: number, userId: number, updates: {
   priceHKD?: number; description?: string | null; status?: string; photoUrls?: string[];
+  condition?: string; isGraded?: boolean; gradingOrg?: string | null; gradeScore?: string | null;
+  deliveryMethod?: string | null;
 }) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
@@ -8233,6 +8239,11 @@ export async function updateCardListing(id: number, userId: number, updates: {
   if (updates.description !== undefined) { sets.push('description = ?'); params.push(updates.description); }
   if (updates.status !== undefined) { sets.push('status = ?'); params.push(updates.status); }
   if (updates.photoUrls !== undefined) { sets.push('photoUrlsJson = ?'); params.push(JSON.stringify(updates.photoUrls)); }
+  if (updates.condition !== undefined) { sets.push('`condition` = ?'); params.push(updates.condition); }
+  if (updates.isGraded !== undefined) { sets.push('isGraded = ?'); params.push(updates.isGraded ? 1 : 0); }
+  if (updates.gradingOrg !== undefined) { sets.push('gradingOrg = ?'); params.push(updates.gradingOrg); }
+  if (updates.gradeScore !== undefined) { sets.push('gradeScore = ?'); params.push(updates.gradeScore); }
+  if (updates.deliveryMethod !== undefined) { sets.push('deliveryMethod = ?'); params.push(updates.deliveryMethod); }
   if (!sets.length) return;
   params.push(id, userId);
   await pool.execute(`UPDATE cardListings SET ${sets.join(', ')} WHERE id = ? AND userId = ?`, params);

@@ -13812,6 +13812,7 @@ EXAMPLE OUTPUT (exact format):
         priceHKD: z.number().int().min(1),
         photoUrls: z.array(z.string()).max(6),
         description: z.string().max(1000).optional(),
+        deliveryMethod: z.string().max(50).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const {
@@ -13834,6 +13835,7 @@ EXAMPLE OUTPUT (exact format):
           priceHKD: input.priceHKD,
           photoUrls: input.photoUrls,
           description: input.description ?? null,
+          deliveryMethod: input.deliveryMethod ?? null,
         });
         // Notify WTB users
         try {
@@ -13891,6 +13893,11 @@ EXAMPLE OUTPUT (exact format):
         priceHKD: z.number().int().min(1).optional(),
         description: z.string().max(1000).optional(),
         photoUrls: z.array(z.string()).max(6).optional(),
+        condition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']).optional(),
+        isGraded: z.boolean().optional(),
+        gradingOrg: z.string().max(20).optional().nullable(),
+        gradeScore: z.string().max(10).optional().nullable(),
+        deliveryMethod: z.string().max(50).optional().nullable(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { updateCardListing } = await import('./db');
@@ -13898,6 +13905,11 @@ EXAMPLE OUTPUT (exact format):
           priceHKD: input.priceHKD,
           description: input.description,
           photoUrls: input.photoUrls,
+          condition: input.condition,
+          isGraded: input.isGraded,
+          gradingOrg: input.gradingOrg,
+          gradeScore: input.gradeScore,
+          deliveryMethod: input.deliveryMethod,
         });
         return { ok: true };
       }),

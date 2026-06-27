@@ -92,6 +92,7 @@ export default function CardMarketSell() {
   const [gradeScore, setGradeScore] = useState("");
   const [priceStr, setPriceStr] = useState("");
   const [description, setDescription] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState("面交或郵寄");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -223,6 +224,7 @@ export default function CardMarketSell() {
         priceHKD: price,
         photoUrls: photos,
         description: description.trim() || undefined,
+        deliveryMethod,
       });
       await utils.cardTrading.getMyListings.invalidate();
       toast.success("已成功上架！");
@@ -723,21 +725,16 @@ export default function CardMarketSell() {
                 {/* Condition */}
                 <div className="mb-4">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>品相</label>
-                  <div className="flex flex-col gap-1.5">
+                  <select
+                    value={condition}
+                    onChange={e => setCondition(e.target.value as typeof condition)}
+                    className="w-full px-3 py-2.5 text-sm font-bold"
+                    style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                  >
                     {CONDITIONS.map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => setCondition(c.id)}
-                        className="flex items-center justify-between p-2.5 rounded-xl transition-all"
-                        style={condition === c.id
-                          ? { background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)" }
-                          : { background: "#fff", border: "1px solid #e5e7eb" }}
-                      >
-                        <span className="text-xs font-bold" style={{ color: condition === c.id ? "#CC0000" : "#111827" }}>{c.label}</span>
-                        <span className="text-[10px]" style={{ color: "#9ca3af" }}>{c.desc}</span>
-                      </button>
+                      <option key={c.id} value={c.id}>{c.label} — {c.desc}</option>
                     ))}
-                  </div>
+                  </select>
                 </div>
 
                 {/* Graded toggle */}
@@ -798,7 +795,7 @@ export default function CardMarketSell() {
                 </div>
 
                 {/* Description */}
-                <div className="mb-6">
+                <div className="mb-4">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>備註說明（可選）</label>
                   <textarea
                     value={description}
@@ -808,6 +805,21 @@ export default function CardMarketSell() {
                     className="w-full px-3 py-2.5 text-sm resize-none"
                     style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                   />
+                </div>
+
+                {/* Delivery Method */}
+                <div className="mb-6">
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>交收方法</label>
+                  <select
+                    value={deliveryMethod}
+                    onChange={e => setDeliveryMethod(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm font-bold"
+                    style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                  >
+                    <option value="面交相約">面交相約</option>
+                    <option value="郵寄">郵寄</option>
+                    <option value="面交或郵寄">面交或郵寄</option>
+                  </select>
                 </div>
 
                 <div className="flex gap-2">
