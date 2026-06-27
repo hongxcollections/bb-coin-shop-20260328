@@ -180,45 +180,47 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
             </select>
           </div>
 
-          {/* Graded toggle */}
-          <div className="p-3 rounded-2xl flex items-center justify-between" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
-            <div>
-              <p className="text-sm font-bold" style={{ color: "#111827" }}>評級卡</p>
-              <p className="text-xs" style={{ color: "#9ca3af" }}>PSA / BGS / CGC 等</p>
+          {/* Graded toggle + fields (kept in one section) */}
+          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #e5e7eb" }}>
+            <div className="p-3 flex items-center justify-between" style={{ background: "#f8f9fa" }}>
+              <div>
+                <p className="text-sm font-bold" style={{ color: "#111827" }}>評級卡</p>
+                <p className="text-xs" style={{ color: "#9ca3af" }}>PSA / BGS / CGC 等</p>
+              </div>
+              <button
+                onClick={() => setIsGraded(p => !p)}
+                className="w-12 h-6 rounded-full transition-all relative flex-shrink-0"
+                style={{ background: isGraded ? "#FFDE00" : "#e5e7eb" }}
+              >
+                <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: isGraded ? 26 : 2 }} />
+              </button>
             </div>
-            <button
-              onClick={() => setIsGraded(p => !p)}
-              className="w-12 h-6 rounded-full transition-all relative"
-              style={{ background: isGraded ? "#FFDE00" : "#e5e7eb" }}
-            >
-              <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: isGraded ? 26 : 2 }} />
-            </button>
+            {isGraded && (
+              <div className="p-3 flex gap-2" style={{ borderTop: "1px solid #e5e7eb", background: "#fff" }}>
+                <div className="flex-1">
+                  <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評級機構</label>
+                  <select
+                    value={gradingOrg}
+                    onChange={e => setGradingOrg(e.target.value)}
+                    className="w-full px-3 py-2 text-sm"
+                    style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                  >
+                    {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div style={{ width: 110 }}>
+                  <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評分</label>
+                  <input
+                    value={gradeScore}
+                    onChange={e => setGradeScore(e.target.value)}
+                    placeholder="10 / 9.5"
+                    className="w-full px-3 py-2 text-sm"
+                    style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-          {isGraded && (
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評級機構</label>
-                <select
-                  value={gradingOrg}
-                  onChange={e => setGradingOrg(e.target.value)}
-                  className="w-full px-3 py-2 text-sm"
-                  style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
-                >
-                  {["PSA", "BGS", "CGC", "SGC", "其他"].map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </div>
-              <div style={{ width: 100 }}>
-                <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>評分</label>
-                <input
-                  value={gradeScore}
-                  onChange={e => setGradeScore(e.target.value)}
-                  placeholder="10 / 9.5"
-                  className="w-full px-3 py-2 text-sm"
-                  style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Price */}
           <div>
