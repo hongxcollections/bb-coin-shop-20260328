@@ -237,7 +237,6 @@ export default function GroupAuctionBidPage() {
 
   const setItemProxyBidMut = trpc.groupAuctions.setItemProxyBid.useMutation({
     onSuccess: () => {
-      toast.success("代理出價已設定");
       setProxyActiveItemId(null);
       setProxyConfirmStep(false);
       refetchMyItemProxies();
@@ -246,7 +245,6 @@ export default function GroupAuctionBidPage() {
   });
   const cancelItemProxyBidMut = trpc.groupAuctions.cancelItemProxyBid.useMutation({
     onSuccess: () => {
-      toast.success("代理出價已取消");
       refetchMyItemProxies();
     },
     onError: (e) => toast.error(e.message || "取消失敗"),
@@ -1030,7 +1028,10 @@ export default function GroupAuctionBidPage() {
                         <div className="flex flex-col items-center justify-center flex-shrink-0">
                           {hasActiveProxy ? (
                             <button
-                              onClick={() => cancelItemProxyBidMut.mutate({ itemId: item.id })}
+                              onClick={() => cancelItemProxyBidMut.mutate(
+                                { itemId: item.id },
+                                { onSuccess: () => toast.success(`${title}\n代理出價已取消`) }
+                              )}
                               disabled={cancelItemProxyBidMut.isPending}
                               className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl text-[10px] font-medium"
                               style={{ border: "1px solid #93c5fd", background: "#eff6ff", color: "#1d4ed8" }}
@@ -1071,7 +1072,7 @@ export default function GroupAuctionBidPage() {
                     <div className="relative z-10 w-full max-w-xs bg-white rounded-2xl shadow-2xl p-5" onClick={(e) => e.stopPropagation()}>
                       {!proxyConfirmStep ? (
                         <>
-                          <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-1.5">
                               <Bot className="w-4 h-4 text-blue-500" />
                               <h3 className="font-bold text-gray-800 text-[15px]">代理出價</h3>
@@ -1080,6 +1081,7 @@ export default function GroupAuctionBidPage() {
                               <X className="w-4 h-4 text-gray-500" />
                             </button>
                           </div>
+                          <p className="text-[12px] font-semibold text-gray-700 truncate mb-1">{title}</p>
                           <p className="text-[11px] text-gray-500 mb-1">設定出價上限，系統在您被超越時自動幫您出價。</p>
                           {autoBid && !canUseAutoBid && (
                             <p className="text-[11px] text-amber-600 mb-2">代理出價功能僅限 🥈 銀牌或以上會員</p>
@@ -1117,7 +1119,7 @@ export default function GroupAuctionBidPage() {
                         </>
                       ) : (
                         <>
-                          <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-1.5">
                               <Bot className="w-4 h-4 text-blue-500" />
                               <h3 className="font-bold text-gray-800 text-[15px]">確認代理出價</h3>
@@ -1126,6 +1128,7 @@ export default function GroupAuctionBidPage() {
                               <X className="w-4 h-4 text-gray-500" />
                             </button>
                           </div>
+                          <p className="text-[12px] font-semibold text-gray-700 truncate mb-3">{title}</p>
                           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4 space-y-2.5">
                             <div className="flex justify-between items-center">
                               <span className="text-[12px] text-gray-500">代理出價上限</span>
@@ -1151,7 +1154,10 @@ export default function GroupAuctionBidPage() {
                               返回修改
                             </button>
                             <button
-                              onClick={() => setItemProxyBidMut.mutate({ itemId: item.id, maxAmount: parseInt(proxyAmountStr, 10) })}
+                              onClick={() => setItemProxyBidMut.mutate(
+                                { itemId: item.id, maxAmount: parseInt(proxyAmountStr, 10) },
+                                { onSuccess: () => toast.success(`${title}\n代理出價上限 ${currSym}${parseInt(proxyAmountStr, 10).toLocaleString()} 已設定`) }
+                              )}
                               disabled={setItemProxyBidMut.isPending}
                               className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-bold text-sm disabled:opacity-40 active:bg-blue-600 transition-colors"
                             >
