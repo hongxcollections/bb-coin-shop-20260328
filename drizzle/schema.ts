@@ -876,6 +876,19 @@ export type InsertGroupAuctionBid = typeof groupAuctionBids.$inferInsert;
 export type InsertAuctionComment = typeof auctionComments.$inferInsert;
 
 /**
+ * 買家代理出價（group auction items）
+ */
+export const groupAuctionProxyBids = mysqlTable("groupAuctionProxyBids", {
+  id: int("id").autoincrement().primaryKey(),
+  itemId: int("itemId").notNull(),
+  userId: int("userId").notNull(),
+  maxAmount: int("maxAmount").notNull(),
+  isActive: int("isActive").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GroupAuctionProxyBid = typeof groupAuctionProxyBids.$inferSelect;
+
+/**
  * 上色規則範本（商戶自訂，可跨場次重用）
  */
 export const groupAuctionColorRuleTemplates = mysqlTable("groupAuctionColorRuleTemplates", {

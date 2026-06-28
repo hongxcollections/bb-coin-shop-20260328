@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, sendWinnerAutoReply, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionColorRuleTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionColorRuleTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids, groupAuctionProxyBids } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql, and } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
@@ -11413,7 +11413,114 @@ EXAMPLE OUTPUT (exact format):
             }
           }
         }
+        // 觸發代理出價（若有其他買家設了代理出價且上限足夠）
+        if (!isBuyNow) {
+          const { and: _pbAnd, ne: _pbNe, desc: _pbDesc } = await import('drizzle-orm');
+          const topProxies = await db.select().from(groupAuctionProxyBids)
+            .where(_pbAnd(
+              eq(groupAuctionProxyBids.itemId, input.itemId),
+              eq(groupAuctionProxyBids.isActive, 1),
+              _pbNe(groupAuctionProxyBids.userId, ctx.user.id)
+            ))
+            .orderBy(_pbDesc(groupAuctionProxyBids.maxAmount))
+            .limit(1);
+          if (topProxies.length > 0) {
+            const proxy = topProxies[0];
+            const counterAmt = finalAmount + effectiveIncrement;
+            if (proxy.maxAmount >= counterAmt) {
+              await db.insert(groupAuctionBids).values({
+                itemId: input.itemId,
+                roundId: item.roundId,
+                userId: proxy.userId,
+                amount: counterAmt,
+                isProxy: 1,
+              });
+              await db.update(groupAuctionItems).set({
+                finalPrice: counterAmt,
+                winnerId: proxy.userId,
+              }).where(eq(groupAuctionItems.id, input.itemId));
+            }
+          }
+        }
         return { success: true, isBuyNow, finalAmount };
+      }),
+
+    /** 買家：設定代理出價上限（group auction item） */
+    setItemProxyBid: protectedProcedure
+      .input(z.object({
+        itemId: z.number().int().positive(),
+        maxAmount: z.number().int().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { and: _siAnd } = await import('drizzle-orm');
+        const [item] = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.id, input.itemId)).limit(1);
+        if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
+        if (item.status !== 'active') throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已結拍' });
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, item.roundId)).limit(1);
+        if (!round || round.status !== 'published') throw new TRPCError({ code: 'BAD_REQUEST', message: '場次未開拍' });
+        if (round.merchantUserId === ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '商戶不可設代理出價' });
+        const autoBidStatus = await getMyAutoBidStatus(ctx.user.id);
+        if (!autoBidStatus.canUseAutoBid) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '代理出價功能僅限銀牌或以上會員' });
+        }
+        if (autoBidStatus.memberLevel === 'silver' && (autoBidStatus as any).silverMaxAmount > 0 && input.maxAmount > (autoBidStatus as any).silverMaxAmount) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `銀牌單次上限 $${(autoBidStatus as any).silverMaxAmount}` });
+        }
+        const [existing] = await db.select().from(groupAuctionProxyBids)
+          .where(_siAnd(eq(groupAuctionProxyBids.itemId, input.itemId), eq(groupAuctionProxyBids.userId, ctx.user.id)))
+          .limit(1);
+        if (existing) {
+          await db.update(groupAuctionProxyBids)
+            .set({ maxAmount: input.maxAmount, isActive: 1 })
+            .where(eq(groupAuctionProxyBids.id, existing.id));
+        } else {
+          await db.insert(groupAuctionProxyBids).values({
+            itemId: input.itemId,
+            userId: ctx.user.id,
+            maxAmount: input.maxAmount,
+            isActive: 1,
+          });
+        }
+        if (autoBidStatus.memberLevel === 'bronze') {
+          await enforceAutoBidLimit(ctx.user.id);
+        }
+        return { success: true };
+      }),
+
+    /** 買家：查詢自己在某場次所有商品的代理出價 */
+    getMyItemProxyBidsForRound: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { and: _giAnd, inArray: _giIn } = await import('drizzle-orm');
+        const roundItems = await db.select({ id: groupAuctionItems.id })
+          .from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.roundId));
+        const itemIds = roundItems.map(i => i.id);
+        if (itemIds.length === 0) return [];
+        return db.select().from(groupAuctionProxyBids)
+          .where(_giAnd(
+            _giIn(groupAuctionProxyBids.itemId, itemIds),
+            eq(groupAuctionProxyBids.userId, ctx.user.id)
+          ));
+      }),
+
+    /** 買家：取消代理出價 */
+    cancelItemProxyBid: protectedProcedure
+      .input(z.object({ itemId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { and: _ciAnd } = await import('drizzle-orm');
+        await db.update(groupAuctionProxyBids)
+          .set({ isActive: 0 })
+          .where(_ciAnd(
+            eq(groupAuctionProxyBids.itemId, input.itemId),
+            eq(groupAuctionProxyBids.userId, ctx.user.id)
+          ));
+        return { success: true };
       }),
 
     /** 商戶：查看場次傭金匯報（只限本人或 admin） */

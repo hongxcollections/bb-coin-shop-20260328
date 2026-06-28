@@ -1188,6 +1188,19 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_pokecards_user\` (\`userId\`)
   )`, 'Ensured pokeloverCards table');
 
+  // groupAuctionProxyBids table (buyer proxy bids for group auction items)
+  await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionProxyBids\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`itemId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`maxAmount\` int NOT NULL,
+    \`isActive\` int NOT NULL DEFAULT 1,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_gap_item_active\` (\`itemId\`, \`isActive\`),
+    INDEX \`idx_gap_user\` (\`userId\`)
+  )`, 'Ensured groupAuctionProxyBids table');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
