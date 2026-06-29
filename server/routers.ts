@@ -11258,11 +11258,11 @@ EXAMPLE OUTPUT (exact format):
           bidCountByItem.set(bid.itemId, (bidCountByItem.get(bid.itemId) ?? 0) + 1);
         }
 
-        // 只查非 proxy bid 的真實 user 名字（proxy bid 用 proxyName 顯示）
+        // 查所有 top bidder（含 proxy bid）的真實 user 名字
         const { users } = await import('../drizzle/schema');
         const bidderUserIds = [...new Set(
           [...topBidByItem.values()]
-            .filter(b => !(b.isProxy === 1))
+            .filter(b => b.userId != null)
             .map(b => b.userId)
         )];
         const bidderNameById = new Map<number, string>();
@@ -11278,10 +11278,8 @@ EXAMPLE OUTPUT (exact format):
           return {
             ...item,
             currentPrice: topBid?.amount ?? item.startPrice,
-            topBidderId: isProxy ? -1 : (topBid?.userId ?? null),
-            topBidderName: topBid
-              ? (isProxy ? ((topBid as any).proxyName ?? '代出價') : (bidderNameById.get(topBid.userId) ?? null))
-              : null,
+            topBidderId: topBid?.userId ?? null,
+            topBidderName: topBid ? (bidderNameById.get(topBid.userId) ?? null) : null,
             topBidIsProxy: isProxy,
             bidCount: bidCountByItem.get(item.id) ?? 0,
           };
@@ -11302,7 +11300,7 @@ EXAMPLE OUTPUT (exact format):
         const allBids = await db.select().from(groupAuctionBids)
           .where(eq(groupAuctionBids.roundId, input.roundId))
           .orderBy(_asc(groupAuctionBids.itemId), _desc(groupAuctionBids.amount), _desc(groupAuctionBids.id));
-        const realUserIds = [...new Set(allBids.filter(b => b.isProxy === 0).map(b => b.userId))];
+        const realUserIds = [...new Set(allBids.filter(b => b.userId != null).map(b => b.userId))];
         const { users: usersT } = await import('../drizzle/schema');
         const nameMap = new Map<number, string>();
         if (realUserIds.length > 0) {
@@ -11314,7 +11312,7 @@ EXAMPLE OUTPUT (exact format):
           itemId: b.itemId,
           amount: b.amount,
           isProxy: b.isProxy === 1,
-          bidderName: b.isProxy === 1 ? ((b as any).proxyName ?? '代出價') : (nameMap.get(b.userId) ?? `用戶${b.userId}`),
+          bidderName: nameMap.get(b.userId) ?? `用戶${b.userId}`,
           createdAt: b.createdAt,
         }));
       }),
@@ -11483,6 +11481,31 @@ EXAMPLE OUTPUT (exact format):
             maxAmount: input.maxAmount,
             isActive: 1,
           });
+        }
+        // 若此商品目前無出價，自動以起拍價（或首口加幅）入標，讓用戶立即成為領先者
+        const noBidsYet = await db.select({ id: groupAuctionBids.id })
+          .from(groupAuctionBids)
+          .where(eq(groupAuctionBids.itemId, input.itemId))
+          .limit(1);
+        if (noBidsYet.length === 0) {
+          const effectiveInc = ((item.bidIncrement ?? 0) as number) > 0
+            ? (item.bidIncrement as number)
+            : ((round.defaultBidIncrement ?? 50) as number);
+          const initialAmt = ((item.startPrice ?? 0) as number) > 0
+            ? (item.startPrice as number)
+            : effectiveInc;
+          if (initialAmt > 0 && input.maxAmount >= initialAmt) {
+            await db.insert(groupAuctionBids).values({
+              itemId: input.itemId,
+              roundId: item.roundId,
+              userId: ctx.user.id,
+              amount: initialAmt,
+              isProxy: 1,
+            });
+            await db.update(groupAuctionItems)
+              .set({ finalPrice: initialAmt, winnerId: ctx.user.id })
+              .where(eq(groupAuctionItems.id, input.itemId));
+          }
         }
         if (autoBidStatus.memberLevel === 'bronze') {
           await enforceAutoBidLimit(ctx.user.id);
