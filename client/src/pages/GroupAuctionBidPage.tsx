@@ -1021,8 +1021,8 @@ export default function GroupAuctionBidPage() {
                         出價
                       </button>
                     </div>
-                    {isAuthenticated && !isOwner && (() => {
-                      const myProxy = proxyBidMap.get(item.id);
+                    {isAuthenticated && (() => {
+                      const myProxy = !isOwner ? proxyBidMap.get(item.id) : undefined;
                       const hasActiveProxy = myProxy && myProxy.isActive === 1;
                       return (
                         <div className="flex flex-col items-center justify-center flex-shrink-0">
@@ -1043,7 +1043,10 @@ export default function GroupAuctionBidPage() {
                             </button>
                           ) : (
                             <button
-                              onClick={() => { setProxyAmountStr(""); setProxyConfirmStep(false); setProxyActiveItemId(item.id); }}
+                              onClick={() => {
+                                if (isOwner) { toast.error("商戶不可為自己的場次設定代理出價"); return; }
+                                setProxyAmountStr(""); setProxyConfirmStep(false); setProxyActiveItemId(item.id);
+                              }}
                               className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl text-[10px] font-medium"
                               style={{ border: "1px solid #bfdbfe", background: "#eff6ff", color: "#2563eb" }}
                             >
