@@ -12,6 +12,7 @@ import {
   User, Filter, CalendarDays, Tag, Pencil, Check, Users,
   ChevronDown, ChevronUp,
 } from "lucide-react";
+import GroupImageLightbox from "@/components/GroupImageLightbox";
 
 const TAGS = ["交收", "送評", "入貨", "拍賣", "其他"];
 const MAX_IMAGES = 20;
@@ -208,7 +209,7 @@ export default function MerchantJournal() {
   const [entryAt, setEntryAt] = useState<string>(toLocalDatetimeValue());
   const [imageFiles, setImageFiles] = useState<{ file: File; preview: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [lbEntry, setLbEntry] = useState<{ urls: string[]; idx: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -863,7 +864,8 @@ export default function MerchantJournal() {
                       {(entry.images ?? []).length > 0 && (
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           {(entry.images as string[]).map((url: string, i: number) => (
-                            <button key={i} onClick={() => setExpandedImage(url)}
+                            <button key={i}
+                              onClick={() => setLbEntry({ urls: entry.images as string[], idx: i })}
                               className="w-9 h-9 rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
                             >
                               <img src={url} alt="" className="w-full h-full object-cover" />
@@ -885,15 +887,12 @@ export default function MerchantJournal() {
       </div>
 
       {/* Lightbox */}
-      {expandedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setExpandedImage(null)}>
-          <div className="relative max-w-[80vw] max-h-[70vh]" onClick={e => e.stopPropagation()}>
-            <img src={expandedImage} alt="" className="rounded-xl object-contain max-w-[80vw] max-h-[70vh] shadow-2xl" />
-            <button onClick={() => setExpandedImage(null)}
-              className="absolute -top-3 -right-3 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md text-gray-600 hover:text-red-500 transition-colors"
-            ><X className="w-4 h-4" /></button>
-          </div>
-        </div>
+      {lbEntry && (
+        <GroupImageLightbox
+          images={lbEntry.urls}
+          initialIndex={lbEntry.idx}
+          onClose={() => setLbEntry(null)}
+        />
       )}
     </div>
   );
