@@ -564,10 +564,19 @@ export default function GroupAuctionBidPage() {
 
                 {/* 統計 + 總需付 */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-white/90 text-[12px] font-semibold">
-                    <span>共 <strong className="text-white text-[13px]">{items.length}</strong> 件</span>
-                    <span>成交 <strong className="text-white text-[13px]">{items.filter(i => i.status === "sold").length}</strong> 件</span>
-                    <span>進行中 <strong className="text-white text-[13px]">{items.filter(i => i.status === "active").length}</strong> 件</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
+                      <span className="text-white/80 text-[11px] font-semibold">全部</span>
+                      <span className="text-white text-[13px] font-black">{items.length}</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-amber-400/25 rounded-full px-2.5 py-0.5">
+                      <span className="text-amber-200 text-[11px] font-semibold">已出價</span>
+                      <span className="text-white text-[13px] font-black">{items.filter(i => i.topBidderId !== null).length}</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
+                      <span className="text-white/80 text-[11px] font-semibold">用戶</span>
+                      <span className="text-white text-[13px] font-black">{new Set(items.filter(i => i.topBidderId !== null).map(i => i.topBidderId)).size}</span>
+                    </div>
                   </div>
                   {user && myTotalAmount > 0 && (
                     <div className="text-right leading-tight">
