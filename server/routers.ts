@@ -1114,6 +1114,21 @@ export const appRouter = router({
         }
 
         await setProxyBid(input.auctionId, ctx.user.id, input.maxAmount);
+
+        // 若此拍賣目前無出價，自動以起拍價（或首口加幅）入標，讓用戶立即成為領先者
+        if (!hasExistingBid) {
+          const bidIncrement = auction.bidIncrement ?? 30;
+          const initialAmt = startingPrice > 0 ? startingPrice : bidIncrement;
+          if (initialAmt > 0 && input.maxAmount >= initialAmt) {
+            const db = await getDb();
+            if (db) {
+              await db.update(auctions)
+                .set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id })
+                .where(eq(auctions.id, input.auctionId));
+              await dbPlaceBid({ auctionId: input.auctionId, userId: ctx.user.id, bidAmount: initialAmt.toString(), isAnonymous: 0 });
+            }
+          }
+        }
         return { success: true };
       }),
 

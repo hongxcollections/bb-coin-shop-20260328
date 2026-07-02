@@ -14031,6 +14031,17 @@ var appRouter = router({
         throw new TRPCError3({ code: "FORBIDDEN", message: err instanceof Error ? err.message : "\u4EE3\u7406\u51FA\u50F9\u6B0A\u9650\u4E0D\u8DB3" });
       }
       await setProxyBid(input.auctionId, ctx.user.id, input.maxAmount);
+      if (!hasExistingBid) {
+        const bidIncrement = auction.bidIncrement ?? 30;
+        const initialAmt = startingPrice > 0 ? startingPrice : bidIncrement;
+        if (initialAmt > 0 && input.maxAmount >= initialAmt) {
+          const db = await getDb();
+          if (db) {
+            await db.update(auctions).set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, input.auctionId));
+            await placeBid({ auctionId: input.auctionId, userId: ctx.user.id, bidAmount: initialAmt.toString(), isAnonymous: 0 });
+          }
+        }
+      }
       return { success: true };
     }),
     getMyProxyBid: protectedProcedure.input(z2.object({ auctionId: z2.number() })).query(async ({ input, ctx }) => {
