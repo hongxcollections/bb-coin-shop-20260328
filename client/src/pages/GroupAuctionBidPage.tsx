@@ -610,14 +610,17 @@ export default function GroupAuctionBidPage() {
         {/* 篩選列 + 須知 + 伸縮箭咀 */}
         <div className="bg-white border-b border-gray-100 shadow-sm px-2 py-2 flex items-center gap-1.5">
           <div className="flex gap-1.5 overflow-x-auto flex-1 min-w-0">
-            <button onClick={() => setFilter("all")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
-              全部 {items.length}件
+            <button onClick={() => setFilter("all")} className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-0.5 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
+              <span className="text-[11px] font-semibold">全部</span>
+              <span className="text-[13px] font-black">{items.length}</span>
             </button>
-            <button onClick={() => setFilter("bid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "bid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
-              已出價 {items.filter(i => i.topBidderId !== null).length}件
+            <button onClick={() => setFilter("bid")} className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-0.5 rounded-full border transition-colors ${filter === "bid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
+              <span className="text-[11px] font-semibold">已出價</span>
+              <span className="text-[13px] font-black">{items.filter(i => i.topBidderId !== null).length}</span>
             </button>
-            <button onClick={() => setFilter("nobid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "nobid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
-              未出價 {items.filter(i => i.topBidderId === null).length}件
+            <button onClick={() => setFilter("nobid")} className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-0.5 rounded-full border transition-colors ${filter === "nobid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
+              <span className="text-[11px] font-semibold">未出價</span>
+              <span className="text-[13px] font-black">{items.filter(i => i.topBidderId === null).length}</span>
             </button>
           </div>
           <div className="flex gap-1 flex-shrink-0 ml-1 items-center">
