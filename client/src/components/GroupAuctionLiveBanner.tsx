@@ -13,8 +13,8 @@ export interface LiveRound {
   merchantName: string | null;
   merchantAvatar: string | null;
   totalItems: number;
-  soldItems: number;
-  activeItems: number;
+  biddedItems: number;
+  uniqueBidders: number;
 }
 
 function Countdown({ endAt }: { endAt: string | null }) {
@@ -369,10 +369,19 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
               )}
             </div>
 
-            <div className="flex items-center gap-4 text-white/90 text-[12px] font-semibold">
-              <span>共 <strong className="text-white text-[13px]">{round.totalItems}</strong> 件</span>
-              <span>成交 <strong className="text-white text-[13px]">{round.soldItems}</strong> 件</span>
-              <span>進行中 <strong className="text-white text-[13px]">{round.activeItems}</strong> 件</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
+                <span className="text-white/80 text-[11px] font-semibold">全部</span>
+                <span className="text-white text-[13px] font-black">{round.totalItems}</span>
+              </div>
+              <div className="flex items-center gap-1 bg-amber-400/25 rounded-full px-2.5 py-0.5">
+                <span className="text-amber-200 text-[11px] font-semibold">已出價</span>
+                <span className="text-white text-[13px] font-black">{round.biddedItems}</span>
+              </div>
+              <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
+                <span className="text-white/80 text-[11px] font-semibold">用戶</span>
+                <span className="text-white text-[13px] font-black">{round.uniqueBidders}</span>
+              </div>
             </div>
           </div>
         </a>

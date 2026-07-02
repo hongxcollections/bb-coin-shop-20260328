@@ -11155,8 +11155,8 @@ EXAMPLE OUTPUT (exact format):
           r.id, r.title, r.periodNumber, r.endAt, r.coverImage, r.promoImagesJson,
           r.merchantUserId, r.status,
           COUNT(i.id)                                                    AS totalItems,
-          SUM(CASE WHEN i.status = 'sold'   THEN 1 ELSE 0 END)          AS soldItems,
-          SUM(CASE WHEN i.status = 'active' THEN 1 ELSE 0 END)          AS activeItems,
+          SUM(CASE WHEN i.winnerId IS NOT NULL THEN 1 ELSE 0 END)       AS biddedItems,
+          (SELECT COUNT(DISTINCT b.userId) FROM groupAuctionBids b WHERE b.roundId = r.id) AS uniqueBidders,
           ma.merchantName,
           COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) AS merchantAvatar
         FROM groupAuctionRounds r
@@ -11179,9 +11179,9 @@ EXAMPLE OUTPUT (exact format):
         merchantUserId: Number(r.merchantUserId),
         merchantName:   r.merchantName  ? String(r.merchantName)  : null,
         merchantAvatar: r.merchantAvatar ? String(r.merchantAvatar) : null,
-        totalItems:     Number(r.totalItems  ?? 0),
-        soldItems:      Number(r.soldItems   ?? 0),
-        activeItems:    Number(r.activeItems ?? 0),
+        totalItems:     Number(r.totalItems   ?? 0),
+        biddedItems:    Number(r.biddedItems  ?? 0),
+        uniqueBidders:  Number(r.uniqueBidders ?? 0),
       }));
     }),
 
