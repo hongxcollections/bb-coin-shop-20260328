@@ -22759,6 +22759,9 @@ EXAMPLE OUTPUT (exact format):
           isActive: 1
         });
       }
+      if (item.linkedAuctionId) {
+        await setProxyBid(item.linkedAuctionId, ctx.user.id, input.maxAmount);
+      }
       const effectiveInc = (item.bidIncrement ?? 0) > 0 ? item.bidIncrement : round.defaultBidIncrement ?? 50;
       const [topBidNow] = await db.select().from(groupAuctionBids).where(eq8(groupAuctionBids.itemId, input.itemId)).orderBy(desc5(groupAuctionBids.amount), desc5(groupAuctionBids.id)).limit(1);
       if (!topBidNow) {

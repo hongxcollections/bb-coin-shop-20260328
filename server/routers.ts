@@ -11554,6 +11554,10 @@ EXAMPLE OUTPUT (exact format):
             isActive: 1,
           });
         }
+        // 若此團拍商品已匯出至主頁拍賣，同步代理上限至主 proxyBids 表，令主頁「查看代理出價」能顯示
+        if (item.linkedAuctionId) {
+          await setProxyBid(item.linkedAuctionId, ctx.user.id, input.maxAmount);
+        }
         // 查詢目前最高出價
         const effectiveInc = ((item.bidIncrement ?? 0) as number) > 0
           ? (item.bidIncrement as number)
