@@ -1493,11 +1493,24 @@ export default function GroupAuctionEdit() {
                           return [t, n].filter(Boolean).join(" • ") || `商品 ${it.displayOrder + 1}`;
                         } catch { return `商品 ${it.displayOrder + 1}`; }
                       };
-                      const nameList = exportItems.slice(0, 3).map(getItemTitle).join("、");
-                      const extra = exportItems.length > 3 ? `等 ${exportItems.length} 件` : `共 ${exportItems.length} 件`;
+                      const shownItems = exportItems.slice(0, 5);
+                      const hiddenCount = exportItems.length - shownItems.length;
                       const ok = await confirm({
                         title: "確認匯出至主頁拍賣",
-                        description: `${nameList}${exportItems.length > 3 ? "…" : ""}（${extra}）將匯出為獨立拍賣，包括現有出價記錄，確認？`,
+                        description: (
+                          <div className="space-y-1 text-sm">
+                            {shownItems.map((it: any, i: number) => (
+                              <div key={it.id ?? i} className="flex items-start gap-1.5">
+                                <span className="text-indigo-400 flex-shrink-0">•</span>
+                                <span>{getItemTitle(it)}</span>
+                              </div>
+                            ))}
+                            {hiddenCount > 0 && (
+                              <div className="text-gray-400 pl-4">…還有 {hiddenCount} 件</div>
+                            )}
+                            <div className="pt-1 text-gray-500">以上商品將匯出為獨立拍賣，包括現有出價記錄。</div>
+                          </div>
+                        ),
                       });
                       if (!ok) return;
                       exportItemsMut.mutate({ roundId: roundId!, itemIds });
@@ -2043,7 +2056,15 @@ export default function GroupAuctionEdit() {
                               onClick={async () => {
                                 const ok = await confirm({
                                   title: "確認匯出至主頁拍賣",
-                                  description: `「${title || `商品 ${idx + 1}`}」將匯出為獨立拍賣，包括現有出價記錄，確認？`,
+                                  description: (
+                                    <div className="space-y-1 text-sm">
+                                      <div className="flex items-start gap-1.5">
+                                        <span className="text-indigo-400 flex-shrink-0">•</span>
+                                        <span>{title || `商品 ${idx + 1}`}</span>
+                                      </div>
+                                      <div className="pt-1 text-gray-500">此商品將匯出為獨立拍賣，包括現有出價記錄。</div>
+                                    </div>
+                                  ),
                                 });
                                 if (!ok) return;
                                 exportItemsMut.mutate({ roundId: roundId!, itemIds: [item.id] });
