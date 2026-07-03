@@ -1142,6 +1142,36 @@ export const appRouter = router({
 
         await setProxyBid(input.auctionId, ctx.user.id, input.maxAmount);
 
+        // 若此主頁拍賣係由團拍匯出，同步代理上限至 groupAuctionProxyBids（不論有否現有出價）
+        try {
+          const db2 = await getDb();
+          if (db2) {
+            const { and: _spAnd } = await import('drizzle-orm');
+            const linkedItems2 = await db2.select().from(groupAuctionItems)
+              .where(eq(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+            if (linkedItems2.length > 0) {
+              const li2 = linkedItems2[0];
+              const [existingGP] = await db2.select().from(groupAuctionProxyBids)
+                .where(_spAnd(
+                  eq(groupAuctionProxyBids.itemId, li2.id),
+                  eq(groupAuctionProxyBids.userId, ctx.user.id)
+                )).limit(1);
+              if (existingGP) {
+                await db2.update(groupAuctionProxyBids)
+                  .set({ maxAmount: input.maxAmount, isActive: 1 })
+                  .where(eq(groupAuctionProxyBids.id, existingGP.id));
+              } else {
+                await db2.insert(groupAuctionProxyBids).values({
+                  itemId: li2.id,
+                  userId: ctx.user.id,
+                  maxAmount: input.maxAmount,
+                  isActive: 1,
+                });
+              }
+            }
+          }
+        } catch {}
+
         // 若此拍賣目前無出價，自動以起拍價（或首口加幅）入標，讓用戶立即成為領先者
         if (!hasExistingBid) {
           const bidIncrement = auction.bidIncrement ?? 30;
@@ -1193,6 +1223,23 @@ export const appRouter = router({
       .input(z.object({ auctionId: z.number() }))
       .mutation(async ({ input, ctx }) => {
         await deactivateProxyBid(input.auctionId, ctx.user.id);
+        // 若此主頁拍賣係由團拍匯出，同步取消 groupAuctionProxyBids
+        try {
+          const db = await getDb();
+          if (db) {
+            const { and: _cpAnd } = await import('drizzle-orm');
+            const linkedItems = await db.select().from(groupAuctionItems)
+              .where(eq(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+            if (linkedItems.length > 0) {
+              await db.update(groupAuctionProxyBids)
+                .set({ isActive: 0 })
+                .where(_cpAnd(
+                  eq(groupAuctionProxyBids.itemId, linkedItems[0].id),
+                  eq(groupAuctionProxyBids.userId, ctx.user.id)
+                ));
+            }
+          }
+        } catch {}
         return { success: true };
       }),
 
@@ -11749,12 +11796,19 @@ EXAMPLE OUTPUT (exact format):
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         const { and: _ciAnd } = await import('drizzle-orm');
+        // 取消 groupAuctionProxyBids
         await db.update(groupAuctionProxyBids)
           .set({ isActive: 0 })
           .where(_ciAnd(
             eq(groupAuctionProxyBids.itemId, input.itemId),
             eq(groupAuctionProxyBids.userId, ctx.user.id)
           ));
+        // 若商品已匯出至主頁拍賣，同步取消主 proxyBids
+        const [item] = await db.select({ linkedAuctionId: groupAuctionItems.linkedAuctionId })
+          .from(groupAuctionItems).where(eq(groupAuctionItems.id, input.itemId)).limit(1);
+        if (item?.linkedAuctionId) {
+          await deactivateProxyBid(item.linkedAuctionId, ctx.user.id);
+        }
         return { success: true };
       }),
 

@@ -14054,6 +14054,31 @@ var appRouter = router({
         throw new TRPCError3({ code: "FORBIDDEN", message: err instanceof Error ? err.message : "\u4EE3\u7406\u51FA\u50F9\u6B0A\u9650\u4E0D\u8DB3" });
       }
       await setProxyBid(input.auctionId, ctx.user.id, input.maxAmount);
+      try {
+        const db2 = await getDb();
+        if (db2) {
+          const { and: _spAnd } = await import("drizzle-orm");
+          const linkedItems2 = await db2.select().from(groupAuctionItems).where(eq8(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+          if (linkedItems2.length > 0) {
+            const li2 = linkedItems2[0];
+            const [existingGP] = await db2.select().from(groupAuctionProxyBids).where(_spAnd(
+              eq8(groupAuctionProxyBids.itemId, li2.id),
+              eq8(groupAuctionProxyBids.userId, ctx.user.id)
+            )).limit(1);
+            if (existingGP) {
+              await db2.update(groupAuctionProxyBids).set({ maxAmount: input.maxAmount, isActive: 1 }).where(eq8(groupAuctionProxyBids.id, existingGP.id));
+            } else {
+              await db2.insert(groupAuctionProxyBids).values({
+                itemId: li2.id,
+                userId: ctx.user.id,
+                maxAmount: input.maxAmount,
+                isActive: 1
+              });
+            }
+          }
+        }
+      } catch {
+      }
       if (!hasExistingBid) {
         const bidIncrement = auction.bidIncrement ?? 30;
         const initialAmt = startingPrice > 0 ? startingPrice : bidIncrement;
@@ -14093,6 +14118,20 @@ var appRouter = router({
     }),
     cancelProxyBid: protectedProcedure.input(z2.object({ auctionId: z2.number() })).mutation(async ({ input, ctx }) => {
       await deactivateProxyBid(input.auctionId, ctx.user.id);
+      try {
+        const db = await getDb();
+        if (db) {
+          const { and: _cpAnd } = await import("drizzle-orm");
+          const linkedItems = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+          if (linkedItems.length > 0) {
+            await db.update(groupAuctionProxyBids).set({ isActive: 0 }).where(_cpAnd(
+              eq8(groupAuctionProxyBids.itemId, linkedItems[0].id),
+              eq8(groupAuctionProxyBids.userId, ctx.user.id)
+            ));
+          }
+        }
+      } catch {
+      }
       return { success: true };
     }),
     getProxyBidLogs: publicProcedure.input(z2.object({ auctionId: z2.number() })).query(async ({ input }) => {
@@ -22905,6 +22944,10 @@ EXAMPLE OUTPUT (exact format):
         eq8(groupAuctionProxyBids.itemId, input.itemId),
         eq8(groupAuctionProxyBids.userId, ctx.user.id)
       ));
+      const [item] = await db.select({ linkedAuctionId: groupAuctionItems.linkedAuctionId }).from(groupAuctionItems).where(eq8(groupAuctionItems.id, input.itemId)).limit(1);
+      if (item?.linkedAuctionId) {
+        await deactivateProxyBid(item.linkedAuctionId, ctx.user.id);
+      }
       return { success: true };
     }),
     /** 商戶：查看場次傭金匯報（只限本人或 admin） */
