@@ -1480,10 +1480,24 @@ export default function GroupAuctionEdit() {
                   <button
                     onClick={async () => {
                       const itemIds = selectedIds.size > 0 ? Array.from(selectedIds) : undefined;
-                      const count = itemIds ? itemIds.length : items.filter((i: any) => !i.linkedAuctionId).length;
+                      const exportItems = itemIds
+                        ? items.filter((i: any) => itemIds.includes(i.id))
+                        : items.filter((i: any) => !i.linkedAuctionId);
+                      const titleCol = columns.find((c: any) => c.role === "itemTitle");
+                      const numCol = columns.find((c: any) => c.role === "itemNumber");
+                      const getItemTitle = (it: any) => {
+                        try {
+                          const d = JSON.parse(it.dataJson ?? "{}");
+                          const t = titleCol ? (d[titleCol.key] || "") : "";
+                          const n = numCol ? (d[numCol.key] || "") : "";
+                          return [t, n].filter(Boolean).join(" • ") || `商品 ${it.displayOrder + 1}`;
+                        } catch { return `商品 ${it.displayOrder + 1}`; }
+                      };
+                      const nameList = exportItems.slice(0, 3).map(getItemTitle).join("、");
+                      const extra = exportItems.length > 3 ? `等 ${exportItems.length} 件` : `共 ${exportItems.length} 件`;
                       const ok = await confirm({
                         title: "確認匯出至主頁拍賣",
-                        description: `將 ${count} 件商品（包括現有出價記錄）匯出為獨立拍賣，確認？`,
+                        description: `${nameList}${exportItems.length > 3 ? "…" : ""}（${extra}）將匯出為獨立拍賣，包括現有出價記錄，確認？`,
                       });
                       if (!ok) return;
                       exportItemsMut.mutate({ roundId: roundId!, itemIds });
@@ -2029,7 +2043,7 @@ export default function GroupAuctionEdit() {
                               onClick={async () => {
                                 const ok = await confirm({
                                   title: "確認匯出至主頁拍賣",
-                                  description: "將此商品（包括現有出價記錄）匯出為獨立拍賣，確認？",
+                                  description: `「${title || `商品 ${idx + 1}`}」將匯出為獨立拍賣，包括現有出價記錄，確認？`,
                                 });
                                 if (!ok) return;
                                 exportItemsMut.mutate({ roundId: roundId!, itemIds: [item.id] });
