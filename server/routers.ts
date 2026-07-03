@@ -433,6 +433,26 @@ export const appRouter = router({
         }
         try {
           const result = await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '', input.isAnonymous ?? 0);
+          // 若此拍賣係由團拍匯出，反向同步至 groupAuctionItems
+          try {
+            const db = await getDb();
+            if (db) {
+              const linkedItems = await db.select().from(groupAuctionItems)
+                .where(eq(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+              if (linkedItems.length > 0) {
+                const li = linkedItems[0];
+                await db.update(groupAuctionItems)
+                  .set({ finalPrice: input.bidAmount, winnerId: ctx.user.id })
+                  .where(eq(groupAuctionItems.id, li.id));
+                await db.insert(groupAuctionBids).values({
+                  itemId: li.id,
+                  roundId: li.roundId,
+                  userId: ctx.user.id,
+                  amount: input.bidAmount,
+                });
+              }
+            }
+          } catch {}
           return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to place bid';
@@ -11399,6 +11419,12 @@ EXAMPLE OUTPUT (exact format):
           itemPatch.status = 'sold';
         }
         await db.update(groupAuctionItems).set(itemPatch).where(eq(groupAuctionItems.id, input.itemId));
+        // 同步至拍賣主頁（如已匯出）
+        if (item.linkedAuctionId) {
+          await db.update(auctions)
+            .set({ currentPrice: finalAmount.toString(), highestBidderId: ctx.user.id })
+            .where(eq(auctions.id, item.linkedAuctionId));
+        }
         // Anti-snipe：whole_round 模式，延長場次 endAt
         if (!isBuyNow && round.antiSnipeMode === 'whole_round' && round.endAt && round.antiSnipeMinutes > 0) {
           const endMs = new Date(round.endAt).getTime();
@@ -11452,6 +11478,12 @@ EXAMPLE OUTPUT (exact format):
                 finalPrice: counterAmt,
                 winnerId: proxy.userId,
               }).where(eq(groupAuctionItems.id, input.itemId));
+              // 同步代理反超至拍賣主頁
+              if (item.linkedAuctionId) {
+                await db.update(auctions)
+                  .set({ currentPrice: counterAmt.toString(), highestBidderId: proxy.userId })
+                  .where(eq(auctions.id, item.linkedAuctionId));
+              }
             }
           }
         }
@@ -11520,12 +11552,95 @@ EXAMPLE OUTPUT (exact format):
             await db.update(groupAuctionItems)
               .set({ finalPrice: initialAmt, winnerId: ctx.user.id })
               .where(eq(groupAuctionItems.id, input.itemId));
+            // 同步代理首口至拍賣主頁
+            if (item.linkedAuctionId) {
+              await db.update(auctions)
+                .set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id })
+                .where(eq(auctions.id, item.linkedAuctionId));
+            }
           }
         }
         if (autoBidStatus.memberLevel === 'bronze') {
           await enforceAutoBidLimit(ctx.user.id);
         }
         return { success: true };
+      }),
+
+    /** 商戶：批量匯出場次商品至拍賣主頁 */
+    batchExportToMainAuction: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin')
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有商戶本人可以匯出' });
+
+        // 解析 columnsJson 找出品名、品號欄位
+        let titleKey = '';
+        let lotNoKey = '';
+        try {
+          const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
+          const titleCol = cols.find((c: any) => c.role === 'itemTitle');
+          if (titleCol) titleKey = titleCol.key;
+          const lotCol = cols.find((c: any) =>
+            c.role === 'itemNumber' ||
+            (typeof c.label === 'string' && (c.label.includes('號') || c.label.toLowerCase().includes('no'))) ||
+            c.key === 'serial'
+          );
+          if (lotCol) lotNoKey = lotCol.key;
+        } catch {}
+
+        const items = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.roundId));
+
+        let created = 0;
+        let skipped = 0;
+        for (const item of items) {
+          if (item.linkedAuctionId) { skipped++; continue; }
+
+          // 提取商品名稱 + 品號
+          let name = `商品 #${item.displayOrder + 1}`;
+          let lotNo: string | null = null;
+          try {
+            const data: Record<string, unknown> = JSON.parse(item.dataJson ?? '{}');
+            if (titleKey && data[titleKey]) {
+              name = String(data[titleKey]);
+            } else {
+              const firstStr = Object.values(data).find(v => typeof v === 'string' && (v as string).trim());
+              if (firstStr) name = String(firstStr);
+            }
+            if (lotNoKey && data[lotNoKey] != null) {
+              const v = String(data[lotNoKey]).trim();
+              if (v) lotNo = v;
+            }
+          } catch {}
+          const title = lotNo ? `${name}（${lotNo}）` : name;
+
+          const endTime = new Date(item.endAt ?? round.endAt ?? (Date.now() + 7 * 24 * 60 * 60 * 1000));
+          const effectiveInc = item.bidIncrement > 0 ? item.bidIncrement : (round.defaultBidIncrement ?? 30);
+          const sp = item.startPrice;
+
+          const insertResult: any = await db.insert(auctions).values({
+            title,
+            startingPrice: sp.toString(),
+            currentPrice: sp.toString(),
+            endTime,
+            bidIncrement: effectiveInc,
+            createdBy: round.merchantUserId,
+            status: 'active',
+            currency: 'HKD',
+          });
+          const auctionId: number | null = insertResult?.[0]?.insertId ?? null;
+          if (auctionId) {
+            await db.update(groupAuctionItems)
+              .set({ linkedAuctionId: auctionId })
+              .where(eq(groupAuctionItems.id, item.id));
+            created++;
+          }
+        }
+        return { created, skipped };
       }),
 
     /** 買家：查詢自己在某場次所有商品的代理出價 */

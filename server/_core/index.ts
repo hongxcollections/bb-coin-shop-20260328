@@ -82,6 +82,14 @@ async function bootstrapMissingColumns() {
     }
   };
 
+  // groupAuctionItems: 關聯拍賣主頁商品欄
+  if (!(await check('groupAuctionItems', 'linkedAuctionId'))) {
+    await alter(
+      'ALTER TABLE `groupAuctionItems` ADD COLUMN `linkedAuctionId` int NULL',
+      'Added linkedAuctionId to groupAuctionItems'
+    );
+  }
+
   // deposit_transactions: 新增團拍場次關聯欄
   if (!(await check('deposit_transactions', 'relatedGroupAuctionRoundId'))) {
     await alter(

@@ -852,6 +852,7 @@ export const groupAuctionItems = mysqlTable("groupAuctionItems", {
   finalPrice: int("finalPrice"),
   winnerId: int("winnerId"),
   endAt: timestamp("endAt"),
+  linkedAuctionId: int("linkedAuctionId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

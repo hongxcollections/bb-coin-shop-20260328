@@ -9,7 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered, X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown, Download, Printer, RotateCcw } from "lucide-react";
+import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered, X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown, Download, Printer, RotateCcw, Upload } from "lucide-react";
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
@@ -661,6 +661,24 @@ export default function GroupAuctionList() {
     onError: (e: any) => toast.error(e.message || "重拍失敗"),
   });
 
+  const [exportingRoundId, setExportingRoundId] = useState<number | null>(null);
+  const batchExportMut = trpc.groupAuctions.batchExportToMainAuction.useMutation({
+    onSuccess: (data: any) => {
+      const created = data?.created ?? 0;
+      const skipped = data?.skipped ?? 0;
+      if (created > 0) {
+        toast.success(`成功匯出 ${created} 件商品至拍賣主頁${skipped > 0 ? `（${skipped} 件已匯出，略過）` : ""}`);
+      } else {
+        toast.info(`全部商品已匯出（${skipped} 件略過）`);
+      }
+      setExportingRoundId(null);
+    },
+    onError: (e: any) => {
+      toast.error(e.message || "匯出失敗");
+      setExportingRoundId(null);
+    },
+  });
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <Header />
@@ -811,6 +829,20 @@ export default function GroupAuctionList() {
                       title={r.title}
                       endAt={r.endAt}
                     />
+                  )}
+
+                  {r.status === "published" && (
+                    <button
+                      disabled={exportingRoundId === r.id}
+                      onClick={() => {
+                        setExportingRoundId(r.id);
+                        batchExportMut.mutate({ roundId: r.id });
+                      }}
+                      className="flex items-center gap-1 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                    >
+                      <Upload className="w-3 h-3" />
+                      {exportingRoundId === r.id ? "匯出中..." : "匯出至主頁"}
+                    </button>
                   )}
 
                   {r.status === "draft" && (

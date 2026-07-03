@@ -782,6 +782,7 @@ var init_schema = __esm({
       finalPrice: int("finalPrice"),
       winnerId: int("winnerId"),
       endAt: timestamp("endAt"),
+      linkedAuctionId: int("linkedAuctionId"),
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
@@ -13477,6 +13478,23 @@ var appRouter = router({
       }
       try {
         const result = await placeBid2(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? "", input.isAnonymous ?? 0);
+        try {
+          const db = await getDb();
+          if (db) {
+            const linkedItems = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+            if (linkedItems.length > 0) {
+              const li = linkedItems[0];
+              await db.update(groupAuctionItems).set({ finalPrice: input.bidAmount, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, li.id));
+              await db.insert(groupAuctionBids).values({
+                itemId: li.id,
+                roundId: li.roundId,
+                userId: ctx.user.id,
+                amount: input.bidAmount
+              });
+            }
+          }
+        } catch {
+        }
         return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to place bid";
@@ -22636,6 +22654,9 @@ EXAMPLE OUTPUT (exact format):
         itemPatch.status = "sold";
       }
       await db.update(groupAuctionItems).set(itemPatch).where(eq8(groupAuctionItems.id, input.itemId));
+      if (item.linkedAuctionId) {
+        await db.update(auctions).set({ currentPrice: finalAmount.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, item.linkedAuctionId));
+      }
       if (!isBuyNow && round.antiSnipeMode === "whole_round" && round.endAt && round.antiSnipeMinutes > 0) {
         const endMs = new Date(round.endAt).getTime();
         const nowMs = Date.now();
@@ -22679,6 +22700,9 @@ EXAMPLE OUTPUT (exact format):
               finalPrice: counterAmt,
               winnerId: proxy.userId
             }).where(eq8(groupAuctionItems.id, input.itemId));
+            if (item.linkedAuctionId) {
+              await db.update(auctions).set({ currentPrice: counterAmt.toString(), highestBidderId: proxy.userId }).where(eq8(auctions.id, item.linkedAuctionId));
+            }
           }
         }
       }
@@ -22728,12 +22752,80 @@ EXAMPLE OUTPUT (exact format):
             isProxy: 1
           });
           await db.update(groupAuctionItems).set({ finalPrice: initialAmt, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, input.itemId));
+          if (item.linkedAuctionId) {
+            await db.update(auctions).set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, item.linkedAuctionId));
+          }
         }
       }
       if (autoBidStatus.memberLevel === "bronze") {
         await enforceAutoBidLimit(ctx.user.id);
       }
       return { success: true };
+    }),
+    /** 商戶：批量匯出場次商品至拍賣主頁 */
+    batchExportToMainAuction: protectedProcedure.input(z2.object({ roundId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      const [round] = await db.select().from(groupAuctionRounds).where(eq8(groupAuctionRounds.id, input.roundId)).limit(1);
+      if (!round) throw new TRPCError3({ code: "NOT_FOUND", message: "\u5834\u6B21\u4E0D\u5B58\u5728" });
+      if (round.merchantUserId !== ctx.user.id && ctx.user.role !== "admin")
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5546\u6236\u672C\u4EBA\u53EF\u4EE5\u532F\u51FA" });
+      let titleKey = "";
+      let lotNoKey = "";
+      try {
+        const cols = JSON.parse(round.columnsJson ?? "[]");
+        const titleCol = cols.find((c) => c.role === "itemTitle");
+        if (titleCol) titleKey = titleCol.key;
+        const lotCol = cols.find(
+          (c) => c.role === "itemNumber" || typeof c.label === "string" && (c.label.includes("\u865F") || c.label.toLowerCase().includes("no")) || c.key === "serial"
+        );
+        if (lotCol) lotNoKey = lotCol.key;
+      } catch {
+      }
+      const items = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.roundId, input.roundId));
+      let created = 0;
+      let skipped = 0;
+      for (const item of items) {
+        if (item.linkedAuctionId) {
+          skipped++;
+          continue;
+        }
+        let name = `\u5546\u54C1 #${item.displayOrder + 1}`;
+        let lotNo = null;
+        try {
+          const data = JSON.parse(item.dataJson ?? "{}");
+          if (titleKey && data[titleKey]) {
+            name = String(data[titleKey]);
+          } else {
+            const firstStr = Object.values(data).find((v) => typeof v === "string" && v.trim());
+            if (firstStr) name = String(firstStr);
+          }
+          if (lotNoKey && data[lotNoKey] != null) {
+            const v = String(data[lotNoKey]).trim();
+            if (v) lotNo = v;
+          }
+        } catch {
+        }
+        const title = lotNo ? `${name}\uFF08${lotNo}\uFF09` : name;
+        const endTime = new Date(item.endAt ?? round.endAt ?? Date.now() + 7 * 24 * 60 * 60 * 1e3);
+        const effectiveInc = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement ?? 30;
+        const sp = item.startPrice;
+        const insertResult = await db.insert(auctions).values({
+          title,
+          startingPrice: sp.toString(),
+          currentPrice: sp.toString(),
+          endTime,
+          bidIncrement: effectiveInc,
+          createdBy: round.merchantUserId,
+          status: "active",
+          currency: "HKD"
+        });
+        const auctionId = insertResult?.[0]?.insertId ?? null;
+        if (auctionId) {
+          await db.update(groupAuctionItems).set({ linkedAuctionId: auctionId }).where(eq8(groupAuctionItems.id, item.id));
+          created++;
+        }
+      }
+      return { created, skipped };
     }),
     /** 買家：查詢自己在某場次所有商品的代理出價 */
     getMyItemProxyBidsForRound: protectedProcedure.input(z2.object({ roundId: z2.number().int().positive() })).query(async ({ input, ctx }) => {
@@ -26794,6 +26886,12 @@ async function bootstrapMissingColumns() {
       console.warn(`[Bootstrap] Skipped (${label}):`, error.message);
     }
   };
+  if (!await check("groupAuctionItems", "linkedAuctionId")) {
+    await alter(
+      "ALTER TABLE `groupAuctionItems` ADD COLUMN `linkedAuctionId` int NULL",
+      "Added linkedAuctionId to groupAuctionItems"
+    );
+  }
   if (!await check("deposit_transactions", "relatedGroupAuctionRoundId")) {
     await alter(
       "ALTER TABLE `deposit_transactions` ADD COLUMN `relatedGroupAuctionRoundId` int NULL",
