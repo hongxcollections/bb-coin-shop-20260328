@@ -4588,7 +4588,7 @@ async function autoDeductGroupAuctionCommission(roundId) {
   const currentBalance = parseFloat(deposit.balance.toString());
   const newBalance = parseFloat((currentBalance - totalCommission).toFixed(2));
   const periodLabel = round.periodNumber ? `\u7B2C${round.periodNumber}\u671F ` : "";
-  const desc5 = `\u5E73\u53F0\u50AD\u91D1 \u2014 \u5718\u62CD\u300C${round.title}\u300D${periodLabel}\uFF08${itemsWithPrice.length}\u4EF6\u6210\u4EA4\uFF0C\u5408\u8A08 $${totalSales.toLocaleString()} \xD7 ${(rate * 100).toFixed(1)}%\uFF09`;
+  const desc6 = `\u5E73\u53F0\u50AD\u91D1 \u2014 \u5718\u62CD\u300C${round.title}\u300D${periodLabel}\uFF08${itemsWithPrice.length}\u4EF6\u6210\u4EA4\uFF0C\u5408\u8A08 $${totalSales.toLocaleString()} \xD7 ${(rate * 100).toFixed(1)}%\uFF09`;
   await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, round.merchantUserId));
   await db.insert(depositTransactions).values({
     depositId: deposit.id,
@@ -4596,7 +4596,7 @@ async function autoDeductGroupAuctionCommission(roundId) {
     type: "commission",
     amount: (-totalCommission).toFixed(2),
     balanceAfter: newBalance.toFixed(2),
-    description: desc5,
+    description: desc6,
     relatedAuctionId: null,
     relatedGroupAuctionRoundId: roundId,
     createdBy: null
@@ -12721,7 +12721,7 @@ init_auctions();
 init_db();
 init_storage();
 init_community();
-import { eq as eq8, sql as sql6, and as and6 } from "drizzle-orm";
+import { eq as eq8, sql as sql6, and as and6, desc as desc5 } from "drizzle-orm";
 
 // server/dailyChallenge.ts
 init_db();
@@ -16656,8 +16656,8 @@ var appRouter = router({
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u9650\u5546\u6236\u6703\u54E1" });
       }
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
-      const rows = await db.select().from(merchantAuctionSessions).where(eq8(merchantAuctionSessions.merchantUserId, ctx.user.id)).orderBy(desc5(merchantAuctionSessions.createdAt));
+      const { desc: desc6 } = await import("drizzle-orm");
+      const rows = await db.select().from(merchantAuctionSessions).where(eq8(merchantAuctionSessions.merchantUserId, ctx.user.id)).orderBy(desc6(merchantAuctionSessions.createdAt));
       return rows;
     }),
     /** 商戶：取得單一 session 詳情 + 內容 auctions（拎齊圖片同價錢） */
@@ -17113,7 +17113,7 @@ var appRouter = router({
     /** 商戶：列出自己可加入專場嘅 auctions — 只計 draft（未發佈）+ 流拍（已結束無人贏） */
     myEligibleAuctions: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      const { desc: desc5, and: and7, or: or3, isNull: isNull2, notInArray } = await import("drizzle-orm");
+      const { desc: desc6, and: and7, or: or3, isNull: isNull2, notInArray } = await import("drizzle-orm");
       const inActiveSessionRaw = await db.execute(
         sql6`SELECT DISTINCT si.auctionId FROM merchantAuctionSessionItems si
             JOIN merchantAuctionSessions s ON s.id = si.sessionId
@@ -17131,7 +17131,7 @@ var appRouter = router({
         sql6`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`
       );
       const where = inActiveSessionIds.length > 0 ? and7(baseWhere, notInArray(auctions.id, inActiveSessionIds)) : baseWhere;
-      const rows = await db.select().from(auctions).where(where).orderBy(desc5(auctions.createdAt));
+      const rows = await db.select().from(auctions).where(where).orderBy(desc6(auctions.createdAt));
       const enriched = await Promise.all(rows.map(async (a) => ({
         ...a,
         images: await getAuctionImages(a.id)
@@ -17224,25 +17224,25 @@ var appRouter = router({
     /** 公開：列出某商戶嘅所有 published + public sessions */
     listPublicByMerchant: publicProcedure.input(z2.object({ merchantUserId: z2.number().int().positive() })).query(async ({ input }) => {
       const db = await getDb();
-      const { and: and7, desc: desc5, ne: ne2 } = await import("drizzle-orm");
+      const { and: and7, desc: desc6, ne: ne2 } = await import("drizzle-orm");
       const rows = await db.select().from(merchantAuctionSessions).where(and7(
         eq8(merchantAuctionSessions.merchantUserId, input.merchantUserId),
         ne2(merchantAuctionSessions.status, "draft"),
         eq8(merchantAuctionSessions.visibility, "public")
-      )).orderBy(desc5(merchantAuctionSessions.endAt));
+      )).orderBy(desc6(merchantAuctionSessions.endAt));
       return rows;
     }),
     /** 公開：取 auction 屬於邊個 published session（俾 AuctionDetail 顯示「屬於專場 X」） */
     findSessionForAuction: publicProcedure.input(z2.object({ auctionId: z2.number().int().positive() })).query(async ({ input }) => {
       const db = await getDb();
-      const { and: and7, desc: desc5, inArray: inArray2, ne: ne2 } = await import("drizzle-orm");
+      const { and: and7, desc: desc6, inArray: inArray2, ne: ne2 } = await import("drizzle-orm");
       const items = await db.select().from(merchantAuctionSessionItems).where(eq8(merchantAuctionSessionItems.auctionId, input.auctionId));
       if (items.length === 0) return null;
       const sessionIds = items.map((it) => it.sessionId);
       const sessions = await db.select().from(merchantAuctionSessions).where(and7(
         inArray2(merchantAuctionSessions.id, sessionIds),
         ne2(merchantAuctionSessions.status, "draft")
-      )).orderBy(desc5(merchantAuctionSessions.endAt)).limit(1);
+      )).orderBy(desc6(merchantAuctionSessions.endAt)).limit(1);
       const s = sessions[0];
       if (!s) return null;
       const merchantApp = await getMerchantApplicationByUser(s.merchantUserId);
@@ -17332,9 +17332,9 @@ var appRouter = router({
     /** Admin: 列出所有商戶專場（俾管理後台揀邊個拆除） */
     adminListAll: adminProcedure.input(z2.object({ merchantUserId: z2.number().int().positive().optional() })).query(async ({ input }) => {
       const db = await getDb();
-      const { desc: desc5, and: and7 } = await import("drizzle-orm");
+      const { desc: desc6, and: and7 } = await import("drizzle-orm");
       const where = input.merchantUserId ? and7(eq8(merchantAuctionSessions.merchantUserId, input.merchantUserId)) : void 0;
-      const rows = await db.select().from(merchantAuctionSessions).where(where).orderBy(desc5(merchantAuctionSessions.createdAt)).limit(200);
+      const rows = await db.select().from(merchantAuctionSessions).where(where).orderBy(desc6(merchantAuctionSessions.createdAt)).limit(200);
       const result = await Promise.all(rows.map(async (s) => {
         const app = await getMerchantApplicationByUser(s.merchantUserId);
         return { ...s, merchantName: app?.merchantName || `User#${s.merchantUserId}` };
@@ -19365,12 +19365,12 @@ Reply in JSON. All fields are REQUIRED \u2014 if uncertain, provide your best ex
       if (enabled === "false") throw new TRPCError3({ code: "FORBIDDEN", message: "AI \u6587\u6848\u529F\u80FD\u66AB\u6642\u95DC\u9589" });
       const checkRate = aiRateLimit(ctx.user.id, "share", 30);
       if (!checkRate.ok) throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: checkRate.message });
-      let title = "", desc5 = "", priceStr = "", extra = "";
+      let title = "", desc6 = "", priceStr = "", extra = "";
       if (input.kind === "product") {
         const p = await getMerchantProduct(input.id);
         if (!p || p.merchantId !== ctx.user.id) throw new TRPCError3({ code: "NOT_FOUND", message: "\u5546\u54C1\u4E0D\u5B58\u5728\u6216\u7121\u6B0A\u9650" });
         title = p.title;
-        desc5 = p.description ?? "";
+        desc6 = p.description ?? "";
         const sym = p.currency === "USD" ? "US$" : p.currency === "CNY" ? "\xA5" : "HK$";
         priceStr = `${sym}${parseFloat(String(p.price)).toLocaleString()}`;
         extra = `\u5206\u985E\uFF1A${p.category ?? "\u672A\u5206\u985E"}\uFF5C\u51FA\u552E\u50F9\uFF1A${priceStr}`;
@@ -19378,7 +19378,7 @@ Reply in JSON. All fields are REQUIRED \u2014 if uncertain, provide your best ex
         const a = await getAuctionById(input.id);
         if (!a || a.createdBy !== ctx.user.id) throw new TRPCError3({ code: "NOT_FOUND", message: "\u62CD\u8CE3\u4E0D\u5B58\u5728\u6216\u7121\u6B0A\u9650" });
         title = a.title;
-        desc5 = a.description ?? "";
+        desc6 = a.description ?? "";
         const sym = a.currency === "USD" ? "US$" : a.currency === "CNY" ? "\xA5" : "HK$";
         priceStr = `${sym}${parseFloat(String(a.currentPrice)).toLocaleString()}`;
         const endDate = new Date(a.endTime);
@@ -19398,7 +19398,7 @@ Reply in JSON. All fields are REQUIRED \u2014 if uncertain, provide your best ex
 8. \u76F4\u63A5\u8F38\u51FA\u6587\u6848\u5167\u5BB9\uFF0C\u5514\u597D\u52A0\u4EFB\u4F55\u524D\u8A00\uFF0F\u89E3\u91CB\uFF0F\u5F15\u865F`;
       const userPrompt = `\u5546\u54C1\u6A19\u984C\uFF1A${title}
 ${extra}
-\u5546\u54C1\u63CF\u8FF0\uFF1A${desc5 || "\uFF08\u7121\uFF09"}`;
+\u5546\u54C1\u63CF\u8FF0\uFF1A${desc6 || "\uFF08\u7121\uFF09"}`;
       try {
         const result = await invokeLLMSafe({
           messages: [
@@ -19424,12 +19424,12 @@ ${extra}
       if (enabled === "false") throw new TRPCError3({ code: "FORBIDDEN", message: "AI \u65C1\u767D\u7A3F\u529F\u80FD\u66AB\u6642\u95DC\u9589" });
       const checkRate = aiRateLimit(ctx.user.id, "script", 30);
       if (!checkRate.ok) throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: checkRate.message });
-      let title = "", desc5 = "", priceStr = "", cat = "";
+      let title = "", desc6 = "", priceStr = "", cat = "";
       if (input.kind === "product") {
         const p = await getMerchantProduct(input.id);
         if (!p || p.merchantId !== ctx.user.id) throw new TRPCError3({ code: "NOT_FOUND", message: "\u5546\u54C1\u4E0D\u5B58\u5728\u6216\u7121\u6B0A\u9650" });
         title = p.title;
-        desc5 = p.description ?? "";
+        desc6 = p.description ?? "";
         cat = p.category ?? "";
         const sym = p.currency === "USD" ? "US$" : p.currency === "CNY" ? "\xA5" : "HK$";
         priceStr = `${sym}${parseFloat(String(p.price)).toLocaleString()}`;
@@ -19437,7 +19437,7 @@ ${extra}
         const a = await getAuctionById(input.id);
         if (!a || a.createdBy !== ctx.user.id) throw new TRPCError3({ code: "NOT_FOUND", message: "\u62CD\u8CE3\u4E0D\u5B58\u5728\u6216\u7121\u6B0A\u9650" });
         title = a.title;
-        desc5 = a.description ?? "";
+        desc6 = a.description ?? "";
         cat = a.category ?? "";
         const sym = a.currency === "USD" ? "US$" : a.currency === "CNY" ? "\xA5" : "HK$";
         priceStr = `${sym}${parseFloat(String(a.currentPrice)).toLocaleString()}`;
@@ -19459,7 +19459,7 @@ ${extra}
       const userPrompt = `\u5546\u54C1\u6A19\u984C\uFF1A${title}
 \u5206\u985E\uFF1A${cat || "\u672A\u6307\u5B9A"}
 \u50F9\u9322\uFF1A${priceStr}
-\u63CF\u8FF0\uFF1A${desc5 || "\uFF08\u7121\uFF09"}`;
+\u63CF\u8FF0\uFF1A${desc6 || "\uFF08\u7121\uFF09"}`;
       try {
         const result = await invokeLLMSafe({
           messages: [
@@ -20753,9 +20753,9 @@ EXAMPLE OUTPUT (exact format):
     /** 列 drafts (默認 status=draft) */
     listDrafts: adminProcedure.input(z2.object({ status: z2.enum(["draft", "published", "archived", "all"]).default("draft") }).optional()).query(async ({ input }) => {
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
+      const { desc: desc6 } = await import("drizzle-orm");
       const status = input?.status ?? "draft";
-      const rows = status === "all" ? await db.select().from(communitySeederDrafts).orderBy(desc5(communitySeederDrafts.createdAt)).limit(200) : await db.select().from(communitySeederDrafts).where(eq8(communitySeederDrafts.status, status)).orderBy(desc5(communitySeederDrafts.createdAt)).limit(200);
+      const rows = status === "all" ? await db.select().from(communitySeederDrafts).orderBy(desc6(communitySeederDrafts.createdAt)).limit(200) : await db.select().from(communitySeederDrafts).where(eq8(communitySeederDrafts.status, status)).orderBy(desc6(communitySeederDrafts.createdAt)).limit(200);
       return rows.map((r) => ({
         ...r,
         tags: r.tagsJson ? safeJson(r.tagsJson, []) : [],
@@ -21714,8 +21714,8 @@ EXAMPLE OUTPUT (exact format):
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u9650\u5546\u6236\u6703\u54E1" });
       }
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
-      return db.select().from(groupAuctionColumnTemplates).where(eq8(groupAuctionColumnTemplates.merchantUserId, ctx.user.id)).orderBy(desc5(groupAuctionColumnTemplates.createdAt));
+      const { desc: desc6 } = await import("drizzle-orm");
+      return db.select().from(groupAuctionColumnTemplates).where(eq8(groupAuctionColumnTemplates.merchantUserId, ctx.user.id)).orderBy(desc6(groupAuctionColumnTemplates.createdAt));
     }),
     /** 商戶：儲存欄位模板 */
     saveTemplate: protectedProcedure.input(z2.object({
@@ -21761,8 +21761,8 @@ EXAMPLE OUTPUT (exact format):
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u9650\u5546\u6236\u6703\u54E1" });
       }
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
-      return db.select().from(groupAuctionColorRuleTemplates).where(eq8(groupAuctionColorRuleTemplates.merchantUserId, ctx.user.id)).orderBy(desc5(groupAuctionColorRuleTemplates.createdAt));
+      const { desc: desc6 } = await import("drizzle-orm");
+      return db.select().from(groupAuctionColorRuleTemplates).where(eq8(groupAuctionColorRuleTemplates.merchantUserId, ctx.user.id)).orderBy(desc6(groupAuctionColorRuleTemplates.createdAt));
     }),
     saveColorRuleTemplate: protectedProcedure.input(z2.object({
       name: z2.string().min(1).max(100),
@@ -21810,8 +21810,8 @@ EXAMPLE OUTPUT (exact format):
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u9650\u5546\u6236\u6703\u54E1" });
       }
       const db = await getDb();
-      const { desc: desc5, inArray: inArrR, sql: sqlR } = await import("drizzle-orm");
-      const rounds = await db.select().from(groupAuctionRounds).where(eq8(groupAuctionRounds.merchantUserId, ctx.user.id)).orderBy(desc5(groupAuctionRounds.createdAt));
+      const { desc: desc6, inArray: inArrR, sql: sqlR } = await import("drizzle-orm");
+      const rounds = await db.select().from(groupAuctionRounds).where(eq8(groupAuctionRounds.merchantUserId, ctx.user.id)).orderBy(desc6(groupAuctionRounds.createdAt));
       if (rounds.length === 0) return rounds.map((r) => ({ ...r, _itemCount: 0 }));
       const roundIds = rounds.map((r) => r.id);
       const counts = await db.select({
@@ -22497,7 +22497,7 @@ EXAMPLE OUTPUT (exact format):
     /** 公開：列出某商戶進行中（published）的場次 */
     listPublicRoundsByMerchant: publicProcedure.input(z2.object({ merchantUserId: z2.number().int().positive() })).query(async ({ input }) => {
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
+      const { desc: desc6 } = await import("drizzle-orm");
       return db.select({
         id: groupAuctionRounds.id,
         title: groupAuctionRounds.title,
@@ -22507,12 +22507,12 @@ EXAMPLE OUTPUT (exact format):
       }).from(groupAuctionRounds).where(and6(
         eq8(groupAuctionRounds.merchantUserId, input.merchantUserId),
         eq8(groupAuctionRounds.status, "published")
-      )).orderBy(desc5(groupAuctionRounds.createdAt));
+      )).orderBy(desc6(groupAuctionRounds.createdAt));
     }),
     /** 公開：取得某商戶已結束嘅場次列表 */
     listEndedRoundsByMerchant: publicProcedure.input(z2.object({ merchantUserId: z2.number().int().positive() })).query(async ({ input }) => {
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
+      const { desc: desc6 } = await import("drizzle-orm");
       return db.select({
         id: groupAuctionRounds.id,
         title: groupAuctionRounds.title,
@@ -22522,12 +22522,12 @@ EXAMPLE OUTPUT (exact format):
       }).from(groupAuctionRounds).where(and6(
         eq8(groupAuctionRounds.merchantUserId, input.merchantUserId),
         eq8(groupAuctionRounds.status, "ended")
-      )).orderBy(desc5(groupAuctionRounds.createdAt));
+      )).orderBy(desc6(groupAuctionRounds.createdAt));
     }),
     /** 公開：取得場次詳情 + 商品 + 每件最高出價 */
     getRound: publicProcedure.input(z2.object({ roundId: z2.number().int().positive() })).query(async ({ input }) => {
       const db = await getDb();
-      const { asc: asc2, desc: desc5 } = await import("drizzle-orm");
+      const { asc: asc2, desc: desc6 } = await import("drizzle-orm");
       const [round] = await db.select().from(groupAuctionRounds).where(eq8(groupAuctionRounds.id, input.roundId)).limit(1);
       if (!round || round.status === "draft") {
         throw new TRPCError3({ code: "NOT_FOUND", message: "\u5834\u6B21\u4E0D\u5B58\u5728\u6216\u672A\u767C\u5E03" });
@@ -22547,7 +22547,7 @@ EXAMPLE OUTPUT (exact format):
       if (items.length === 0) return { round: roundWithMerchant, items: [], images };
       const { inArray: inArray2 } = await import("drizzle-orm");
       const itemIds = items.map((i) => i.id);
-      const allBids = await db.select().from(groupAuctionBids).where(inArray2(groupAuctionBids.itemId, itemIds)).orderBy(desc5(groupAuctionBids.amount), desc5(groupAuctionBids.id));
+      const allBids = await db.select().from(groupAuctionBids).where(inArray2(groupAuctionBids.itemId, itemIds)).orderBy(desc6(groupAuctionBids.amount), desc6(groupAuctionBids.id));
       const topBidByItem = /* @__PURE__ */ new Map();
       const bidCountByItem = /* @__PURE__ */ new Map();
       for (const bid of allBids) {
@@ -22607,7 +22607,7 @@ EXAMPLE OUTPUT (exact format):
       amount: z2.number().int().min(1)
     })).mutation(async ({ input, ctx }) => {
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
+      const { desc: desc6 } = await import("drizzle-orm");
       const [item] = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.id, input.itemId)).limit(1);
       if (!item) throw new TRPCError3({ code: "NOT_FOUND", message: "\u5546\u54C1\u4E0D\u5B58\u5728" });
       if (item.status !== "active") {
@@ -22627,7 +22627,7 @@ EXAMPLE OUTPUT (exact format):
       if (endAt && /* @__PURE__ */ new Date() > new Date(endAt)) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u6B64\u5546\u54C1\u5DF2\u622A\u6B62\u51FA\u50F9" });
       }
-      const [topBid] = await db.select().from(groupAuctionBids).where(eq8(groupAuctionBids.itemId, input.itemId)).orderBy(desc5(groupAuctionBids.amount), desc5(groupAuctionBids.id)).limit(1);
+      const [topBid] = await db.select().from(groupAuctionBids).where(eq8(groupAuctionBids.itemId, input.itemId)).orderBy(desc6(groupAuctionBids.amount), desc6(groupAuctionBids.id)).limit(1);
       const currentPrice = topBid?.amount ?? item.startPrice;
       const effectiveIncrement = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
       const firstBidMin = item.startPrice > 0 ? item.startPrice : effectiveIncrement;
@@ -22813,15 +22813,19 @@ EXAMPLE OUTPUT (exact format):
         const endTime = new Date(item.endAt ?? round.endAt ?? Date.now() + 7 * 24 * 60 * 60 * 1e3);
         const effectiveInc = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement ?? 30;
         const sp = item.startPrice;
+        const [topBid] = await db.select().from(groupAuctionBids).where(and6(eq8(groupAuctionBids.itemId, item.id), eq8(groupAuctionBids.isProxy, 0))).orderBy(desc5(groupAuctionBids.amount)).limit(1);
+        const exportPrice = topBid ? topBid.amount : sp;
+        const exportHighestBidderId = topBid ? topBid.userId : null;
         const insertResult = await db.insert(auctions).values({
           title,
           startingPrice: sp.toString(),
-          currentPrice: sp.toString(),
+          currentPrice: exportPrice.toString(),
           endTime,
           bidIncrement: effectiveInc,
           createdBy: round.merchantUserId,
           status: "active",
-          currency: "HKD"
+          currency: "HKD",
+          ...exportHighestBidderId ? { highestBidderId: exportHighestBidderId } : {}
         });
         const auctionId = insertResult?.[0]?.insertId ?? null;
         if (auctionId) {
@@ -24378,7 +24382,7 @@ EXAMPLE OUTPUT (exact format):
     }),
     myGroupAuctions: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      const { desc: desc5 } = await import("drizzle-orm");
+      const { desc: desc6 } = await import("drizzle-orm");
       const rounds = await db.select({
         id: groupAuctionRounds.id,
         title: groupAuctionRounds.title,
@@ -24388,7 +24392,7 @@ EXAMPLE OUTPUT (exact format):
       }).from(groupAuctionRounds).where(and6(
         eq8(groupAuctionRounds.merchantUserId, ctx.user.id),
         eq8(groupAuctionRounds.isArchived, 0)
-      )).orderBy(desc5(groupAuctionRounds.createdAt)).limit(100);
+      )).orderBy(desc6(groupAuctionRounds.createdAt)).limit(100);
       return rounds.filter((r) => r.status === "published" || r.status === "ended");
     }),
     getGroupAuctionItemsForImport: protectedProcedure.input(z2.object({ roundId: z2.number().int().positive() })).query(async ({ input, ctx }) => {

@@ -1478,7 +1478,16 @@ export default function GroupAuctionEdit() {
                     {selectedIds.size === items.length ? "取消全選" : `全選 (${items.length})`}
                   </button>
                   <button
-                    onClick={() => exportItemsMut.mutate({ roundId: roundId!, itemIds: selectedIds.size > 0 ? Array.from(selectedIds) : undefined })}
+                    onClick={async () => {
+                      const itemIds = selectedIds.size > 0 ? Array.from(selectedIds) : undefined;
+                      const count = itemIds ? itemIds.length : items.filter((i: any) => !i.linkedAuctionId).length;
+                      const ok = await confirm({
+                        title: "確認匯出至主頁拍賣",
+                        description: `將 ${count} 件商品（包括現有出價記錄）匯出為獨立拍賣，確認？`,
+                      });
+                      if (!ok) return;
+                      exportItemsMut.mutate({ roundId: roundId!, itemIds });
+                    }}
                     disabled={exportItemsMut.isPending}
                     className="flex items-center gap-1.5 text-xs bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-xl disabled:opacity-60"
                   >
@@ -2017,7 +2026,14 @@ export default function GroupAuctionEdit() {
                           </button>
                           {round?.status === "published" && !(item as any).linkedAuctionId && (
                             <button
-                              onClick={() => exportItemsMut.mutate({ roundId: roundId!, itemIds: [item.id] })}
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: "確認匯出至主頁拍賣",
+                                  description: "將此商品（包括現有出價記錄）匯出為獨立拍賣，確認？",
+                                });
+                                if (!ok) return;
+                                exportItemsMut.mutate({ roundId: roundId!, itemIds: [item.id] });
+                              }}
                               disabled={exportItemsMut.isPending}
                               title="匯出至主頁拍賣"
                               className="p-1.5 text-indigo-400 hover:text-indigo-600 disabled:opacity-40"
