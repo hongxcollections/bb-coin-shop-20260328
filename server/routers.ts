@@ -11536,15 +11536,17 @@ EXAMPLE OUTPUT (exact format):
             isActive: 1,
           });
         }
-        // 若此商品目前無出價，自動以起拍價（或首口加幅）入標，讓用戶立即成為領先者
-        const noBidsYet = await db.select({ id: groupAuctionBids.id })
-          .from(groupAuctionBids)
+        // 查詢目前最高出價
+        const effectiveInc = ((item.bidIncrement ?? 0) as number) > 0
+          ? (item.bidIncrement as number)
+          : ((round.defaultBidIncrement ?? 50) as number);
+        const [topBidNow] = await db.select().from(groupAuctionBids)
           .where(eq(groupAuctionBids.itemId, input.itemId))
+          .orderBy(desc(groupAuctionBids.amount), desc(groupAuctionBids.id))
           .limit(1);
-        if (noBidsYet.length === 0) {
-          const effectiveInc = ((item.bidIncrement ?? 0) as number) > 0
-            ? (item.bidIncrement as number)
-            : ((round.defaultBidIncrement ?? 50) as number);
+
+        if (!topBidNow) {
+          // 無出價：自動以起拍價入標
           const initialAmt = ((item.startPrice ?? 0) as number) > 0
             ? (item.startPrice as number)
             : effectiveInc;
@@ -11559,14 +11561,35 @@ EXAMPLE OUTPUT (exact format):
             await db.update(groupAuctionItems)
               .set({ finalPrice: initialAmt, winnerId: ctx.user.id })
               .where(eq(groupAuctionItems.id, input.itemId));
-            // 同步代理首口至拍賣主頁
             if (item.linkedAuctionId) {
               await db.update(auctions)
                 .set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id })
                 .where(eq(auctions.id, item.linkedAuctionId));
             }
           }
+        } else if (topBidNow.userId !== ctx.user.id) {
+          // 已有其他人領先：立即以 currentPrice + increment 代理反超
+          const counterAmt = topBidNow.amount + effectiveInc;
+          if (input.maxAmount >= counterAmt) {
+            await db.insert(groupAuctionBids).values({
+              itemId: input.itemId,
+              roundId: item.roundId,
+              userId: ctx.user.id,
+              amount: counterAmt,
+              isProxy: 1,
+            });
+            await db.update(groupAuctionItems)
+              .set({ finalPrice: counterAmt, winnerId: ctx.user.id })
+              .where(eq(groupAuctionItems.id, input.itemId));
+            if (item.linkedAuctionId) {
+              await db.update(auctions)
+                .set({ currentPrice: counterAmt.toString(), highestBidderId: ctx.user.id })
+                .where(eq(auctions.id, item.linkedAuctionId));
+            }
+          }
+          // maxAmount < counterAmt 代表代理上限不夠超越現有領先者，不做任何出價動作
         }
+        // topBidNow.userId === ctx.user.id：自己已是領先者，只更新上限，不重複出價
         if (autoBidStatus.memberLevel === 'bronze') {
           await enforceAutoBidLimit(ctx.user.id);
         }

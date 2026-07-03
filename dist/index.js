@@ -22744,9 +22744,9 @@ EXAMPLE OUTPUT (exact format):
           isActive: 1
         });
       }
-      const noBidsYet = await db.select({ id: groupAuctionBids.id }).from(groupAuctionBids).where(eq8(groupAuctionBids.itemId, input.itemId)).limit(1);
-      if (noBidsYet.length === 0) {
-        const effectiveInc = (item.bidIncrement ?? 0) > 0 ? item.bidIncrement : round.defaultBidIncrement ?? 50;
+      const effectiveInc = (item.bidIncrement ?? 0) > 0 ? item.bidIncrement : round.defaultBidIncrement ?? 50;
+      const [topBidNow] = await db.select().from(groupAuctionBids).where(eq8(groupAuctionBids.itemId, input.itemId)).orderBy(desc5(groupAuctionBids.amount), desc5(groupAuctionBids.id)).limit(1);
+      if (!topBidNow) {
         const initialAmt = (item.startPrice ?? 0) > 0 ? item.startPrice : effectiveInc;
         if (initialAmt > 0 && input.maxAmount >= initialAmt) {
           await db.insert(groupAuctionBids).values({
@@ -22759,6 +22759,21 @@ EXAMPLE OUTPUT (exact format):
           await db.update(groupAuctionItems).set({ finalPrice: initialAmt, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, input.itemId));
           if (item.linkedAuctionId) {
             await db.update(auctions).set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, item.linkedAuctionId));
+          }
+        }
+      } else if (topBidNow.userId !== ctx.user.id) {
+        const counterAmt = topBidNow.amount + effectiveInc;
+        if (input.maxAmount >= counterAmt) {
+          await db.insert(groupAuctionBids).values({
+            itemId: input.itemId,
+            roundId: item.roundId,
+            userId: ctx.user.id,
+            amount: counterAmt,
+            isProxy: 1
+          });
+          await db.update(groupAuctionItems).set({ finalPrice: counterAmt, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, input.itemId));
+          if (item.linkedAuctionId) {
+            await db.update(auctions).set({ currentPrice: counterAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, item.linkedAuctionId));
           }
         }
       }
