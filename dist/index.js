@@ -13484,12 +13484,17 @@ var appRouter = router({
             const linkedItems = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
             if (linkedItems.length > 0) {
               const li = linkedItems[0];
-              await db.update(groupAuctionItems).set({ finalPrice: input.bidAmount, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, li.id));
+              const [updatedAuction] = await db.select({
+                currentPrice: auctions.currentPrice,
+                highestBidderId: auctions.highestBidderId
+              }).from(auctions).where(eq8(auctions.id, input.auctionId)).limit(1);
+              const syncAmount = updatedAuction ? Math.round(parseFloat(String(updatedAuction.currentPrice))) : Math.round(input.bidAmount);
+              const syncUserId = updatedAuction?.highestBidderId ?? ctx.user.id;
               await db.insert(groupAuctionBids).values({
                 itemId: li.id,
                 roundId: li.roundId,
-                userId: ctx.user.id,
-                amount: input.bidAmount
+                userId: syncUserId,
+                amount: syncAmount
               });
             }
           }

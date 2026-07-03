@@ -441,14 +441,21 @@ export const appRouter = router({
                 .where(eq(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
               if (linkedItems.length > 0) {
                 const li = linkedItems[0];
-                await db.update(groupAuctionItems)
-                  .set({ finalPrice: input.bidAmount, winnerId: ctx.user.id })
-                  .where(eq(groupAuctionItems.id, li.id));
+                // 拉 placeBid 後的實際 currentPrice（proxy auto-counter 後可能與 input.bidAmount 不同）
+                const [updatedAuction] = await db.select({
+                  currentPrice: auctions.currentPrice,
+                  highestBidderId: auctions.highestBidderId,
+                }).from(auctions).where(eq(auctions.id, input.auctionId)).limit(1);
+                const syncAmount = updatedAuction
+                  ? Math.round(parseFloat(String(updatedAuction.currentPrice)))
+                  : Math.round(input.bidAmount);
+                const syncUserId = updatedAuction?.highestBidderId ?? ctx.user.id;
+                // 只插 groupAuctionBids；finalPrice/winnerId 留待結標後才設
                 await db.insert(groupAuctionBids).values({
                   itemId: li.id,
                   roundId: li.roundId,
-                  userId: ctx.user.id,
-                  amount: input.bidAmount,
+                  userId: syncUserId,
+                  amount: syncAmount,
                 });
               }
             }
