@@ -1479,7 +1479,10 @@ export default function GroupAuctionEdit() {
                   </button>
                   <button
                     onClick={async () => {
-                      const itemIds = selectedIds.size > 0 ? Array.from(selectedIds) : undefined;
+                      const rawIds = selectedIds.size > 0 ? Array.from(selectedIds) : undefined;
+                      const itemIds = rawIds
+                        ? rawIds.filter(id => !items.find((i: any) => i.id === id)?.linkedAuctionId)
+                        : undefined;
                       const exportItems = itemIds
                         ? items.filter((i: any) => itemIds.includes(i.id))
                         : items.filter((i: any) => !i.linkedAuctionId);
@@ -1942,12 +1945,13 @@ export default function GroupAuctionEdit() {
                       {(selectMode || bulkPriceMode || exportSelectMode) && (
                         <button
                           onClick={() => {
+                            if (exportSelectMode && (item as any).linkedAuctionId) return;
                             const next = new Set(selectedIds);
                             if (next.has(item.id)) next.delete(item.id);
                             else next.add(item.id);
                             setSelectedIds(next);
                           }}
-                          className="flex-shrink-0"
+                          className={`flex-shrink-0 ${exportSelectMode && (item as any).linkedAuctionId ? "opacity-30 cursor-not-allowed" : ""}`}
                         >
                           {isSelected
                             ? <CheckSquare className={`w-4 h-4 ${bulkPriceMode ? "text-blue-500" : exportSelectMode ? "text-indigo-500" : "text-red-500"}`} />
@@ -1959,6 +1963,7 @@ export default function GroupAuctionEdit() {
                       <span className="text-xs text-gray-400 w-6 text-center flex-shrink-0">{idx + 1}</span>
 
                       <div className="flex-1 min-w-0" onClick={() => {
+                        if (exportSelectMode && (item as any).linkedAuctionId) return;
                         if (selectMode || bulkPriceMode || exportSelectMode) {
                           const next = new Set(selectedIds);
                           if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
