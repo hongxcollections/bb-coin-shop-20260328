@@ -1153,6 +1153,24 @@ export const appRouter = router({
                 .set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id })
                 .where(eq(auctions.id, input.auctionId));
               await dbPlaceBid({ auctionId: input.auctionId, userId: ctx.user.id, bidAmount: initialAmt.toString(), isAnonymous: 0 });
+              // 若此主頁拍賣係由團拍匯出，反向同步初始代理出價至 groupAuctionBids
+              try {
+                const linkedItems = await db.select().from(groupAuctionItems)
+                  .where(eq(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+                if (linkedItems.length > 0) {
+                  const li = linkedItems[0];
+                  await db.insert(groupAuctionBids).values({
+                    itemId: li.id,
+                    roundId: li.roundId,
+                    userId: ctx.user.id,
+                    amount: initialAmt,
+                    isProxy: 1,
+                  });
+                  await db.update(groupAuctionItems)
+                    .set({ finalPrice: initialAmt, winnerId: ctx.user.id })
+                    .where(eq(groupAuctionItems.id, li.id));
+                }
+              } catch {}
             }
           }
         }
@@ -11565,6 +11583,13 @@ EXAMPLE OUTPUT (exact format):
               await db.update(auctions)
                 .set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id })
                 .where(eq(auctions.id, item.linkedAuctionId));
+              // 同步至主頁 bids 出價記錄（確保 bid count / history 正確）
+              await db.insert(bids).values({
+                auctionId: item.linkedAuctionId,
+                userId: ctx.user.id,
+                bidAmount: initialAmt.toString(),
+                isAnonymous: 0,
+              });
             }
           }
         } else if (topBidNow.userId !== ctx.user.id) {
@@ -11585,6 +11610,13 @@ EXAMPLE OUTPUT (exact format):
               await db.update(auctions)
                 .set({ currentPrice: counterAmt.toString(), highestBidderId: ctx.user.id })
                 .where(eq(auctions.id, item.linkedAuctionId));
+              // 同步至主頁 bids 出價記錄
+              await db.insert(bids).values({
+                auctionId: item.linkedAuctionId,
+                userId: ctx.user.id,
+                bidAmount: counterAmt.toString(),
+                isAnonymous: 0,
+              });
             }
           }
           // maxAmount < counterAmt 代表代理上限不夠超越現有領先者，不做任何出價動作

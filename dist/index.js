@@ -14062,6 +14062,21 @@ var appRouter = router({
           if (db) {
             await db.update(auctions).set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, input.auctionId));
             await placeBid({ auctionId: input.auctionId, userId: ctx.user.id, bidAmount: initialAmt.toString(), isAnonymous: 0 });
+            try {
+              const linkedItems = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);
+              if (linkedItems.length > 0) {
+                const li = linkedItems[0];
+                await db.insert(groupAuctionBids).values({
+                  itemId: li.id,
+                  roundId: li.roundId,
+                  userId: ctx.user.id,
+                  amount: initialAmt,
+                  isProxy: 1
+                });
+                await db.update(groupAuctionItems).set({ finalPrice: initialAmt, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, li.id));
+              }
+            } catch {
+            }
           }
         }
       }
@@ -22759,6 +22774,12 @@ EXAMPLE OUTPUT (exact format):
           await db.update(groupAuctionItems).set({ finalPrice: initialAmt, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, input.itemId));
           if (item.linkedAuctionId) {
             await db.update(auctions).set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, item.linkedAuctionId));
+            await db.insert(bids).values({
+              auctionId: item.linkedAuctionId,
+              userId: ctx.user.id,
+              bidAmount: initialAmt.toString(),
+              isAnonymous: 0
+            });
           }
         }
       } else if (topBidNow.userId !== ctx.user.id) {
@@ -22774,6 +22795,12 @@ EXAMPLE OUTPUT (exact format):
           await db.update(groupAuctionItems).set({ finalPrice: counterAmt, winnerId: ctx.user.id }).where(eq8(groupAuctionItems.id, input.itemId));
           if (item.linkedAuctionId) {
             await db.update(auctions).set({ currentPrice: counterAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, item.linkedAuctionId));
+            await db.insert(bids).values({
+              auctionId: item.linkedAuctionId,
+              userId: ctx.user.id,
+              bidAmount: counterAmt.toString(),
+              isAnonymous: 0
+            });
           }
         }
       }
