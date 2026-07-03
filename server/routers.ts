@@ -11566,9 +11566,12 @@ EXAMPLE OUTPUT (exact format):
         return { success: true };
       }),
 
-    /** 商戶：批量匯出場次商品至拍賣主頁 */
+    /** 商戶：批量匯出場次商品至拍賣主頁（可指定 itemIds 做個別匯出） */
     batchExportToMainAuction: protectedProcedure
-      .input(z.object({ roundId: z.number().int().positive() }))
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         const [round] = await db.select().from(groupAuctionRounds)
@@ -11592,8 +11595,11 @@ EXAMPLE OUTPUT (exact format):
           if (lotCol) lotNoKey = lotCol.key;
         } catch {}
 
-        const items = await db.select().from(groupAuctionItems)
+        const allItems = await db.select().from(groupAuctionItems)
           .where(eq(groupAuctionItems.roundId, input.roundId));
+        const items = input.itemIds
+          ? allItems.filter(i => input.itemIds!.includes(i.id))
+          : allItems;
 
         let created = 0;
         let skipped = 0;

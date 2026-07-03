@@ -22762,8 +22762,11 @@ EXAMPLE OUTPUT (exact format):
       }
       return { success: true };
     }),
-    /** 商戶：批量匯出場次商品至拍賣主頁 */
-    batchExportToMainAuction: protectedProcedure.input(z2.object({ roundId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
+    /** 商戶：批量匯出場次商品至拍賣主頁（可指定 itemIds 做個別匯出） */
+    batchExportToMainAuction: protectedProcedure.input(z2.object({
+      roundId: z2.number().int().positive(),
+      itemIds: z2.array(z2.number().int().positive()).optional()
+    })).mutation(async ({ input, ctx }) => {
       const db = await getDb();
       const [round] = await db.select().from(groupAuctionRounds).where(eq8(groupAuctionRounds.id, input.roundId)).limit(1);
       if (!round) throw new TRPCError3({ code: "NOT_FOUND", message: "\u5834\u6B21\u4E0D\u5B58\u5728" });
@@ -22781,7 +22784,8 @@ EXAMPLE OUTPUT (exact format):
         if (lotCol) lotNoKey = lotCol.key;
       } catch {
       }
-      const items = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.roundId, input.roundId));
+      const allItems = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.roundId, input.roundId));
+      const items = input.itemIds ? allItems.filter((i) => input.itemIds.includes(i.id)) : allItems;
       let created = 0;
       let skipped = 0;
       for (const item of items) {

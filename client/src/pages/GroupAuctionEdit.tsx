@@ -235,6 +235,8 @@ export default function GroupAuctionEdit() {
   // 批量刪除
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  // 批量匯出至主頁
+  const [exportSelectMode, setExportSelectMode] = useState(false);
   // 批量改價
   const [bulkPriceMode, setBulkPriceMode] = useState(false);
   const [bulkStartPrice, setBulkStartPrice] = useState("");
@@ -335,6 +337,21 @@ export default function GroupAuctionEdit() {
       refetch();
     },
     onError: (e) => toast.error(e.message || "批量刪除失敗"),
+  });
+  const exportItemsMut = trpc.groupAuctions.batchExportToMainAuction.useMutation({
+    onSuccess: (data: any) => {
+      const created = data?.created ?? 0;
+      const skipped = data?.skipped ?? 0;
+      if (created > 0) {
+        toast.success(`成功匯出 ${created} 件至拍賣主頁${skipped > 0 ? `（${skipped} 件已匯出，略過）` : ""}`);
+      } else {
+        toast.info("全部已匯出（無新商品）");
+      }
+      setExportSelectMode(false);
+      setSelectedIds(new Set());
+      refetch();
+    },
+    onError: (e: any) => { toast.error(e.message || "匯出失敗"); setExportSelectMode(false); },
   });
   const relistAsGroupDraftMut = trpc.groupAuctions.relistAsGroupDraft.useMutation({
     onSuccess: (d) => {
@@ -1392,7 +1409,7 @@ export default function GroupAuctionEdit() {
           <div className="space-y-4">
             {/* 工具列 */}
             <div className="flex gap-2 items-center overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-              {!selectMode && !bulkPriceMode ? (
+              {!selectMode && !bulkPriceMode && !exportSelectMode ? (
                 <>
                   <button
                     onClick={() => setShowCsvImport(true)}
@@ -1439,6 +1456,41 @@ export default function GroupAuctionEdit() {
                       套用場次預設加價至所有商品
                     </button>
                   )}
+                  {round?.status === "published" && items.length > 0 && (
+                    <button
+                      onClick={() => { setExportSelectMode(true); setSelectedIds(new Set()); }}
+                      className="flex items-center gap-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 rounded-xl"
+                    >
+                      <Upload className="w-4 h-4" /> 匯出至主頁
+                    </button>
+                  )}
+                </>
+              ) : exportSelectMode ? (
+                <>
+                  <button
+                    onClick={() => {
+                      if (selectedIds.size === items.length) setSelectedIds(new Set());
+                      else setSelectedIds(new Set(items.map(i => i.id)));
+                    }}
+                    className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-xl"
+                  >
+                    {selectedIds.size === items.length ? <CheckSquare className="w-3.5 h-3.5 text-indigo-500" /> : <Square className="w-3.5 h-3.5" />}
+                    {selectedIds.size === items.length ? "取消全選" : `全選 (${items.length})`}
+                  </button>
+                  <button
+                    onClick={() => exportItemsMut.mutate({ roundId: roundId!, itemIds: selectedIds.size > 0 ? Array.from(selectedIds) : undefined })}
+                    disabled={exportItemsMut.isPending}
+                    className="flex items-center gap-1.5 text-xs bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-xl disabled:opacity-60"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {exportItemsMut.isPending ? "匯出中…" : selectedIds.size > 0 ? `匯出 ${selectedIds.size} 件` : "匯出全部"}
+                  </button>
+                  <button
+                    onClick={() => { setExportSelectMode(false); setSelectedIds(new Set()); }}
+                    className="flex items-center gap-1 text-xs text-gray-500 px-3 py-1.5 rounded-xl bg-gray-100"
+                  >
+                    <X className="w-3.5 h-3.5" /> 取消
+                  </button>
                 </>
               ) : selectMode ? (
                 <>
@@ -1845,12 +1897,13 @@ export default function GroupAuctionEdit() {
                       isEditing ? "border-amber-300 bg-amber-50" :
                       isSelected && selectMode ? "border-red-300 bg-red-50" :
                       isSelected && bulkPriceMode ? "border-blue-300 bg-blue-50" :
+                      isSelected && exportSelectMode ? "border-indigo-300 bg-indigo-50" :
                       "bg-white border-gray-100"
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       {/* 多選 checkbox */}
-                      {(selectMode || bulkPriceMode) && (
+                      {(selectMode || bulkPriceMode || exportSelectMode) && (
                         <button
                           onClick={() => {
                             const next = new Set(selectedIds);
@@ -1861,7 +1914,7 @@ export default function GroupAuctionEdit() {
                           className="flex-shrink-0"
                         >
                           {isSelected
-                            ? <CheckSquare className={`w-4 h-4 ${bulkPriceMode ? "text-blue-500" : "text-red-500"}`} />
+                            ? <CheckSquare className={`w-4 h-4 ${bulkPriceMode ? "text-blue-500" : exportSelectMode ? "text-indigo-500" : "text-red-500"}`} />
                             : <Square className="w-4 h-4 text-gray-300" />
                           }
                         </button>
@@ -1870,7 +1923,7 @@ export default function GroupAuctionEdit() {
                       <span className="text-xs text-gray-400 w-6 text-center flex-shrink-0">{idx + 1}</span>
 
                       <div className="flex-1 min-w-0" onClick={() => {
-                        if (selectMode || bulkPriceMode) {
+                        if (selectMode || bulkPriceMode || exportSelectMode) {
                           const next = new Set(selectedIds);
                           if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
                           setSelectedIds(next);
@@ -1917,7 +1970,12 @@ export default function GroupAuctionEdit() {
                         </p>
                       </div>
 
-                      {!selectMode && !isEnded && (
+                      {/* 已匯出徽章（只在非選取模式顯示） */}
+                      {!selectMode && !bulkPriceMode && !exportSelectMode && (item as any).linkedAuctionId && (
+                        <span className="flex-shrink-0 text-xs bg-indigo-50 text-indigo-500 border border-indigo-100 px-1.5 py-0.5 rounded-md">已匯出</span>
+                      )}
+
+                      {!selectMode && !exportSelectMode && !isEnded && (
                         <div className="flex gap-1 flex-shrink-0">
                           <button
                             onClick={() => {
@@ -1957,6 +2015,16 @@ export default function GroupAuctionEdit() {
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                          {round?.status === "published" && !(item as any).linkedAuctionId && (
+                            <button
+                              onClick={() => exportItemsMut.mutate({ roundId: roundId!, itemIds: [item.id] })}
+                              disabled={exportItemsMut.isPending}
+                              title="匯出至主頁拍賣"
+                              className="p-1.5 text-indigo-400 hover:text-indigo-600 disabled:opacity-40"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
