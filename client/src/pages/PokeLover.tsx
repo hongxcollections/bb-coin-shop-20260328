@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { toast } from "sonner";
-import { Upload, Loader2, Search, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star, AlertTriangle, RefreshCcw, BookmarkPlus, Bookmark, BookOpen, DollarSign, ChevronRight, Images, Tag } from "lucide-react";
+import { Upload, Loader2, Search, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star, AlertTriangle, RefreshCcw, BookmarkPlus, Bookmark, BookOpen, Banknote, ChevronRight, ChevronDown, Images, ShoppingBag } from "lucide-react";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -606,6 +606,7 @@ export default function CardZzz() {
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [historySelectMode, setHistorySelectMode] = useState(false);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
+  const [historyOpen, setHistoryOpen] = useState(true);
 
   // Load history from localStorage (per-user key)
   useEffect(() => { setHistory(loadHistory(user?.id)); }, [user?.id]);
@@ -917,16 +918,22 @@ export default function CardZzz() {
             <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#CC0000" }}>
               CardZzz
             </h1>
-            <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>AI 智能 CardZzz 卡片鑑定 · 市場估價</p>
+            <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>AI 智能 CardZzz 卡片鑑定 · 交易市場</p>
           </div>
         </div>
 
-        {/* A1 — 最近分析記錄（橫向捲動） */}
+        {/* A1 — 最近分析記錄（橫向捲動，可伸縮） */}
         {history.length > 0 && !imagePreview && !isAnalyzing && (
           <div data-share-skip="true" className="mb-4 mt-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold" style={{ color: "#9ca3af" }}>最近記錄</p>
-              {!historySelectMode ? (
+              <button
+                onClick={() => { setHistoryOpen(v => !v); if (historyOpen) { setHistorySelectMode(false); setSelectedHistoryIds(new Set()); } }}
+                className="flex items-center gap-1"
+              >
+                <p className="text-[10px] font-bold" style={{ color: "#9ca3af" }}>最近記錄</p>
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${historyOpen ? "rotate-180" : ""}`} style={{ color: "#9ca3af" }} />
+              </button>
+              {historyOpen && (!historySelectMode ? (
                 <button onClick={() => { setHistorySelectMode(true); setSelectedHistoryIds(new Set()); }}
                   className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: "#9ca3af", border: "1px solid #e5e7eb" }}>
                   管理
@@ -950,9 +957,9 @@ export default function CardZzz() {
                   <button onClick={() => { setHistorySelectMode(false); setSelectedHistoryIds(new Set()); }}
                     className="text-[10px]" style={{ color: "#9ca3af" }}>取消</button>
                 </div>
-              )}
+              ))}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {historyOpen && <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               {history.slice(0, 10).map(item => {
                 const isSelected = selectedHistoryIds.has(item.id);
                 return (
@@ -996,7 +1003,30 @@ export default function CardZzz() {
                   </button>
                 );
               })}
-            </div>
+            </div>}
+          </div>
+        )}
+
+        {!imagePreview && !isAnalyzing && (
+          <div data-share-skip="true" className="flex gap-2 mb-4">
+            <button
+              onClick={() => navigate("/cardzzz/market")}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
+              style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.35)", color: "#111827" }}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              交易市場
+            </button>
+            {isAuthenticated && (
+              <button
+                onClick={() => navigate("/cardzzz/market/sell")}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
+                style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}
+              >
+                <Banknote className="w-4 h-4" />
+                出售卡牌
+              </button>
+            )}
           </div>
         )}
 
@@ -1057,29 +1087,6 @@ export default function CardZzz() {
           </div>
         </div>
 
-        {!imagePreview && !isAnalyzing && (
-          <div data-share-skip="true" className="flex gap-2 mt-4 mb-2">
-            <button
-              onClick={() => navigate("/cardzzz/market")}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
-              style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.35)", color: "#111827" }}
-            >
-              <Tag className="w-4 h-4" />
-              交易市場
-            </button>
-            {isAuthenticated && (
-              <button
-                onClick={() => navigate("/cardzzz/market/sell")}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
-                style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}
-              >
-                <DollarSign className="w-4 h-4" />
-                出售卡牌
-              </button>
-            )}
-          </div>
-        )}
-
         {imagePreview && !isAnalyzing && (
           <div data-share-skip="true" className="flex gap-2 mb-4">
             <button
@@ -1097,7 +1104,7 @@ export default function CardZzz() {
             {isAuthenticated && (
               <div className="ml-auto flex items-center gap-1.5">
                 <button onClick={() => navigate("/cardzzz/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)", color: "#111827" }}>
-                  <DollarSign className="w-3.5 h-3.5" />
+                  <Banknote className="w-3.5 h-3.5" />
                   出售
                 </button>
                 <button onClick={() => navigate("/cardzzz/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}>
@@ -1679,7 +1686,7 @@ export default function CardZzz() {
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #333", flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: 20, fontWeight: 900, color: "#FFDE00", lineHeight: 1 }}>CardZzz</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 CardZzz 卡片鑑定 · 市場估價</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 CardZzz 卡片鑑定 · 交易市場</div>
             </div>
           </div>
 
