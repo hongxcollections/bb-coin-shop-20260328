@@ -596,14 +596,14 @@ interface GroupAuctionShareMenuProps {
   title: string;
   endAt?: string | Date | null;
   iconOnly?: boolean;
+  heroStyle?: boolean;
 }
 
-export function GroupAuctionShareMenu({ roundId, title, endAt, iconOnly }: GroupAuctionShareMenuProps) {
+export function GroupAuctionShareMenu({ roundId, title, endAt, iconOnly, heroStyle }: GroupAuctionShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-
   const roundUrl = `${SHARE_ORIGIN}/group/${roundId}`;
   let endStr = "";
   if (endAt) {
@@ -708,13 +708,15 @@ export function GroupAuctionShareMenu({ roundId, title, endAt, iconOnly }: Group
         type="button"
         onClick={handleOpen}
         title="分享"
-        className={iconOnly
-          ? "flex items-center justify-center w-9 h-9 text-white bg-black/45 hover:bg-black/60 rounded-full backdrop-blur transition-colors shadow-lg"
-          : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+        className={heroStyle
+          ? "flex items-center gap-1.5 text-white bg-black/35 hover:bg-black/55 backdrop-blur rounded-full px-2.5 py-1 transition-colors shadow"
+          : iconOnly
+            ? "flex items-center justify-center w-9 h-9 text-white bg-black/45 hover:bg-black/60 rounded-full backdrop-blur transition-colors shadow-lg"
+            : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
         }
       >
-        <Share2 className={iconOnly ? "w-4 h-4" : "w-3 h-3"} />
-        {!iconOnly && "分享"}
+        <Share2 className={heroStyle ? "w-3.5 h-3.5" : iconOnly ? "w-4 h-4" : "w-3 h-3"} />
+        <span className={heroStyle ? "text-[11px] font-semibold" : iconOnly ? "sr-only" : "text-xs"}>分享</span>
       </button>
 
       {open && menuPos && (

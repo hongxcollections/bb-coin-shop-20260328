@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Clock, ExternalLink, LayoutGrid, LayoutList } from "lucide-react";
+import { GroupAuctionShareMenu } from "./ShareMenu";
 
 export interface LiveRound {
   id: number;
@@ -369,19 +370,27 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
-                <span className="text-white/80 text-[11px] font-semibold">全部</span>
-                <span className="text-white text-[13px] font-black">{round.totalItems}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
+                  <span className="text-white/80 text-[11px] font-semibold">全部</span>
+                  <span className="text-white text-[13px] font-black">{round.totalItems}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-amber-400/25 rounded-full px-2.5 py-0.5">
+                  <span className="text-amber-200 text-[11px] font-semibold">已出價</span>
+                  <span className="text-white text-[13px] font-black">{round.biddedItems}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
+                  <span className="text-white/80 text-[11px] font-semibold">用戶</span>
+                  <span className="text-white text-[13px] font-black">{round.uniqueBidders}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1 bg-amber-400/25 rounded-full px-2.5 py-0.5">
-                <span className="text-amber-200 text-[11px] font-semibold">已出價</span>
-                <span className="text-white text-[13px] font-black">{round.biddedItems}</span>
-              </div>
-              <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
-                <span className="text-white/80 text-[11px] font-semibold">用戶</span>
-                <span className="text-white text-[13px] font-black">{round.uniqueBidders}</span>
-              </div>
+              <GroupAuctionShareMenu
+                roundId={round.id}
+                title={round.title}
+                endAt={round.endAt}
+                heroStyle
+              />
             </div>
           </div>
         </a>

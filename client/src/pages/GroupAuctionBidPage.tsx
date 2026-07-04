@@ -589,7 +589,7 @@ export default function GroupAuctionBidPage() {
                       roundId={roundId}
                       title={round.title}
                       endAt={round.endAt as string | null}
-                      iconOnly
+                      heroStyle
                     />
                   </div>
                 </div>
