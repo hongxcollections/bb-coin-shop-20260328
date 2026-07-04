@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Clock, ChevronUp, ChevronDown, ExternalLink, Trophy, AlertCircle, LayoutGrid, LayoutList, Bot, X } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import Header from "@/components/Header";
-import { GroupAuctionItemShareMenu } from "@/components/ShareMenu";
+import { GroupAuctionItemShareMenu, GroupAuctionShareMenu } from "@/components/ShareMenu";
 
 type ColumnDef = { key: string; label: string; role: string; showOnBidPage?: boolean };
 
@@ -562,7 +562,7 @@ export default function GroupAuctionBidPage() {
                   </span>
                 </div>
 
-                {/* 統計 + 總需付 */}
+                {/* 統計 + 總需付 + 分享 */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
@@ -578,12 +578,20 @@ export default function GroupAuctionBidPage() {
                       <span className="text-white text-[13px] font-black">{new Set(items.filter(i => i.topBidderId !== null).map(i => i.topBidderId)).size}</span>
                     </div>
                   </div>
-                  {user && myTotalAmount > 0 && (
-                    <div className="text-right leading-tight">
-                      <p className="text-white/75 text-[10px]">總需付</p>
-                      <p style={{ fontSize: "20px" }} className="text-white font-bold leading-none">{displayPrice(myTotalAmount)}</p>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {user && myTotalAmount > 0 && (
+                      <div className="text-right leading-tight">
+                        <p className="text-white/75 text-[10px]">總需付</p>
+                        <p style={{ fontSize: "20px" }} className="text-white font-bold leading-none">{displayPrice(myTotalAmount)}</p>
+                      </div>
+                    )}
+                    <GroupAuctionShareMenu
+                      roundId={roundId}
+                      title={round.title}
+                      endAt={round.endAt as string | null}
+                      iconOnly
+                    />
+                  </div>
                 </div>
               </div>
             </div>
