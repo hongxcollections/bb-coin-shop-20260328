@@ -403,36 +403,29 @@ export default function CardMarketSell() {
                         無法載入系列，請切換「搜尋」模式
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1" style={{ scrollbarWidth: "none" }}>
+                      <div className="grid grid-cols-3 gap-2 max-h-[60vh] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
                         {(setsQuery.data as SetResult[] ?? []).map(s => (
                           <button
                             key={s.setId}
                             onClick={() => handleSelectSet(s)}
-                            className="flex items-center gap-3 p-3 rounded-xl text-left transition-all"
+                            className="flex flex-col items-center p-2 rounded-xl text-center transition-all"
                             style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                           >
                             {s.logoUrl ? (
                               <img
                                 src={s.logoUrl}
                                 alt={s.name}
-                                className="flex-shrink-0 object-contain"
-                                style={{ width: 56, height: 32 }}
+                                className="object-contain mb-1.5"
+                                style={{ width: "100%", height: 36 }}
                                 onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                               />
                             ) : (
-                              <div className="flex-shrink-0 flex items-center justify-center rounded-lg" style={{ width: 56, height: 32, background: "#f3f4f6" }}>
+                              <div className="flex items-center justify-center mb-1.5 rounded-lg w-full" style={{ height: 36, background: "#f3f4f6" }}>
                                 <span style={{ fontSize: 18 }}>🃏</span>
                               </div>
                             )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold leading-tight line-clamp-1" style={{ color: "#111827" }}>{s.name}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {s.series && <span className="text-[10px]" style={{ color: "#9ca3af" }}>{s.series}</span>}
-                                {s.total && <span className="text-[10px]" style={{ color: "#9ca3af" }}>{s.total} 張</span>}
-                                {s.releaseDate && <span className="text-[10px]" style={{ color: "#d1d5db" }}>{s.releaseDate.substring(0, 7)}</span>}
-                              </div>
-                            </div>
-                            <ChevronLeft className="w-3 h-3 flex-shrink-0 rotate-180" style={{ color: "#d1d5db" }} />
+                            <p className="text-[10px] font-bold leading-tight line-clamp-2 w-full" style={{ color: "#111827" }}>{s.name}</p>
+                            {s.releaseDate && <span className="text-[9px] mt-0.5" style={{ color: "#d1d5db" }}>{s.releaseDate.substring(0, 7)}</span>}
                           </button>
                         ))}
                       </div>
