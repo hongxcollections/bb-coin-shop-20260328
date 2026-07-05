@@ -723,29 +723,29 @@ export function GroupAuctionShareMenu({ roundId, title, endAt, iconOnly, heroSty
         <div
           className="fixed z-[9999] w-44 bg-white rounded-xl shadow-xl border border-sky-100 py-1"
           style={{ top: menuPos.top, left: menuPos.left }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
           <div className="flex items-center justify-between px-3 py-1.5 border-b border-sky-50">
             <span className="text-[0.65rem] font-semibold text-sky-700 uppercase tracking-wide">分享至</span>
-            <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-0.5">
+            <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(false); }} className="text-muted-foreground hover:text-foreground p-0.5">
               <X className="w-3 h-3" />
             </button>
           </div>
-          <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-sky-50/80 hover:text-sky-700">
+          <button type="button" onClick={(e) => { e.stopPropagation(); handleMoreShare(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-sky-50/80 hover:text-sky-700">
             <MoreHorizontal className="w-4 h-4 shrink-0" />更多… ( FB,TG,微信.. )
           </button>
-          <button type="button" onClick={handleMessenger} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
+          <button type="button" onClick={(e) => { e.stopPropagation(); handleMessenger(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
             <MessengerIcon />Facebook Messenger
           </button>
-          <button type="button" onClick={handleWhatsApp} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#25D366]/10 hover:text-[#25D366]">
+          <button type="button" onClick={(e) => { e.stopPropagation(); handleWhatsApp(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#25D366]/10 hover:text-[#25D366]">
             <WhatsAppIcon />WhatsApp
           </button>
-          <button type="button" onClick={handleThreads} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black">
+          <button type="button" onClick={(e) => { e.stopPropagation(); handleThreads(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black">
             <ThreadsIcon />Threads
           </button>
           <div className="my-1 border-t border-sky-50" />
-          <button type="button" onClick={handleCopy} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-sky-50/80 hover:text-sky-700 transition-colors">
+          <button type="button" onClick={(e) => { e.stopPropagation(); handleCopy(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-sky-50/80 hover:text-sky-700 transition-colors">
             {copied ? <Check className="w-4 h-4 text-green-500 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
             {copied ? "已複製！" : "複製連結"}
           </button>
