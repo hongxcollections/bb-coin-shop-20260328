@@ -470,7 +470,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
     setContacting(true);
     try {
       const { roomId } = await openRoomMut.mutateAsync({ listingId: listing.id });
-      const from = encodeURIComponent(`/card-market?listing=${listing.id}`);
+      const from = encodeURIComponent(`/cardzzz/market?listing=${listing.id}`);
       navigate(`/messages/${roomId}?from=${from}`);
     } catch (e: any) {
       toast.error(e?.message ?? "無法開啟對話，請稍後再試");
