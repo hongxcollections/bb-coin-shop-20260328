@@ -6728,11 +6728,11 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
          r.lastMessagePreview, r.lastMessageAt, r.isArchived,
          a.title as auctionTitle, a.status as auctionStatus,
          a.endTime as auctionEndTime, a.currentPrice as auctionCurrentPrice, a.currency as auctionCurrency,
-         (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as auctionThumbUrl,
+         CASE WHEN a.id IS NOT NULL THEN (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) ELSE NULL END as auctionThumbUrl,
          CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END as otherUserId,
          u.name as otherUserName, u.photoUrl as otherUserPhotoUrl
        FROM auctionChatRooms r
-       JOIN auctions a ON a.id = r.auctionId
+       LEFT JOIN auctions a ON a.id = r.auctionId
        LEFT JOIN users u ON u.id = (CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END)
        WHERE (r.bidderId = ? OR r.merchantId = ?)
          AND (
@@ -6745,14 +6745,15 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
     );
     const now = Date.now();
     return rows.map((r: any) => {
+      const isCardTrade = Number(r.auctionId) < 0;
       const endMs = r.auctionEndTime ? new Date(r.auctionEndTime).getTime() : null;
-      const ended = r.auctionStatus === 'ended' || (endMs !== null && endMs < now);
+      const ended = !isCardTrade && (r.auctionStatus === 'ended' || (endMs !== null && endMs < now));
       return {
         id: r.id,
         auctionId: r.auctionId,
-        auctionTitle: r.auctionTitle,
-        auctionThumbUrl: r.auctionThumbUrl,
-        auctionStatus: r.auctionStatus,
+        auctionTitle: isCardTrade ? '卡牌交易洽購' : (r.auctionTitle ?? '對話'),
+        auctionThumbUrl: r.auctionThumbUrl ?? null,
+        auctionStatus: isCardTrade ? 'active' : (r.auctionStatus ?? 'active'),
         auctionEndTime: r.auctionEndTime ?? null,
         auctionCurrentPrice: r.auctionCurrentPrice ?? null,
         auctionCurrency: r.auctionCurrency ?? null,

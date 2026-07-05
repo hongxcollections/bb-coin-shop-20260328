@@ -6456,11 +6456,11 @@ async function listMyChatRooms(userId) {
          r.lastMessagePreview, r.lastMessageAt, r.isArchived,
          a.title as auctionTitle, a.status as auctionStatus,
          a.endTime as auctionEndTime, a.currentPrice as auctionCurrentPrice, a.currency as auctionCurrency,
-         (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as auctionThumbUrl,
+         CASE WHEN a.id IS NOT NULL THEN (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) ELSE NULL END as auctionThumbUrl,
          CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END as otherUserId,
          u.name as otherUserName, u.photoUrl as otherUserPhotoUrl
        FROM auctionChatRooms r
-       JOIN auctions a ON a.id = r.auctionId
+       LEFT JOIN auctions a ON a.id = r.auctionId
        LEFT JOIN users u ON u.id = (CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END)
        WHERE (r.bidderId = ? OR r.merchantId = ?)
          AND (
@@ -6473,14 +6473,15 @@ async function listMyChatRooms(userId) {
     );
     const now = Date.now();
     return rows.map((r) => {
+      const isCardTrade = Number(r.auctionId) < 0;
       const endMs = r.auctionEndTime ? new Date(r.auctionEndTime).getTime() : null;
-      const ended = r.auctionStatus === "ended" || endMs !== null && endMs < now;
+      const ended = !isCardTrade && (r.auctionStatus === "ended" || endMs !== null && endMs < now);
       return {
         id: r.id,
         auctionId: r.auctionId,
-        auctionTitle: r.auctionTitle,
-        auctionThumbUrl: r.auctionThumbUrl,
-        auctionStatus: r.auctionStatus,
+        auctionTitle: isCardTrade ? "\u5361\u724C\u4EA4\u6613\u6D3D\u8CFC" : r.auctionTitle ?? "\u5C0D\u8A71",
+        auctionThumbUrl: r.auctionThumbUrl ?? null,
+        auctionStatus: isCardTrade ? "active" : r.auctionStatus ?? "active",
         auctionEndTime: r.auctionEndTime ?? null,
         auctionCurrentPrice: r.auctionCurrentPrice ?? null,
         auctionCurrency: r.auctionCurrency ?? null,
