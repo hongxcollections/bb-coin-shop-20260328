@@ -49,7 +49,11 @@ export default function ChatRoom() {
         open={open}
         onOpenChange={(o) => {
           setOpen(o);
-          if (!o) setLocation("/messages");
+          if (!o) {
+            const params = new URLSearchParams(window.location.search);
+            const from = params.get("from");
+            setLocation(from && from.startsWith("/") ? from : "/messages");
+          }
         }}
       />
     </>

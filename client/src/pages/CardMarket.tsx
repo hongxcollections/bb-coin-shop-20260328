@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -470,8 +470,8 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
     setContacting(true);
     try {
       const { roomId } = await openRoomMut.mutateAsync({ listingId: listing.id });
-      onClose();
-      navigate(`/messages/${roomId}`);
+      const from = encodeURIComponent(`/card-market?listing=${listing.id}`);
+      navigate(`/messages/${roomId}?from=${from}`);
     } catch (e: any) {
       toast.error(e?.message ?? "無法開啟對話，請稍後再試");
     } finally {
@@ -619,6 +619,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
 
 export default function CardMarket() {
   const [, navigate] = useLocation();
+  const searchStr = useSearch();
   const { isAuthenticated } = useAuth();
   const [game, setGame] = useState("");
   const [search, setSearch] = useState("");
@@ -632,6 +633,16 @@ export default function CardMarket() {
     limit: 50,
     offset: 0,
   }, { staleTime: 30000 });
+
+  // Auto-open listing if URL has ?listing=<id> (e.g. returning from chat)
+  useEffect(() => {
+    if (!searchStr || allListings.length === 0 || selectedListing) return;
+    const params = new URLSearchParams(searchStr);
+    const listingId = params.get("listing");
+    if (!listingId) return;
+    const found = (allListings as Listing[]).find(l => String(l.id) === listingId);
+    if (found) setSelectedListing(found);
+  }, [searchStr, allListings]);
 
   const { data: wtbs = [] } = trpc.cardTrading.getWTBs.useQuery({
     game: game || undefined,
