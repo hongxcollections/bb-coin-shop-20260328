@@ -724,6 +724,7 @@ export function GroupAuctionShareMenu({ roundId, title, endAt, iconOnly, heroSty
           className="fixed z-[9999] w-44 bg-white rounded-xl shadow-xl border border-sky-100 py-1"
           style={{ top: menuPos.top, left: menuPos.left }}
           onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-3 py-1.5 border-b border-sky-50">
             <span className="text-[0.65rem] font-semibold text-sky-700 uppercase tracking-wide">分享至</span>
