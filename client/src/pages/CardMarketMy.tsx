@@ -319,11 +319,13 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
 function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () => void }) {
   const confirm = useConfirm();
   const [editOpen, setEditOpen] = useState(false);
+  const [lbIdx, setLbIdx] = useState<number | null>(null);
   const removeMut = trpc.cardTrading.removeListing.useMutation();
   const markSoldMut = trpc.cardTrading.markSold.useMutation();
   const relistMut = trpc.cardTrading.relistListing.useMutation();
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#7c3aed" };
-  const img = listing.photoUrls[0] ?? listing.officialImageUrl;
+  const photos = listing.photoUrls.length ? listing.photoUrls : (listing.officialImageUrl ? [listing.officialImageUrl] : []);
+  const img = photos[0] ?? null;
 
   const cardInfo = `${listing.cardName}｜HKD $${listing.priceHKD.toLocaleString()}`;
 
@@ -360,9 +362,18 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   return (
     <>
       {editOpen && <EditPriceSheet listing={listing} onClose={() => setEditOpen(false)} onSaved={onRefresh} />}
+      {lbIdx !== null && createPortal(
+        <ImageLightbox images={photos} initialIndex={lbIdx} onClose={() => setLbIdx(null)} bottomInset={80} />,
+        document.body
+      )}
       <div className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
         {img ? (
-          <img src={img} alt="" className="rounded-xl flex-shrink-0 object-cover" style={{ width: 48, height: 66 }} />
+          <img
+            src={img} alt=""
+            className="rounded-xl flex-shrink-0 object-cover cursor-pointer active:opacity-80"
+            style={{ width: 48, height: 66 }}
+            onClick={() => setLbIdx(0)}
+          />
         ) : (
           <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 48, height: 66, background: "#f8f9fa" }}>
             <span style={{ fontSize: 24 }}>🃏</span>

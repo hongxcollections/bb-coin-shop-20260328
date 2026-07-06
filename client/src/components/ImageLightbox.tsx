@@ -6,9 +6,10 @@ interface ImageLightboxProps {
   initialIndex?: number;
   alt?: string;
   onClose: () => void;
+  bottomInset?: number;
 }
 
-export default function ImageLightbox({ images, initialIndex = 0, onClose }: ImageLightboxProps) {
+export default function ImageLightbox({ images, initialIndex = 0, onClose, bottomInset = 0 }: ImageLightboxProps) {
   const [lbImgIdx, setLbImgIdx] = useState(initialIndex);
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
@@ -122,7 +123,7 @@ export default function ImageLightbox({ images, initialIndex = 0, onClose }: Ima
   function resetLb() { setLbZoom(1); lbZoomRef.current=1; setLbPanX(0); setLbPanY(0); setLbVZoomIdx(-1); lbVZoomIdxRef.current=-1; }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: 'rgba(0,0,0,0.97)' }}>
+    <div className="fixed z-[9999] flex flex-col" style={{ top: 0, left: 0, right: 0, bottom: bottomInset, background: 'rgba(0,0,0,0.97)' }}>
       <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
         <p className="text-white/50 text-xs flex-1">{lbImgIdx + 1} / {images.length}</p>
         {images.length > 1 && (
