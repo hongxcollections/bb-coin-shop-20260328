@@ -1048,7 +1048,7 @@ export default function CardMarketSell() {
                 <span className="text-sm">收藏</span>
               </button>
 
-              {/* 分享 */}
+              {/* 分享 icon only */}
               <button
                 onClick={() => {
                   const text = [previewCard.cardName, previewCard.setName, previewCard.setNumber].filter(Boolean).join(" · ");
@@ -1058,14 +1058,13 @@ export default function CardMarketSell() {
                     navigator.clipboard?.writeText(text).then(() => toast.success("已複製卡牌資訊"));
                   }
                 }}
-                className="flex-1 py-3 px-3 rounded-2xl font-bold flex items-center justify-center gap-1.5"
+                className="py-3 px-4 rounded-2xl font-bold flex items-center justify-center"
                 style={{ background: "#fff", color: "#111827", border: "1px solid #e5e7eb" }}
               >
-                <Share2 className="w-4 h-4 flex-shrink-0" style={{ color: "#6b7280" }} />
-                <span className="text-sm">分享</span>
+                <Share2 className="w-5 h-5" style={{ color: "#6b7280" }} />
               </button>
 
-              {/* 我要賣這張卡 */}
+              {/* 我要賣卡 */}
               <button
                 onClick={() => {
                   setMode("sell");
@@ -1073,11 +1072,10 @@ export default function CardMarketSell() {
                   setStep(3);
                   setPreviewCard(null);
                 }}
-                className="rounded-2xl font-black flex items-center justify-center gap-1.5"
+                className="rounded-2xl font-black flex items-center justify-center"
                 style={{ flex: 2, paddingTop: 12, paddingBottom: 12, paddingLeft: 12, paddingRight: 12, background: "#F97316", color: "#fff" }}
               >
-                <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>🏷️</span>
-                <span className="text-sm leading-tight">我要賣這張卡</span>
+                <span className="text-sm">我要賣卡</span>
               </button>
             </div>
           </div>
