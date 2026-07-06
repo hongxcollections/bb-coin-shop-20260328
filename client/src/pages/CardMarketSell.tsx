@@ -319,14 +319,20 @@ export default function CardMarketSell() {
         {/* Mode toggle */}
         <div className="flex gap-2 mb-5 p-1 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
           <button
-            onClick={() => { setMode("sell"); setStep(1); }}
+            onClick={() => {
+              setMode("sell");
+              if (!(step === 3 && selectedCard)) setStep(1);
+            }}
             className="flex-1 py-2 rounded-xl font-bold text-sm transition-all"
             style={mode === "sell" ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" } : { color: "#9ca3af" }}
           >
             上架出售
           </button>
           <button
-            onClick={() => { setMode("wtb"); setStep(1); }}
+            onClick={() => {
+              setMode("wtb");
+              if (!(step === 3 && selectedCard)) setStep(1);
+            }}
             className="flex-1 py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
             style={mode === "wtb" ? { background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" } : { color: "#9ca3af" }}
           >
