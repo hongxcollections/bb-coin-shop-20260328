@@ -1033,7 +1033,7 @@ export default function CardMarketSell() {
           {/* Action buttons */}
           <div className="flex-shrink-0 px-4 pt-3" style={{ borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
             <div className="flex gap-2">
-              {/* 加入收藏清單 */}
+              {/* 收藏 */}
               <button
                 onClick={() => {
                   setMode("wtb");
@@ -1041,14 +1041,14 @@ export default function CardMarketSell() {
                   setStep(3);
                   setPreviewCard(null);
                 }}
-                className="flex-1 py-3 px-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
-                style={{ background: "#f8f9fa", color: "#111827", border: "1px solid #e5e7eb" }}
+                className="flex-1 py-3 px-3 rounded-2xl font-bold flex items-center justify-center gap-1.5"
+                style={{ background: "#fff", color: "#111827", border: "1px solid #e5e7eb" }}
               >
                 <Heart className="w-4 h-4 flex-shrink-0" style={{ color: "#dc2626" }} />
-                <span className="text-[11px] leading-tight">加入收藏清單</span>
+                <span className="text-sm">收藏</span>
               </button>
 
-              {/* Share */}
+              {/* 分享 */}
               <button
                 onClick={() => {
                   const text = [previewCard.cardName, previewCard.setName, previewCard.setNumber].filter(Boolean).join(" · ");
@@ -1058,11 +1058,11 @@ export default function CardMarketSell() {
                     navigator.clipboard?.writeText(text).then(() => toast.success("已複製卡牌資訊"));
                   }
                 }}
-                className="py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
-                style={{ background: "#f8f9fa", color: "#111827", border: "1px solid #e5e7eb" }}
+                className="flex-1 py-3 px-3 rounded-2xl font-bold flex items-center justify-center gap-1.5"
+                style={{ background: "#fff", color: "#111827", border: "1px solid #e5e7eb" }}
               >
                 <Share2 className="w-4 h-4 flex-shrink-0" style={{ color: "#6b7280" }} />
-                <span className="text-[11px]">分享</span>
+                <span className="text-sm">分享</span>
               </button>
 
               {/* 我要賣這張卡 */}
@@ -1073,11 +1073,11 @@ export default function CardMarketSell() {
                   setStep(3);
                   setPreviewCard(null);
                 }}
-                className="flex-1 py-3 px-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
-                style={{ background: "linear-gradient(135deg, #FFDE00, #FFB800)", color: "#111827" }}
+                className="rounded-2xl font-black flex items-center justify-center gap-1.5"
+                style={{ flex: 2, paddingTop: 12, paddingBottom: 12, paddingLeft: 12, paddingRight: 12, background: "#F97316", color: "#fff" }}
               >
-                <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>🏷️</span>
-                <span className="text-[11px] leading-tight">我要賣這張卡</span>
+                <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>🏷️</span>
+                <span className="text-sm leading-tight">我要賣這張卡</span>
               </button>
             </div>
           </div>
