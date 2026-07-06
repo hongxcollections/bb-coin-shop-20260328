@@ -114,7 +114,8 @@ export default function CardMarketSell() {
       lbImgRef.current.style.transform = `translate(${lbPanX.current}px,${lbPanY.current}px) scale(${lbZoom.current})`;
     }
   }, []);
-  const closeLb = useCallback(() => { setLbIdx(null); lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; }, []);
+  const [lbSingleImg, setLbSingleImg] = useState<string | null>(null);
+  const closeLb = useCallback(() => { setLbIdx(null); setLbSingleImg(null); lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; }, []);
   const resetLbTransform = () => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; applyTransform(); setLbRender(n=>n+1); };
 
   const [maxPriceStr, setMaxPriceStr] = useState("");
@@ -683,7 +684,12 @@ export default function CardMarketSell() {
             {/* Card preview */}
             <div className="flex items-center gap-3 mb-5 p-3 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               {cardImg ? (
-                <img src={cardImg} alt="" className="rounded-xl object-cover flex-shrink-0" style={{ width: 48, height: 66 }} />
+                <img
+                  src={cardImg} alt=""
+                  className="rounded-xl object-cover flex-shrink-0 cursor-pointer"
+                  style={{ width: 48, height: 66 }}
+                  onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbSingleImg(cardImg); }}
+                />
               ) : (
                 <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 48, height: 66, background: "#f3f4f6" }}>
                   <span style={{ fontSize: 28 }}>🃏</span>
@@ -1134,6 +1140,64 @@ export default function CardMarketSell() {
             </div>
           )}
 
+          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', paddingBottom: 8, flexShrink: 0 }}>兩指放大 / 點背景關閉</p>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Single card image lightbox */}
+    {lbSingleImg && createPortal(
+      <div
+        style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', pointerEvents: 'auto' }}
+        onClick={(e) => { if (e.target === e.currentTarget) closeLb(); }}
+      >
+        <div
+          style={{ position: 'relative', width: '94vw', maxWidth: 480, height: '72vh', background: '#111', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}
+          onTouchStart={(e) => {
+            if (e.touches.length === 2) {
+              e.preventDefault();
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              pinchStartDist.current = Math.sqrt(dx*dx + dy*dy);
+              pinchStartZoom.current = lbZoom.current;
+            } else if (e.touches.length === 1) {
+              panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+              panStartOffset.current = { x: lbPanX.current, y: lbPanY.current };
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length === 2) {
+              e.preventDefault();
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const dist = Math.sqrt(dx*dx + dy*dy);
+              lbZoom.current = Math.min(6, Math.max(1, pinchStartZoom.current * dist / pinchStartDist.current));
+              applyTransform();
+              setLbRender(n => n+1);
+            } else if (e.touches.length === 1 && lbZoom.current > 1) {
+              e.preventDefault();
+              lbPanX.current = panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x;
+              lbPanY.current = panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y;
+              applyTransform();
+            }
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '10px 14px 8px', flexShrink: 0, gap: 8 }}>
+            {lbZoom.current > 1 && (
+              <button onClick={resetLbTransform} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>重設</button>
+            )}
+            <button onClick={closeLb} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 20, padding: '5px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>關閉</button>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px 10px' }}>
+            <img
+              ref={lbImgRef}
+              src={lbSingleImg}
+              alt=""
+              draggable={false}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, display: 'block', userSelect: 'none', pointerEvents: 'none', transformOrigin: 'center center', willChange: 'transform' }}
+            />
+          </div>
           <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', paddingBottom: 8, flexShrink: 0 }}>兩指放大 / 點背景關閉</p>
         </div>
       </div>,
