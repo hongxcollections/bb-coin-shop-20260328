@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import ImageLightbox from "@/components/ImageLightbox";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
@@ -58,6 +60,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
   const [condition, setCondition] = useState(listing.condition as "NM" | "LP" | "MP" | "HP" | "DMG");
   const [isGraded, setIsGraded] = useState(listing.isGraded);
   const [gradingOrg, setGradingOrg] = useState(listing.gradingOrg ?? "PSA");
+  const [lbIdx, setLbIdx] = useState<number | null>(null);
   const [gradeScore, setGradeScore] = useState(listing.gradeScore ?? "");
   const [priceStr, setPriceStr] = useState(String(listing.priceHKD));
   const [desc, setDesc] = useState(listing.description ?? "");
@@ -132,7 +135,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
           </button>
         </div>
         {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1 px-4 pb-6 flex flex-col gap-4">
+        <div className="overflow-y-auto flex-1 px-4 pb-6 space-y-4">
 
           {/* Photos */}
           <div>
@@ -140,7 +143,11 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
             <div className="flex gap-2 flex-wrap">
               {photos.map((url, i) => (
                 <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={url} alt=""
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={() => setLbIdx(i)}
+                  />
                   <button
                     onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
                     className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
@@ -300,6 +307,11 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
           </div>
         </div>
       </div>
+
+      {lbIdx !== null && createPortal(
+        <ImageLightbox images={photos} initialIndex={lbIdx} onClose={() => setLbIdx(null)} />,
+        document.body
+      )}
     </div>
   );
 }
