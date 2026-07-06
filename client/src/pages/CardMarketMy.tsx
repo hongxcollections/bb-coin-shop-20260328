@@ -515,6 +515,12 @@ export default function CardMarketMy() {
     tab === "sold" ? (soldListings as Listing[]) :
     tab === "removed" ? (removedListings as Listing[]) : [];
 
+  function refetchAll() {
+    refetchActive();
+    refetchSold();
+    refetchRemoved();
+  }
+
   const currentRefresh =
     tab === "active" ? refetchActive :
     tab === "sold" ? refetchSold :
@@ -574,7 +580,7 @@ export default function CardMarketMy() {
               </div>
             ) : (
               currentListings.map(l => (
-                <ListingRow key={l.id} listing={l} onRefresh={currentRefresh} />
+                <ListingRow key={l.id} listing={l} onRefresh={refetchAll} />
               ))
             )}
           </div>
