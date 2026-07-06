@@ -681,6 +681,12 @@ export default function CardMarket() {
       )}
 
       <div className="max-w-lg mx-auto px-[5px] pt-4">
+        {/* Page Title */}
+        <div className="flex items-center gap-1.5 mb-[5px]">
+          <span style={{ fontSize: 15 }}>🃏</span>
+          <span className="font-black" style={{ fontSize: 15, color: "#111827" }}>CardZzz 交易市場</span>
+        </div>
+
         {/* Hero Banner */}
         <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%)" }}>
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)" }} />
