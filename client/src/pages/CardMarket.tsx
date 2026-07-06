@@ -329,7 +329,7 @@ function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }
         )}
         {rarityBadge && (
           <div className="absolute top-1.5 right-1.5">
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.75)", color: "#F97316", border: "1px solid rgba(249,115,22,0.4)" }}>
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "#F97316", color: "#fff" }}>
               {rarityBadge}
             </span>
           </div>
@@ -387,13 +387,13 @@ function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => vo
           </div>
         )}
         <div className="absolute top-1.5 left-1.5">
-          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md" style={{ background: cond.color + "22", color: cond.color, border: `1px solid ${cond.color}55` }}>
+          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md" style={{ background: cond.color, color: "#fff" }}>
             {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.label}
           </span>
         </div>
         {rarityBadge && (
           <div className="absolute top-1.5 right-1.5">
-            <span className="text-[9px] font-black px-1 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.7)", color: "#F97316" }}>
+            <span className="text-[9px] font-black px-1 py-0.5 rounded" style={{ background: "#F97316", color: "#fff" }}>
               {rarityBadge}
             </span>
           </div>
@@ -554,7 +554,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
                   </span>
                 )}
                 {rarityBadge && (
-                  <span className="inline-block text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
+                  <span className="inline-block text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "#F97316", color: "#fff" }}>
                     {rarityBadge}
                   </span>
                 )}
@@ -570,7 +570,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
 
           {/* Info pills */}
           <div className="flex flex-wrap gap-2 mb-3">
-            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: cond.color + "18", color: cond.color, border: `1px solid ${cond.color}44` }}>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: cond.color, color: "#fff" }}>
               {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
             </span>
             {listing.deliveryMethod && (
