@@ -321,6 +321,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   const [editOpen, setEditOpen] = useState(false);
   const removeMut = trpc.cardTrading.removeListing.useMutation();
   const markSoldMut = trpc.cardTrading.markSold.useMutation();
+  const relistMut = trpc.cardTrading.relistListing.useMutation();
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#7c3aed" };
   const img = listing.photoUrls[0] ?? listing.officialImageUrl;
 
@@ -340,6 +341,16 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
     try {
       await markSoldMut.mutateAsync({ id: listing.id });
       toast.success("已標記為售出");
+      onRefresh();
+    } catch { toast.error("操作失敗"); }
+  }
+
+  async function handleRelist() {
+    const ok = await confirm({ title: "重新上架？", description: "此記錄將重新顯示在市場。", confirmText: "確認上架" });
+    if (!ok) return;
+    try {
+      await relistMut.mutateAsync({ id: listing.id });
+      toast.success("已重新上架");
       onRefresh();
     } catch { toast.error("操作失敗"); }
   }
@@ -384,10 +395,26 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
           </div>
         )}
         {listing.status === "sold" && (
-          <span className="text-[10px] font-black px-2 py-1 rounded-full flex-shrink-0" style={{ background: "rgba(22,163,74,0.1)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.2)" }}>已售出</span>
+          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+            <span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ background: "rgba(22,163,74,0.1)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.2)" }}>已售出</span>
+            <button
+              onClick={handleRelist}
+              disabled={relistMut.isPending}
+              className="text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap"
+              style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none" }}
+            >重新上架</button>
+          </div>
         )}
         {listing.status === "removed" && (
-          <span className="text-[10px] font-black px-2 py-1 rounded-full flex-shrink-0" style={{ background: "#f3f4f6", color: "#9ca3af", border: "1px solid #e5e7eb" }}>已下架</span>
+          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+            <span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#9ca3af", border: "1px solid #e5e7eb" }}>已下架</span>
+            <button
+              onClick={handleRelist}
+              disabled={relistMut.isPending}
+              className="text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap"
+              style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none" }}
+            >重新上架</button>
+          </div>
         )}
       </div>
     </>

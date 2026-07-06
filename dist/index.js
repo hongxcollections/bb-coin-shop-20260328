@@ -25246,6 +25246,11 @@ EXAMPLE OUTPUT (exact format):
         const { markCardListingSold: markCardListingSold2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         return markCardListingSold2(input.id, ctx.user.id);
       }),
+      relistListing: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await updateCardListing2(input.id, ctx.user.id, { status: "active" });
+        return { ok: true };
+      }),
       getMyListings: protectedProcedure.input(z2.object({
         status: z2.string().optional(),
         limit: z2.number().int().min(1).max(50).default(20),

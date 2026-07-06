@@ -14350,6 +14350,14 @@ EXAMPLE OUTPUT (exact format):
         return markCardListingSold(input.id, ctx.user.id);
       }),
 
+    relistListing: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { updateCardListing } = await import('./db');
+        await updateCardListing(input.id, ctx.user.id, { status: 'active' });
+        return { ok: true };
+      }),
+
     getMyListings: protectedProcedure
       .input(z.object({
         status: z.string().optional(),
