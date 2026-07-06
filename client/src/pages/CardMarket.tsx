@@ -739,7 +739,7 @@ export default function CardMarket() {
       <Header />
 
       {selectedListing && (
-        <ListingDetailSheet listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
+        <ListingDetailSheet key={selectedListing.id} listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
       )}
 
       <div className="max-w-lg mx-auto px-[5px] pt-4">
