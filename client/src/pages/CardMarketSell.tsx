@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
@@ -96,6 +97,25 @@ export default function CardMarketSell() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Photo lightbox
+  const [lbIdx, setLbIdx] = useState<number | null>(null);
+  const lbZoom = useRef(1);
+  const lbPanX = useRef(0);
+  const lbPanY = useRef(0);
+  const pinchStartDist = useRef(0);
+  const pinchStartZoom = useRef(1);
+  const panStartTouch = useRef({ x: 0, y: 0 });
+  const panStartOffset = useRef({ x: 0, y: 0 });
+  const lbImgRef = useRef<HTMLImageElement>(null);
+  const [lbRender, setLbRender] = useState(0);
+  const applyTransform = useCallback(() => {
+    if (lbImgRef.current) {
+      lbImgRef.current.style.transform = `translate(${lbPanX.current}px,${lbPanY.current}px) scale(${lbZoom.current})`;
+    }
+  }, []);
+  const closeLb = useCallback(() => { setLbIdx(null); lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; }, []);
+  const resetLbTransform = () => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; applyTransform(); setLbRender(n=>n+1); };
 
   const [maxPriceStr, setMaxPriceStr] = useState("");
   const [wtbCondition, setWtbCondition] = useState<"NM" | "LP" | "MP" | "HP" | "DMG" | "">("NM");
@@ -689,7 +709,10 @@ export default function CardMarketSell() {
                   <div className="flex gap-2 flex-wrap">
                     {photos.map((url, i) => (
                       <div key={i} className="relative rounded-xl overflow-hidden" style={{ width: 72, height: 100 }}>
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={url} alt="" className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbIdx(i); }}
+                        />
                         <button
                           onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
                           className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
@@ -1035,6 +1058,86 @@ export default function CardMarketSell() {
           <div className="h-6 flex-shrink-0" />
         </div>
       </div>
+    )}
+
+    {/* Photo lightbox portal */}
+    {lbIdx !== null && photos[lbIdx] && createPortal(
+      <div
+        style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', pointerEvents: 'auto' }}
+        onClick={(e) => { if (e.target === e.currentTarget) closeLb(); }}
+      >
+        <div
+          style={{ position: 'relative', width: '94vw', maxWidth: 480, height: '72vh', background: '#111', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}
+          onTouchStart={(e) => {
+            if (e.touches.length === 2) {
+              e.preventDefault();
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              pinchStartDist.current = Math.sqrt(dx*dx + dy*dy);
+              pinchStartZoom.current = lbZoom.current;
+            } else if (e.touches.length === 1) {
+              panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+              panStartOffset.current = { x: lbPanX.current, y: lbPanY.current };
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length === 2) {
+              e.preventDefault();
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const dist = Math.sqrt(dx*dx + dy*dy);
+              lbZoom.current = Math.min(6, Math.max(1, pinchStartZoom.current * dist / pinchStartDist.current));
+              applyTransform();
+              setLbRender(n => n+1);
+            } else if (e.touches.length === 1 && lbZoom.current > 1) {
+              e.preventDefault();
+              lbPanX.current = panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x;
+              lbPanY.current = panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y;
+              applyTransform();
+            }
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px', flexShrink: 0 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{(lbIdx ?? 0) + 1} / {photos.length}</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {lbZoom.current > 1 && (
+                <button onClick={resetLbTransform} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>重設</button>
+              )}
+              <button onClick={closeLb} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 20, padding: '5px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>關閉</button>
+            </div>
+          </div>
+
+          {/* Image */}
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px 10px' }}>
+            <img
+              ref={lbImgRef}
+              src={photos[lbIdx]}
+              alt=""
+              draggable={false}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, display: 'block', userSelect: 'none', pointerEvents: 'none', transformOrigin: 'center center', willChange: 'transform' }}
+            />
+          </div>
+
+          {/* Thumbnail strip (if multiple) */}
+          {photos.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, padding: '0 12px 10px', flexShrink: 0, overflowX: 'auto' }}>
+              {photos.map((url, i) => (
+                <button
+                  key={i}
+                  onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbIdx(i); }}
+                  style={{ flexShrink: 0, width: 44, height: 60, borderRadius: 8, overflow: 'hidden', border: i === lbIdx ? '2px solid #FFDE00' : '2px solid transparent', padding: 0, cursor: 'pointer', background: 'none' }}
+                >
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </button>
+              ))}
+            </div>
+          )}
+
+          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', paddingBottom: 8, flexShrink: 0 }}>兩指放大 / 點背景關閉</p>
+        </div>
+      </div>,
+      document.body
     )}
     </>
   );
