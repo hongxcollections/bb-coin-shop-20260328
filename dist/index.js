@@ -7864,7 +7864,7 @@ async function getCardWTBs(opts) {
   const limit = opts.limit ?? 30;
   const offset = opts.offset ?? 0;
   params.push(limit, offset);
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT w.*, u.name as buyerName FROM cardWantToBuy w
      LEFT JOIN users u ON u.id = w.userId
      ${whereClause}

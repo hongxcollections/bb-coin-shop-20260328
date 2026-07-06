@@ -8304,7 +8304,7 @@ export async function getCardWTBs(opts: { userId?: number; game?: string; isActi
   const limit = opts.limit ?? 30;
   const offset = opts.offset ?? 0;
   params.push(limit, offset);
-  const [rows]: any = await pool.execute(
+  const [rows]: any = await pool.query(
     `SELECT w.*, u.name as buyerName FROM cardWantToBuy w
      LEFT JOIN users u ON u.id = w.userId
      ${whereClause}
