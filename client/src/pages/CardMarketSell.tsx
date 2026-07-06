@@ -682,29 +682,51 @@ export default function CardMarketSell() {
         {step === 3 && (
           <div>
             {/* Card preview */}
-            <div className="flex items-center gap-3 mb-5 p-3 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-              {cardImg ? (
-                <img
-                  src={cardImg} alt=""
-                  className="rounded-xl object-cover flex-shrink-0 cursor-pointer"
-                  style={{ width: 48, height: 66 }}
-                  onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbSingleImg(cardImg); }}
-                />
-              ) : (
-                <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 48, height: 66, background: "#f3f4f6" }}>
-                  <span style={{ fontSize: 28 }}>🃏</span>
-                </div>
-              )}
+            <div className="flex gap-4 mb-5 p-4 rounded-2xl items-center" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+              {/* Card image */}
+              <div className="flex-shrink-0">
+                {cardImg ? (
+                  <img
+                    src={cardImg} alt=""
+                    className="rounded-xl object-cover cursor-pointer"
+                    style={{ width: 88, height: 122, display: "block" }}
+                    onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbSingleImg(cardImg); }}
+                  />
+                ) : (
+                  <div className="rounded-xl flex items-center justify-center" style={{ width: 88, height: 122, background: "#f3f4f6" }}>
+                    <span style={{ fontSize: 36 }}>🃏</span>
+                  </div>
+                )}
+              </div>
+              {/* Card info */}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-black" style={{ color: "#CC0000" }}>{cardName || "（未填卡名）"}</p>
-                {cardSet && <p className="text-[10px]" style={{ color: "#9ca3af" }}>{cardSet}</p>}
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full mt-1 inline-block" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
+                {/* Rarity + set number */}
+                {(selectedCard?.rarity || selectedCard?.setNumber) && (
+                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                    {getRarityShort(selectedCard?.rarity) && (
+                      <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}>
+                        {getRarityShort(selectedCard?.rarity)}
+                      </span>
+                    )}
+                    {selectedCard?.setNumber && (
+                      <span className="text-[11px] font-bold" style={{ color: "#9ca3af" }}>{selectedCard.setNumber}</span>
+                    )}
+                  </div>
+                )}
+                {/* Card name */}
+                <p className="text-base font-black leading-tight mb-1" style={{ color: "#111827" }}>{cardName || "（未填卡名）"}</p>
+                {/* Set name + game */}
+                {cardSet && <p className="text-[11px] mb-1.5 line-clamp-1" style={{ color: "#9ca3af" }}>{cardSet}</p>}
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full inline-block" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
                   {GAMES.find(g => g.id === game)?.label}
                 </span>
+                {/* Change button */}
+                <div className="mt-2">
+                  <button onClick={() => setStep(2)} className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
+                    更換卡牌
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setStep(2)} className="text-[10px] px-2 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-                更換
-              </button>
             </div>
 
             {mode === "sell" ? (

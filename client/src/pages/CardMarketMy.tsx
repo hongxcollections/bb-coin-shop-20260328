@@ -468,7 +468,7 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
       </div>
       {wtb.isActive ? (
         <button onClick={handleDeactivate} className="p-1.5 rounded-lg flex-shrink-0" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
-          <X className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
+          <Trash2 className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
         </button>
       ) : (
         <span className="text-[10px] flex-shrink-0" style={{ color: "#9ca3af" }}>已關閉</span>
