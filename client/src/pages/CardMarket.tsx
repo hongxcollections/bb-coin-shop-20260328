@@ -618,75 +618,69 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
           </div>
         </div>
 
-        {/* Seller active + sold badges + carousels */}
-        {(sellerActive.length > 0 || sellerSold.length > 0) && (
-          <div className="mb-3 px-4">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              {sellerActive.length > 0 && (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#111827", color: "#fff" }}>
-                  賣家上架中（{sellerActive.length}）
-                </span>
-              )}
-              {sellerSold.length > 0 && (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#111827", color: "#fff" }}>
-                  賣家已售出（{sellerSold.length}）
-                </span>
-              )}
+        {/* Seller active listings */}
+        {sellerActive.length > 0 && (
+          <div className="mb-2 px-4">
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2" style={{ background: "#111827", color: "#fff" }}>
+              賣家上架中（{sellerActive.length}）
+            </span>
+            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+              {sellerActive.map(l => {
+                const thumb = l.photoUrls?.[0] ?? l.officialImageUrl;
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => onSelectListing?.(l)}
+                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
+                    style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb" }}
+                  >
+                    {thumb ? (
+                      <img src={thumb} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
+                      <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
+          </div>
+        )}
 
-            {sellerActive.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto mb-2" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
-                {sellerActive.map(l => {
-                  const thumb = l.photoUrls?.[0] ?? l.officialImageUrl;
-                  return (
-                    <button
-                      key={l.id}
-                      onClick={() => onSelectListing?.(l)}
-                      className="flex-shrink-0 rounded-xl overflow-hidden relative"
-                      style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb" }}
-                    >
-                      {thumb ? (
-                        <img src={thumb} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>
-                      )}
-                      <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
-                        <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {sellerSold.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
-                {sellerSold.map(l => {
-                  const soldPhotos = l.photoUrls?.length ? l.photoUrls : (l.officialImageUrl ? [l.officialImageUrl] : []);
-                  const thumb = soldPhotos[0];
-                  return (
-                    <button
-                      key={l.id}
-                      onClick={() => { if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD }); }}
-                      className="flex-shrink-0 rounded-xl overflow-hidden relative"
-                      style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb", opacity: 0.8 }}
-                    >
-                      {thumb ? (
-                        <img src={thumb} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>
-                      )}
-                      <div className="absolute top-1 left-1">
-                        <span className="text-[8px] font-black px-1 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.9)", color: "#fff" }}>已售</span>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
-                        <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+        {/* Seller sold listings */}
+        {sellerSold.length > 0 && (
+          <div className="mb-3 px-4">
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2" style={{ background: "#111827", color: "#fff" }}>
+              賣家已售出（{sellerSold.length}）
+            </span>
+            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+              {sellerSold.map(l => {
+                const soldPhotos = l.photoUrls?.length ? l.photoUrls : (l.officialImageUrl ? [l.officialImageUrl] : []);
+                const thumb = soldPhotos[0];
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => { if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD }); }}
+                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
+                    style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb", opacity: 0.8 }}
+                  >
+                    {thumb ? (
+                      <img src={thumb} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>
+                    )}
+                    <div className="absolute top-1 left-1">
+                      <span className="text-[8px] font-black px-1 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.9)", color: "#fff" }}>已售</span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
+                      <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
