@@ -249,7 +249,7 @@ export default function CardMarketSell() {
       });
       await utils.cardTrading.getMyListings.invalidate();
       toast.success("已成功上架！");
-      navigate("/cardzzz/market/my");
+      navigate("/cardzzz/market/my?tab=active");
     } catch (e: any) {
       toast.error(e?.message ?? "上架失敗");
     } finally {
@@ -276,7 +276,7 @@ export default function CardMarketSell() {
         notes: wtbNotes.trim() || undefined,
       });
       toast.success("已登記求購！有人上架同款卡即通知你");
-      navigate("/cardzzz/market/my");
+      navigate("/cardzzz/market/my?tab=wtb");
     } catch (e: any) {
       toast.error(e?.message ?? "登記失敗");
     } finally {

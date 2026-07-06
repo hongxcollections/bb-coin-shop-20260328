@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import ImageLightbox from "@/components/ImageLightbox";
 import { trpc } from "@/lib/trpc";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -437,6 +437,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
 function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   const confirm = useConfirm();
   const deactivateMut = trpc.cardTrading.deactivateWTB.useMutation();
+  const [lbOpen, setLbOpen] = useState(false);
 
   async function handleDeactivate() {
     const ok = await confirm({ title: "移除此求購記錄？", description: "移除後不會再收到相關通知。", confirmText: "確認移除" });
@@ -451,7 +452,18 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
       {wtb.officialImageUrl ? (
-        <img src={wtb.officialImageUrl} alt="" className="rounded-xl flex-shrink-0 object-cover" style={{ width: 40, height: 56 }} />
+        <>
+          <img
+            src={wtb.officialImageUrl} alt=""
+            className="rounded-xl flex-shrink-0 object-cover cursor-pointer"
+            style={{ width: 40, height: 56 }}
+            onClick={() => setLbOpen(true)}
+          />
+          {lbOpen && createPortal(
+            <ImageLightbox images={[wtb.officialImageUrl]} initialIndex={0} onClose={() => setLbOpen(false)} />,
+            document.body
+          )}
+        </>
       ) : (
         <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 40, height: 56, background: "#f8f9fa" }}>
           <span style={{ fontSize: 20 }}>🃏</span>
@@ -481,8 +493,13 @@ type Tab = "active" | "sold" | "removed" | "wtb";
 
 export default function CardMarketMy() {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const { isAuthenticated } = useAuth();
-  const [tab, setTab] = useState<Tab>("active");
+  const [tab, setTab] = useState<Tab>(() => {
+    const p = new URLSearchParams(search).get("tab");
+    if (p === "sold" || p === "removed" || p === "wtb") return p;
+    return "active";
+  });
 
   const { data: activeListings = [], refetch: refetchActive } = trpc.cardTrading.getMyListings.useQuery({ status: "active", limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
   const { data: soldListings = [], refetch: refetchSold } = trpc.cardTrading.getMyListings.useQuery({ status: "sold", limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
