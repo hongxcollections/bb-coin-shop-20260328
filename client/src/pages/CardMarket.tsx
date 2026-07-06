@@ -450,13 +450,15 @@ function WTBCard({ wtb }: { wtb: WTB }) {
 interface ListingDetailSheetProps {
   listing: Listing;
   onClose: () => void;
+  onSelectListing?: (l: Listing) => void;
 }
 
-function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
+function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetailSheetProps) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
   const [photoIdx, setPhotoIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [soldLb, setSoldLb] = useState<{ photos: string[]; cardName: string; priceHKD: number } | null>(null);
   const [contacting, setContacting] = useState(false);
   const touchStartXRef = useRef(0);
   const photos = listing.photoUrls.length ? listing.photoUrls : (listing.officialImageUrl ? [listing.officialImageUrl] : []);
@@ -464,6 +466,10 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
   const rarityBadge = getRarityShort(listing.rarity);
   const openRoomMut = trpc.cardTrading.openRoomWithSeller.useMutation();
   const { data: sellerStats } = trpc.cardTrading.getSellerCardStats.useQuery({ userId: listing.userId }, { staleTime: 60000 });
+  const { data: sellerActiveRaw = [] } = trpc.cardTrading.getSellerListings.useQuery({ userId: listing.userId, status: "active", limit: 12 }, { staleTime: 60000 });
+  const { data: sellerSoldRaw = [] } = trpc.cardTrading.getSellerListings.useQuery({ userId: listing.userId, status: "sold", limit: 12 }, { staleTime: 60000 });
+  const sellerActive = (sellerActiveRaw as Listing[]).filter(l => l.id !== listing.id);
+  const sellerSold = sellerSoldRaw as Listing[];
 
   async function handleContact() {
     if (!isAuthenticated) { toast.info("請先登入"); navigate("/login"); return; }
@@ -612,7 +618,72 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
           </div>
         </div>
 
+        {/* Seller active listings carousel */}
+        {sellerActive.length > 0 && (
+          <div className="mb-3 px-4">
+            <p className="text-[11px] font-bold mb-2" style={{ color: "#6b7280" }}>賣家上架中（{sellerActive.length}）</p>
+            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+              {sellerActive.map(l => {
+                const thumb = l.photoUrls?.[0] ?? l.officialImageUrl;
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => onSelectListing?.(l)}
+                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
+                    style={{ width: "calc(33.33% - 6px)", aspectRatio: "2/3", background: "#f3f4f6", border: "1px solid #e5e7eb" }}
+                  >
+                    {thumb ? (
+                      <img src={thumb} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 22 }}>🃏</div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.55)" }}>
+                      <p className="text-[9px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>HKD ${l.priceHKD.toLocaleString()}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Seller sold listings carousel */}
+        {sellerSold.length > 0 && (
+          <div className="mb-3 px-4">
+            <p className="text-[11px] font-bold mb-2" style={{ color: "#6b7280" }}>賣家已售出（{sellerSold.length}）</p>
+            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+              {sellerSold.map(l => {
+                const soldPhotos = l.photoUrls?.length ? l.photoUrls : (l.officialImageUrl ? [l.officialImageUrl] : []);
+                const thumb = soldPhotos[0];
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => {
+                      if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD });
+                    }}
+                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
+                    style={{ width: "calc(33.33% - 6px)", aspectRatio: "2/3", background: "#f3f4f6", border: "1px solid #e5e7eb", opacity: 0.75 }}
+                  >
+                    {thumb ? (
+                      <img src={thumb} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 22 }}>🃏</div>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.85)", color: "#fff" }}>已售</span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.55)" }}>
+                      <p className="text-[9px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>HKD ${l.priceHKD.toLocaleString()}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} cardName={listing.cardName} priceHKD={listing.priceHKD} onClose={() => setLightboxOpen(false)} />}
+        {soldLb && <CardPhotoLightbox photos={soldLb.photos} initialIndex={0} cardName={soldLb.cardName} priceHKD={soldLb.priceHKD} onClose={() => setSoldLb(null)} />}
 
         <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
           <button
@@ -677,7 +748,7 @@ export default function CardMarket() {
       <Header />
 
       {selectedListing && (
-        <ListingDetailSheet listing={selectedListing} onClose={() => setSelectedListing(null)} />
+        <ListingDetailSheet listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
       )}
 
       <div className="max-w-lg mx-auto px-[5px] pt-4">

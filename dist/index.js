@@ -25251,6 +25251,10 @@ EXAMPLE OUTPUT (exact format):
         await updateCardListing2(input.id, ctx.user.id, { status: "active" });
         return { ok: true };
       }),
+      getSellerListings: publicProcedure.input(z2.object({ userId: z2.number().int(), status: z2.string(), limit: z2.number().int().default(12) })).query(async ({ input }) => {
+        const { getCardListings: getCardListings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getCardListings2({ userId: input.userId, status: input.status, limit: input.limit, offset: 0 });
+      }),
       getSellerCardStats: publicProcedure.input(z2.object({ userId: z2.number().int() })).query(async ({ input }) => {
         const { getRawPool: getRawPool2, bootstrapCardTradingTables: bootstrapCardTradingTables2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await bootstrapCardTradingTables2();

@@ -14358,6 +14358,13 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    getSellerListings: publicProcedure
+      .input(z.object({ userId: z.number().int(), status: z.string(), limit: z.number().int().default(12) }))
+      .query(async ({ input }) => {
+        const { getCardListings } = await import('./db');
+        return getCardListings({ userId: input.userId, status: input.status, limit: input.limit, offset: 0 });
+      }),
+
     getSellerCardStats: publicProcedure
       .input(z.object({ userId: z.number().int() }))
       .query(async ({ input }) => {
