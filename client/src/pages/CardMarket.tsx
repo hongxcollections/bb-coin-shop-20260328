@@ -684,7 +684,10 @@ export default function CardMarket() {
         {/* Page Title */}
         <div className="flex items-center gap-3 mb-[5px]">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #e5e7eb" }} />
-          <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#CC0000" }}>CardZzz 交易市場</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#CC0000" }}>CardZzz</h1>
+            <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>AI 智能 CardZzz 卡片鑑定 · 交易市場</p>
+          </div>
         </div>
 
         {/* Hero Banner */}
