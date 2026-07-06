@@ -22920,6 +22920,24 @@ EXAMPLE OUTPUT (exact format):
         const auctionId = insertResult?.[0]?.insertId ?? null;
         if (auctionId) {
           await db.update(groupAuctionItems).set({ linkedAuctionId: auctionId }).where(eq8(groupAuctionItems.id, item.id));
+          try {
+            const imgIds = JSON.parse(item.imageIdsJson ?? "[]");
+            if (imgIds.length > 0) {
+              const { inArray: inArr } = await import("drizzle-orm");
+              const imgs = await db.select().from(groupAuctionImages).where(inArr(groupAuctionImages.id, imgIds));
+              const ordered = imgIds.map((id) => imgs.find((img) => img.id === id)).filter(Boolean);
+              if (ordered.length > 0) {
+                await db.insert(auctionImages).values(
+                  ordered.map((img, i) => ({
+                    auctionId,
+                    imageUrl: img.url,
+                    displayOrder: i
+                  }))
+                );
+              }
+            }
+          } catch {
+          }
           created++;
         }
       }

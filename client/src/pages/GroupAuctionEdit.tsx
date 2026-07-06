@@ -1493,7 +1493,7 @@ export default function GroupAuctionEdit() {
                           const d = JSON.parse(it.dataJson ?? "{}");
                           const t = titleCol ? (d[titleCol.key] || "") : "";
                           const n = numCol ? (d[numCol.key] || "") : "";
-                          return [t, n].filter(Boolean).join(".") || `商品 ${it.displayOrder + 1}`;
+                          return [t, n].filter(Boolean).join("•") || `商品 ${it.displayOrder + 1}`;
                         } catch { return `商品 ${it.displayOrder + 1}`; }
                       };
                       const shownItems = exportItems.slice(0, 5);
@@ -2065,7 +2065,7 @@ export default function GroupAuctionEdit() {
                                     <div className="space-y-1 text-sm">
                                       <div className="flex items-start gap-1.5">
                                         <span className="text-indigo-400 flex-shrink-0">•</span>
-                                        <span>{[title, itemNum].filter(Boolean).join(".") || `商品 ${idx + 1}`}</span>
+                                        <span>{[title, itemNum].filter(Boolean).join("•") || `商品 ${idx + 1}`}</span>
                                       </div>
                                       <div className="pt-1 text-gray-500">此商品將匯出為獨立拍賣，包括現有出價記錄。</div>
                                     </div>

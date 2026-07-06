@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, sendWinnerAutoReply, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionColorRuleTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids, groupAuctionProxyBids } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, auctionImages, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionColorRuleTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids, groupAuctionProxyBids } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
@@ -11766,6 +11766,31 @@ EXAMPLE OUTPUT (exact format):
             await db.update(groupAuctionItems)
               .set({ linkedAuctionId: auctionId })
               .where(eq(groupAuctionItems.id, item.id));
+
+            // 複製商品圖片至 auctionImages
+            try {
+              const imgIds: number[] = JSON.parse(item.imageIdsJson ?? '[]');
+              if (imgIds.length > 0) {
+                const { inArray: inArr } = await import('drizzle-orm');
+                const imgs = await db.select()
+                  .from(groupAuctionImages)
+                  .where(inArr(groupAuctionImages.id, imgIds));
+                // 按原有 imgIds 順序排列
+                const ordered = imgIds
+                  .map(id => imgs.find(img => img.id === id))
+                  .filter(Boolean) as typeof imgs;
+                if (ordered.length > 0) {
+                  await db.insert(auctionImages).values(
+                    ordered.map((img, i) => ({
+                      auctionId,
+                      imageUrl: img.url,
+                      displayOrder: i,
+                    }))
+                  );
+                }
+              }
+            } catch {}
+
             created++;
           }
         }
