@@ -601,7 +601,7 @@ export default function CardMarketMy() {
               <div className="flex flex-col items-center py-10 gap-3">
                 <span style={{ fontSize: 40 }}>🔍</span>
                 <p className="text-sm" style={{ color: "#9ca3af" }}>未有求購記錄</p>
-                <button onClick={() => navigate("/cardzzz/market/sell")} className="text-sm px-4 py-2 rounded-full font-bold" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
+                <button onClick={() => navigate("/cardzzz/market/wtb")} className="text-sm px-4 py-2 rounded-full font-bold" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
                   登記求購
                 </button>
               </div>

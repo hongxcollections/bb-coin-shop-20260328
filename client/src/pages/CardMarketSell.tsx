@@ -68,9 +68,9 @@ function getRarityShort(rarity: string | null | undefined): string | null {
 const BROWSABLE_GAMES: GameId[] = ["pokemon", "yugioh", "mtg", "digimon"];
 
 export default function CardMarketSell() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { isAuthenticated } = useAuth();
-  const [mode, setMode] = useState<Mode>("sell");
+  const [mode, setMode] = useState<Mode>(location.includes("/wtb") ? "wtb" : "sell");
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [game, setGame] = useState<GameId | "">("");

@@ -721,6 +721,7 @@ export default function CardMarket() {
 
   const { data: wtbs = [] } = trpc.cardTrading.getWTBs.useQuery({
     game: game || undefined,
+    isActive: true,
     limit: 20,
     offset: 0,
   }, { staleTime: 60000 });
