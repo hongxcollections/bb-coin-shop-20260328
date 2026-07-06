@@ -14358,6 +14358,21 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    getSellerCardStats: publicProcedure
+      .input(z.object({ userId: z.number().int() }))
+      .query(async ({ input }) => {
+        const { getRawPool, bootstrapCardTradingTables } = await import('./db');
+        await bootstrapCardTradingTables();
+        const pool = await getRawPool();
+        const [rows]: any = await pool.query(
+          `SELECT status, COUNT(*) as cnt FROM cardListings WHERE userId = ? GROUP BY status`,
+          [input.userId]
+        );
+        const arr: { status: string; cnt: string }[] = Array.isArray(rows[0]) ? rows[0] : rows;
+        const get = (s: string) => Number(arr.find(r => r.status === s)?.cnt ?? 0);
+        return { active: get('active'), sold: get('sold') };
+      }),
+
     getMyListings: protectedProcedure
       .input(z.object({
         status: z.string().optional(),

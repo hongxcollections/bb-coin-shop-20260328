@@ -463,6 +463,7 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, full: listing.condition, color: "#7c3aed" };
   const rarityBadge = getRarityShort(listing.rarity);
   const openRoomMut = trpc.cardTrading.openRoomWithSeller.useMutation();
+  const { data: sellerStats } = trpc.cardTrading.getSellerCardStats.useQuery({ userId: listing.userId }, { staleTime: 60000 });
 
   async function handleContact() {
     if (!isAuthenticated) { toast.info("請先登入"); navigate("/login"); return; }
@@ -590,10 +591,22 @@ function ListingDetailSheet({ listing, onClose }: ListingDetailSheetProps) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold" style={{ color: "#111827" }}>{listing.sellerName ?? "賣家"}</p>
-              <div className="flex items-center gap-1">
-                <Eye className="w-3 h-3" style={{ color: "#9ca3af" }} />
-                <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.views} 次瀏覽</span>
-                <span className="text-[10px] ml-1" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                {sellerStats !== undefined && (
+                  <>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16a34a" }}>
+                      上架 {sellerStats.active}
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                      已售 {sellerStats.sold}
+                    </span>
+                  </>
+                )}
+                <div className="flex items-center gap-1">
+                  <Eye className="w-3 h-3" style={{ color: "#9ca3af" }} />
+                  <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.views} 次瀏覽</span>
+                  <span className="text-[10px] ml-1" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
+                </div>
               </div>
             </div>
           </div>

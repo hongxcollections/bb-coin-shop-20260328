@@ -25251,6 +25251,18 @@ EXAMPLE OUTPUT (exact format):
         await updateCardListing2(input.id, ctx.user.id, { status: "active" });
         return { ok: true };
       }),
+      getSellerCardStats: publicProcedure.input(z2.object({ userId: z2.number().int() })).query(async ({ input }) => {
+        const { getRawPool: getRawPool2, bootstrapCardTradingTables: bootstrapCardTradingTables2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await bootstrapCardTradingTables2();
+        const pool = await getRawPool2();
+        const [rows] = await pool.query(
+          `SELECT status, COUNT(*) as cnt FROM cardListings WHERE userId = ? GROUP BY status`,
+          [input.userId]
+        );
+        const arr = Array.isArray(rows[0]) ? rows[0] : rows;
+        const get = (s) => Number(arr.find((r) => r.status === s)?.cnt ?? 0);
+        return { active: get("active"), sold: get("sold") };
+      }),
       getMyListings: protectedProcedure.input(z2.object({
         status: z2.string().optional(),
         limit: z2.number().int().min(1).max(50).default(20),
