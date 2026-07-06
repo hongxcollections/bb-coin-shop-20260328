@@ -325,8 +325,10 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#7c3aed" };
   const img = listing.photoUrls[0] ?? listing.officialImageUrl;
 
+  const cardInfo = `${listing.cardName}｜HKD $${listing.priceHKD.toLocaleString()}`;
+
   async function handleRemove() {
-    const ok = await confirm({ title: "下架此記錄？", description: "下架後不會顯示在市場，可重新上架。", confirmText: "確認下架" });
+    const ok = await confirm({ title: "下架此記錄？", description: `${cardInfo}\n\n下架後不會顯示在市場，可重新上架。`, confirmText: "確認下架" });
     if (!ok) return;
     try {
       await removeMut.mutateAsync({ id: listing.id });
@@ -336,7 +338,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   }
 
   async function handleMarkSold() {
-    const ok = await confirm({ title: "標記為已售出？", description: "標記後此上架記錄將關閉。", confirmText: "確認售出" });
+    const ok = await confirm({ title: "標記為已售出？", description: `${cardInfo}\n\n標記後此上架記錄將關閉。`, confirmText: "確認售出" });
     if (!ok) return;
     try {
       await markSoldMut.mutateAsync({ id: listing.id });
@@ -346,7 +348,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   }
 
   async function handleRelist() {
-    const ok = await confirm({ title: "重新上架？", description: "此記錄將重新顯示在市場。", confirmText: "確認上架" });
+    const ok = await confirm({ title: "重新上架？", description: `${cardInfo}\n\n確認後此記錄將重新顯示在市場。`, confirmText: "確認上架" });
     if (!ok) return;
     try {
       await relistMut.mutateAsync({ id: listing.id });
