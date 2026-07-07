@@ -25,6 +25,28 @@ const CONDITION_LABELS: Record<string, { label: string; full: string; color: str
   DMG: { label: "DMG", full: "DMG — 損壞", color: "#dc2626" },
 };
 
+const RARITY_BADGE_STYLE: Record<string, { background: string; color: string }> = {
+  SAR: { background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" },
+  IR:  { background: "linear-gradient(135deg,#be123c,#fb7185)", color: "#fff" },
+  HR:  { background: "linear-gradient(135deg,#d97706,#fbbf24)", color: "#fff" },
+  RR:  { background: "linear-gradient(135deg,#1d4ed8,#60a5fa)", color: "#fff" },
+  UR:  { background: "linear-gradient(135deg,#dc2626,#f87171)", color: "#fff" },
+  SR:  { background: "linear-gradient(135deg,#475569,#94a3b8)", color: "#fff" },
+  FA:  { background: "linear-gradient(135deg,#0369a1,#38bdf8)", color: "#fff" },
+  GR:  { background: "linear-gradient(135deg,#b45309,#fbbf24)", color: "#fff" },
+  StR: { background: "linear-gradient(135deg,#7c3aed,#c084fc)", color: "#fff" },
+};
+
+const GAME_BADGE_STYLE: Record<string, { background: string; color: string }> = {
+  pokemon:    { background: "#fee2e2", color: "#b91c1c" },
+  yugioh:     { background: "#ede9fe", color: "#6d28d9" },
+  mtg:        { background: "#d1fae5", color: "#065f46" },
+  onepiece:   { background: "#ffedd5", color: "#c2410c" },
+  dragonball: { background: "#fef3c7", color: "#b45309" },
+  digimon:    { background: "#dbeafe", color: "#1d4ed8" },
+  other:      { background: "#f3f4f6", color: "#6b7280" },
+};
+
 function timeAgo(dateStr: string | Date) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -78,7 +100,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
   const [lbPanY, setLbPanY] = useState(0);
-  // 'v' = 直立（垂直疊加）, 'h' = 橫向（scroll-snap 輪播）
   const [lbMode, setLbMode] = useState<'v' | 'h'>('v');
   const [lbVZoomIdx, setLbVZoomIdx] = useState(-1);
   const lbZoomRef = useRef(1);
@@ -93,7 +114,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
 
   useEffect(() => { lbZoomRef.current = lbZoom; }, [lbZoom]);
 
-  // Scroll horizontal strip to correct photo on open
   useEffect(() => {
     setTimeout(() => {
       if (lbScrollRef.current) lbScrollRef.current.scrollLeft = initialIndex * lbScrollRef.current.clientWidth;
@@ -101,7 +121,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Vertical mode pinch-to-zoom: detect which image finger is on
   useEffect(() => {
     const el = lbVScrollRef.current;
     if (!el || lbMode !== 'v') return;
@@ -127,7 +146,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lbMode, lbPanX, lbPanY]);
 
-  // Horizontal mode pinch-to-zoom
   useEffect(() => {
     const el = lbScrollRef.current;
     if (!el) return;
@@ -157,7 +175,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
       e.preventDefault();
       const z = Math.min(6, Math.max(1, pinchStartZoom.current * (pinchDist(e.touches) / pinchStartDist.current)));
       setLbZoom(z); lbZoomRef.current = z;
-      // keep image in place during pinch: always reset pan to 0
       setLbPanX(0); setLbPanY(0);
     } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
       e.preventDefault();
@@ -170,7 +187,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
       e.preventDefault();
       const z = Math.min(6, Math.max(1, pinchStartZoom.current * (pinchDist(e.touches) / pinchStartDist.current)));
       setLbZoom(z); lbZoomRef.current = z;
-      // keep image in place during pinch: always reset pan to 0
       setLbPanX(0); setLbPanY(0);
     } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
       e.preventDefault();
@@ -193,7 +209,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
 
   return (
     <div className="fixed inset-0 z-[99999] flex flex-col" style={{ background: 'rgba(0,0,0,0.97)' }}>
-      {/* Header: card name + price | mode toggle | 關閉 */}
       <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
         <div style={{ flex: 1, minWidth: 0 }}>
           <p className="text-sm font-bold leading-snug truncate" style={{ color: '#fff', marginBottom: 2 }}>{cardName}</p>
@@ -220,10 +235,8 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
         >關閉</button>
       </div>
 
-      {/* Image area */}
       <div className="flex-1 relative overflow-hidden">
         {lbMode === 'v' ? (
-          /* 直立：所有相垂直疊加，可上下捲動，雙指縮放各自圖片 */
           <div
             ref={lbVScrollRef}
             className="h-full"
@@ -247,7 +260,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
             <div style={{ height: 12 }} />
           </div>
         ) : (
-          /* 橫向：scroll-snap 輪播，無限循環 */
           <>
             <div
               ref={lbScrollRef}
@@ -296,7 +308,6 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
         )}
       </div>
 
-      {/* Bottom bar */}
       <div className="flex items-center px-4 pt-2 pb-3 flex-shrink-0">
         {lbZoom > 1 ? (
           <button className="text-white/60 text-xs px-3 py-1.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.1)' }}
@@ -312,55 +323,34 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
 function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }) {
   const img = listing.photoUrls[0] ?? listing.officialImageUrl;
   const rarityBadge = getRarityShort(listing.rarity);
+  const rarityStyle = rarityBadge ? (RARITY_BADGE_STYLE[rarityBadge] ?? { background: "#F97316", color: "#fff" }) : null;
+  const gameStyle = GAME_BADGE_STYLE[listing.game] ?? { background: "#f3f4f6", color: "#6b7280" };
+  const gameLabel = GAMES.find(g => g.id === listing.game)?.label ?? listing.game;
   return (
     <button
       type="button"
       onClick={onClick}
       className="flex-shrink-0 flex flex-col rounded-2xl overflow-hidden text-left"
-      style={{ width: 148, background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}
+      style={{ width: 128, background: "#fff", boxShadow: "0 4px 16px rgba(0,0,0,0.10)" }}
     >
-      <div className="relative" style={{ height: 200 }}>
+      <div className="relative flex items-center justify-center" style={{ height: 172, background: img ? "#f8f9fa" : "#1a1a2e" }}>
         {img ? (
           <img src={img} alt={listing.cardName} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: "#f8f9fa" }}>
-            <span style={{ fontSize: 52 }}>🃏</span>
-          </div>
-        )}
-        {rarityBadge && (
-          <div className="absolute top-1.5 right-1.5">
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "#F97316", color: "#fff" }}>
-              {rarityBadge}
-            </span>
-          </div>
+          <span style={{ fontSize: 44, filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.5))" }}>🃏</span>
         )}
         <div className="absolute top-1.5 left-1.5">
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.65)", color: "rgba(255,255,255,0.85)" }}>
-            {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
-          </span>
+          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={gameStyle}>{gameLabel}</span>
         </div>
-      </div>
-      <div className="p-2.5">
-        <p className="text-xs font-black leading-tight line-clamp-2 mb-1.5" style={{ color: "#111827" }}>{listing.cardName}</p>
-        {listing.setName && (
-          <p className="text-[10px] line-clamp-1 mb-1" style={{ color: "#9ca3af" }}>
-            {listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}
-          </p>
-        )}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <p className="text-sm font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-            {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : "裸卡"}
-          </span>
-        </div>
-        <div className="flex items-center justify-between mt-1.5">
-          <span className="text-[10px]" style={{ color: "#9ca3af" }}>
-            成交 {listing.status === "sold" ? 1 : 0}
-          </span>
-          <div className="flex items-center gap-0.5">
-            <Eye className="w-2.5 h-2.5" style={{ color: "#9ca3af" }} />
-            <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.views}</span>
+        {rarityStyle && rarityBadge && (
+          <div className="absolute top-1.5 right-1.5">
+            <span className="text-[8px] font-black px-1 py-0.5 rounded" style={rarityStyle}>{rarityBadge}</span>
           </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 px-2 pb-2 pt-8" style={{ background: "linear-gradient(transparent,rgba(0,0,0,0.82))" }}>
+          <p className="text-[10px] font-black text-white leading-tight line-clamp-2">{listing.cardName}</p>
+          {listing.setName && <p className="text-[9px] mt-0.5 line-clamp-1" style={{ color: "rgba(255,255,255,0.45)" }}>{listing.setName}</p>}
+          <p className="text-xs font-black mt-0.5" style={{ color: "#FFDE00" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
         </div>
       </div>
     </button>
@@ -368,21 +358,22 @@ function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }
 }
 
 function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => void }) {
-  const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#7c3aed" };
+  const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, full: listing.condition, color: "#7c3aed" };
   const img = listing.photoUrls[0] ?? listing.officialImageUrl;
   const rarityBadge = getRarityShort(listing.rarity);
+  const rarityStyle = rarityBadge ? (RARITY_BADGE_STYLE[rarityBadge] ?? { background: "#F97316", color: "#fff" }) : null;
   return (
     <button
       type="button"
       onClick={onClick}
       className="flex flex-col rounded-2xl overflow-hidden text-left"
-      style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}
+      style={{ background: "#fff", border: "1px solid #f0f0f0", boxShadow: "0 2px 14px rgba(0,0,0,0.07)" }}
     >
       <div className="relative w-full" style={{ paddingBottom: "130%" }}>
         {img ? (
           <img src={img} alt={listing.cardName} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#f8f9fa" }}>
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#1a1a2e" }}>
             <span style={{ fontSize: 36 }}>🃏</span>
           </div>
         )}
@@ -391,23 +382,16 @@ function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => vo
             {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.label}
           </span>
         </div>
-        {rarityBadge && (
+        {rarityStyle && rarityBadge && (
           <div className="absolute top-1.5 right-1.5">
-            <span className="text-[9px] font-black px-1 py-0.5 rounded" style={{ background: "#F97316", color: "#fff" }}>
-              {rarityBadge}
-            </span>
+            <span className="text-[9px] font-black px-1 py-0.5 rounded" style={rarityStyle}>{rarityBadge}</span>
           </div>
         )}
       </div>
       <div className="p-2">
-        <p className="text-xs font-black leading-tight line-clamp-2 mb-1" style={{ color: "#CC0000" }}>{listing.cardName}</p>
+        <p className="text-xs font-black leading-tight line-clamp-2 mb-1" style={{ color: "#111827" }}>{listing.cardName}</p>
         {listing.setName && <p className="text-[10px] line-clamp-1 mb-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <p className="text-sm font-black" style={{ color: "#111827" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-            {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : "裸卡"}
-          </span>
-        </div>
+        <p className="text-sm font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
         <div className="flex items-center justify-between mt-1">
           <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.sellerName ?? "賣家"}</span>
           <span className="text-[10px]" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
@@ -425,20 +409,26 @@ interface WTB {
 }
 
 function WTBCard({ wtb }: { wtb: WTB }) {
+  const gameStyle = GAME_BADGE_STYLE[wtb.game] ?? { background: "#f3f4f6", color: "#6b7280" };
+  const gameLabel = GAMES.find(g => g.id === wtb.game)?.label ?? wtb.game;
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
+    <div
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+      style={{ background: "#fff", border: "1px solid #f0f0f0", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", borderLeft: "3px solid #F97316" }}
+    >
       {wtb.officialImageUrl ? (
         <img src={wtb.officialImageUrl} alt="" className="rounded-lg flex-shrink-0 object-cover" style={{ width: 36, height: 50 }} />
       ) : (
-        <div className="rounded-lg flex-shrink-0 flex items-center justify-center" style={{ width: 36, height: 50, background: "#f0f1f2" }}>
-          <span style={{ fontSize: 20 }}>🃏</span>
+        <div className="rounded-lg flex-shrink-0 flex items-center justify-center" style={{ width: 36, height: 50, background: "#f3f4f6" }}>
+          <span style={{ fontSize: 18 }}>🃏</span>
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-black leading-tight line-clamp-1" style={{ color: "#CC0000" }}>{wtb.cardName}</p>
+        <p className="text-xs font-black leading-tight line-clamp-1" style={{ color: "#111827" }}>{wtb.cardName}</p>
         {wtb.setName && <p className="text-[10px] line-clamp-1" style={{ color: "#9ca3af" }}>{wtb.setName}</p>}
-        <div className="flex items-center gap-2 mt-0.5">
-          {wtb.maxPriceHKD && <span className="text-[10px] font-bold" style={{ color: "#16a34a" }}>最高 HKD ${wtb.maxPriceHKD}</span>}
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={gameStyle}>{gameLabel}</span>
+          {wtb.maxPriceHKD && <span className="text-[10px] font-bold" style={{ color: "#16a34a" }}>上限 ${wtb.maxPriceHKD.toLocaleString()}</span>}
           {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
         </div>
       </div>
@@ -472,221 +462,205 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
   const sellerSold = sellerSoldRaw as Listing[];
 
   async function handleContact() {
-    if (!isAuthenticated) { toast.info("請先登入"); navigate("/login"); return; }
-    if (user?.id === listing.userId) { toast.error("這是你自己的上架記錄，無法私訊自己"); return; }
+    if (!isAuthenticated) { navigate("/login"); return; }
+    if (listing.userId === user?.id) { toast.info("不能聯絡自己"); return; }
     setContacting(true);
     try {
-      const { roomId } = await openRoomMut.mutateAsync({ listingId: listing.id });
-      const from = encodeURIComponent(`/cardzzz/market?listing=${listing.id}`);
-      navigate(`/messages/${roomId}?from=${from}`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "無法開啟對話，請稍後再試");
+      const room = await openRoomMut.mutateAsync({ sellerId: listing.userId, listingId: listing.id });
+      navigate(`/chat/${room.roomId}`);
+    } catch {
+      toast.error("開啟對話失敗，請稍後再試");
     } finally {
       setContacting(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
-      <div className="flex-1" />
-      <div
-        className="w-full max-w-lg mx-auto rounded-t-3xl overflow-hidden flex flex-col"
-        style={{ background: "#fff", maxHeight: "88vh", borderTop: "1px solid #e5e7eb" }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-center px-4 pt-3 pb-0 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full" style={{ background: "#d1d5db" }} />
-        </div>
-        <div className="flex items-center justify-between px-4 pt-3 pb-3 flex-shrink-0">
-          <h2 className="text-base font-black" style={{ color: "#111827" }}>卡牌詳情</h2>
-          <button onClick={onClose} className="text-xs px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>關閉</button>
-        </div>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#fff" }}>
+      <div className="flex items-center justify-between px-4 pt-3 pb-3 flex-shrink-0">
+        <h2 className="text-base font-black" style={{ color: "#111827" }}>卡牌詳情</h2>
+        <button onClick={onClose} className="text-xs px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>關閉</button>
+      </div>
 
-        <div className="overflow-y-auto flex-1 px-4 pb-24">
-          {/* Photo carousel */}
-          {photos.length > 0 && (
-            <div className="mb-4">
-              <div
-                className="w-full rounded-2xl overflow-hidden relative"
-                style={{ background: "#f8f9fa", cursor: "zoom-in" }}
-                onTouchStart={e => { touchStartXRef.current = e.touches[0].clientX; }}
-                onTouchEnd={e => {
-                  const delta = e.changedTouches[0].clientX - touchStartXRef.current;
-                  if (Math.abs(delta) > 45) {
-                    if (delta < 0) setPhotoIdx(i => Math.min(i + 1, photos.length - 1));
-                    else setPhotoIdx(i => Math.max(i - 1, 0));
-                  } else {
-                    setLightboxOpen(true);
-                  }
-                }}
-                onClick={() => setLightboxOpen(true)}
-              >
-                <img
-                  src={photos[photoIdx]}
-                  alt=""
-                  className="w-full object-contain"
-                  style={{ maxHeight: 280, display: "block" }}
-                  draggable={false}
-                />
-                {photos.length > 1 && (
-                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                    {photos.map((_, i) => (
-                      <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx ? "#CC0000" : "rgba(0,0,0,0.25)", transition: "background 0.2s" }} />
-                    ))}
-                  </div>
-                )}
-                <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px]" style={{ background: "rgba(0,0,0,0.45)", color: "#fff" }}>
-                  點擊放大
-                </div>
-              </div>
+      <div className="overflow-y-auto flex-1 px-4 pb-24">
+        {photos.length > 0 && (
+          <div className="mb-4">
+            <div
+              className="w-full rounded-2xl overflow-hidden relative"
+              style={{ background: "#f8f9fa", cursor: "zoom-in" }}
+              onTouchStart={e => { touchStartXRef.current = e.touches[0].clientX; }}
+              onTouchEnd={e => {
+                const delta = e.changedTouches[0].clientX - touchStartXRef.current;
+                if (Math.abs(delta) > 45) {
+                  if (delta < 0) setPhotoIdx(i => Math.min(i + 1, photos.length - 1));
+                  else setPhotoIdx(i => Math.max(i - 1, 0));
+                } else {
+                  setLightboxOpen(true);
+                }
+              }}
+              onClick={() => setLightboxOpen(true)}
+            >
+              <img
+                src={photos[photoIdx]}
+                alt=""
+                className="w-full object-contain"
+                style={{ maxHeight: 280, display: "block" }}
+                draggable={false}
+              />
               {photos.length > 1 && (
-                <div className="flex gap-1.5 mt-2">
-                  {photos.map((p, i) => (
-                    <button key={i} onClick={() => setPhotoIdx(i)} className="flex-shrink-0">
-                      <img src={p} alt="" className="rounded-lg object-cover" style={{ width: 40, height: 40, border: i === photoIdx ? "2px solid #CC0000" : "2px solid #e5e7eb" }} />
-                    </button>
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                  {photos.map((_, i) => (
+                    <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === photoIdx ? "#CC0000" : "rgba(0,0,0,0.25)", transition: "background 0.2s" }} />
                   ))}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Title + Price */}
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                {listing.game && (
-                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
-                    {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
-                  </span>
-                )}
-                {rarityBadge && (
-                  <span className="inline-block text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "#F97316", color: "#fff" }}>
-                    {rarityBadge}
-                  </span>
-                )}
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px]" style={{ background: "rgba(0,0,0,0.45)", color: "#fff" }}>
+                點擊放大
               </div>
-              <h3 className="text-xl font-black leading-tight" style={{ color: "#111827" }}>{listing.cardName}</h3>
-              {listing.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{listing.cardNameJa}</p>}
-              {listing.setName && <p className="text-xs mt-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
             </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-2xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
-            </div>
-          </div>
-
-          {/* Info pills */}
-          <div className="flex flex-wrap gap-2 mb-3">
-            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: cond.color, color: "#fff" }}>
-              {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
-            </span>
-            {listing.deliveryMethod && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(14,165,233,0.08)", color: "#0284c7", border: "1px solid rgba(14,165,233,0.2)" }}>
-                {listing.deliveryMethod}
-              </span>
+            {photos.length > 1 && (
+              <div className="flex gap-1.5 mt-2">
+                {photos.map((p, i) => (
+                  <button key={i} onClick={() => setPhotoIdx(i)} className="flex-shrink-0">
+                    <img src={p} alt="" className="rounded-lg object-cover" style={{ width: 40, height: 40, border: i === photoIdx ? "2px solid #CC0000" : "2px solid #e5e7eb" }} />
+                  </button>
+                ))}
+              </div>
             )}
           </div>
+        )}
 
-          {listing.description && (
-            <p className="text-sm mb-3 leading-relaxed" style={{ color: "#374151" }}>{listing.description}</p>
-          )}
-
-          <div className="flex items-center gap-2 mb-4 p-3 rounded-xl" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: "rgba(255,222,0,0.18)", color: "#111827" }}>
-              {(listing.sellerName ?? "S").charAt(0).toUpperCase()}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+              {listing.game && (
+                <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
+                  {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
+                </span>
+              )}
+              {rarityBadge && (
+                <span className="inline-block text-[10px] font-black px-1.5 py-0.5 rounded" style={RARITY_BADGE_STYLE[rarityBadge] ?? { background: "#F97316", color: "#fff" }}>
+                  {rarityBadge}
+                </span>
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold" style={{ color: "#111827" }}>{listing.sellerName ?? "賣家"}</p>
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                {sellerStats !== undefined && (
-                  <>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16a34a" }}>
-                      上架 {sellerStats.active}
-                    </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
-                      已售 {sellerStats.sold}
-                    </span>
-                  </>
-                )}
-                <div className="flex items-center gap-1">
-                  <Eye className="w-3 h-3" style={{ color: "#9ca3af" }} />
-                  <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.views} 次瀏覽</span>
-                  <span className="text-[10px] ml-1" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
-                </div>
+            <h3 className="text-xl font-black leading-tight" style={{ color: "#111827" }}>{listing.cardName}</h3>
+            {listing.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{listing.cardNameJa}</p>}
+            {listing.setName && <p className="text-xs mt-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-2xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 mb-3">
+          <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: cond.color, color: "#fff" }}>
+            {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
+          </span>
+          {listing.deliveryMethod && (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(14,165,233,0.08)", color: "#0284c7", border: "1px solid rgba(14,165,233,0.2)" }}>
+              {listing.deliveryMethod}
+            </span>
+          )}
+        </div>
+
+        {listing.description && (
+          <p className="text-sm mb-3 leading-relaxed" style={{ color: "#374151" }}>{listing.description}</p>
+        )}
+
+        <div className="flex items-center gap-2 mb-4 p-3 rounded-xl" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: "rgba(255,222,0,0.18)", color: "#111827" }}>
+            {(listing.sellerName ?? "S").charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold" style={{ color: "#111827" }}>{listing.sellerName ?? "賣家"}</p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              {sellerStats !== undefined && (
+                <>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16a34a" }}>
+                    上架 {sellerStats.active}
+                  </span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                    已售 {sellerStats.sold}
+                  </span>
+                </>
+              )}
+              <div className="flex items-center gap-1">
+                <Eye className="w-3 h-3" style={{ color: "#9ca3af" }} />
+                <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.views} 次瀏覽</span>
+                <span className="text-[10px] ml-1" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
               </div>
             </div>
           </div>
-
-          {/* Seller active listings — inside scrollable area */}
-          {sellerActive.length > 0 && (
-            <div className="mb-2 -mx-4">
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2 mx-4" style={{ background: "#111827", color: "#fff" }}>
-                賣家上架中（{sellerActive.length}）
-              </span>
-              <div className="flex gap-2 px-4 overflow-x-auto" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
-                {sellerActive.map(l => {
-                  const thumb = l.photoUrls?.[0] ?? l.officialImageUrl;
-                  return (
-                    <button key={l.id} onClick={() => onSelectListing?.(l)}
-                      className="flex-shrink-0 rounded-xl overflow-hidden relative"
-                      style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb" }}
-                    >
-                      {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>}
-                      <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
-                        <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Seller sold listings — inside scrollable area */}
-          {sellerSold.length > 0 && (
-            <div className="mb-3 -mx-4">
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2 mx-4" style={{ background: "#111827", color: "#fff" }}>
-                賣家已售出（{sellerSold.length}）
-              </span>
-              <div className="flex gap-2 px-4 overflow-x-auto" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
-                {sellerSold.map(l => {
-                  const soldPhotos = l.photoUrls?.length ? l.photoUrls : (l.officialImageUrl ? [l.officialImageUrl] : []);
-                  const thumb = soldPhotos[0];
-                  return (
-                    <button key={l.id}
-                      onClick={() => { if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD }); }}
-                      className="flex-shrink-0 rounded-xl overflow-hidden relative"
-                      style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb", opacity: 0.8 }}
-                    >
-                      {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>}
-                      <div className="absolute top-1 left-1">
-                        <span className="text-[8px] font-black px-1 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.9)", color: "#fff" }}>已售</span>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
-                        <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
-        {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} cardName={listing.cardName} priceHKD={listing.priceHKD} onClose={() => setLightboxOpen(false)} />}
-        {soldLb && <CardPhotoLightbox photos={soldLb.photos} initialIndex={0} cardName={soldLb.cardName} priceHKD={soldLb.priceHKD} onClose={() => setSoldLb(null)} />}
+        {sellerActive.length > 0 && (
+          <div className="mb-2 -mx-4">
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2 mx-4" style={{ background: "#111827", color: "#fff" }}>
+              賣家上架中（{sellerActive.length}）
+            </span>
+            <div className="flex gap-2 px-4 overflow-x-auto" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
+              {sellerActive.map(l => {
+                const thumb = l.photoUrls?.[0] ?? l.officialImageUrl;
+                return (
+                  <button key={l.id} onClick={() => onSelectListing?.(l)}
+                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
+                    style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb" }}
+                  >
+                    {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>}
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
+                      <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-        <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
-          <button
-            onClick={handleContact}
-            disabled={contacting}
-            className="w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
-            style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
-          >
-            {contacting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            私訊賣家洽購
-          </button>
-        </div>
+        {sellerSold.length > 0 && (
+          <div className="mb-3 -mx-4">
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2 mx-4" style={{ background: "#111827", color: "#fff" }}>
+              賣家已售出（{sellerSold.length}）
+            </span>
+            <div className="flex gap-2 px-4 overflow-x-auto" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
+              {sellerSold.map(l => {
+                const soldPhotos = l.photoUrls?.length ? l.photoUrls : (l.officialImageUrl ? [l.officialImageUrl] : []);
+                const thumb = soldPhotos[0];
+                return (
+                  <button key={l.id}
+                    onClick={() => { if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD }); }}
+                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
+                    style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb", opacity: 0.8 }}
+                  >
+                    {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>}
+                    <div className="absolute top-1 left-1">
+                      <span className="text-[8px] font-black px-1 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.9)", color: "#fff" }}>已售</span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
+                      <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} cardName={listing.cardName} priceHKD={listing.priceHKD} onClose={() => setLightboxOpen(false)} />}
+      {soldLb && <CardPhotoLightbox photos={soldLb.photos} initialIndex={0} cardName={soldLb.cardName} priceHKD={soldLb.priceHKD} onClose={() => setSoldLb(null)} />}
+
+      <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
+        <button
+          onClick={handleContact}
+          disabled={contacting}
+          className="w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2"
+          style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
+        >
+          {contacting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          私訊賣家洽購
+        </button>
       </div>
     </div>
   );
@@ -709,7 +683,6 @@ export default function CardMarket() {
     offset: 0,
   }, { staleTime: 30000 });
 
-  // Auto-open listing if URL has ?listing=<id> (e.g. returning from chat)
   useEffect(() => {
     if (!searchStr || allListings.length === 0 || selectedListing) return;
     const params = new URLSearchParams(searchStr);
@@ -729,74 +702,126 @@ export default function CardMarket() {
   const listings = allListings as Listing[];
   const hotListings = [...listings].sort((a, b) => b.views - a.views).slice(0, 10);
   const recentListings = listings;
+  const wtbList = wtbs as WTB[];
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setSearch(searchInput.trim());
   }
 
+  const GAME_TAB_ACTIVE: Record<string, React.CSSProperties> = {
+    "":           { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" },
+    pokemon:      { background: "#fee2e2", color: "#b91c1c", border: "1.5px solid #fca5a5" },
+    yugioh:       { background: "#ede9fe", color: "#6d28d9", border: "1.5px solid #c4b5fd" },
+    mtg:          { background: "#d1fae5", color: "#065f46", border: "1.5px solid #6ee7b7" },
+    onepiece:     { background: "#ffedd5", color: "#c2410c", border: "1.5px solid #fdba74" },
+    dragonball:   { background: "#fef3c7", color: "#b45309", border: "1.5px solid #fde68a" },
+    digimon:      { background: "#dbeafe", color: "#1d4ed8", border: "1.5px solid #93c5fd" },
+    other:        { background: "#f3f4f6", color: "#374151", border: "1.5px solid #d1d5db" },
+  };
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: "#fff", color: "#111827" }}>
+    <div className="min-h-screen pb-20" style={{ background: "#f4f5f7", color: "#111827" }}>
       <Header />
 
       {selectedListing && (
         <ListingDetailSheet key={selectedListing.id} listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
       )}
 
-      <div className="max-w-lg mx-auto px-[5px] pt-4">
-        {/* Page Title */}
-        <div className="flex items-center gap-3 mb-[5px]">
-          <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #e5e7eb" }} />
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#CC0000" }}>CardZzz</h1>
-            <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>AI 智能 CardZzz 卡片鑑定 · 交易市場</p>
-          </div>
+      {/* ── CardZzz dark sub-header strip ── */}
+      <div style={{ background: "#111827" }} className="px-4 pt-3 pb-3 flex items-center justify-between">
+        <div className="flex items-baseline gap-0.5">
+          <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
+          <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
         </div>
+        <div className="flex items-center gap-2">
+          {isAuthenticated && (
+            <button
+              onClick={() => navigate("/cardzzz/market/my")}
+              className="p-1.5 rounded-full"
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <ClipboardList className="w-4 h-4" style={{ color: "rgba(255,255,255,0.55)" }} />
+            </button>
+          )}
+          {isAuthenticated && (
+            <button
+              onClick={() => navigate("/cardzzz/market/sell")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full font-black text-xs"
+              style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
+            >
+              <Plus className="w-3.5 h-3.5" />上架
+            </button>
+          )}
+        </div>
+      </div>
 
-        {/* Hero Banner */}
-        <div className="rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%)" }}>
-          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, #fff 0%, transparent 60%)" }} />
-          <div className="relative z-10">
-            <div className="text-[10px] font-black mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", letterSpacing: "0.1em" }}>
-              PREMIUM TRADING HUB
-            </div>
-            <h2 className="text-lg font-black leading-tight mb-1" style={{ color: "#fff" }}>
-              免費、極簡、方便快捷<br />全系列圖鑑卡牌交易空間
-            </h2>
-            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.75)" }}>
-              內建完整高清卡牌圖鑑，透明成交，一鍵查價、光速成交
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
+      {/* ── Hero card — dark, rounded ── */}
+      <div className="mx-3 mb-4 overflow-hidden relative" style={{ background: "linear-gradient(150deg,#111827 0%,#1a2535 100%)", borderRadius: 20 }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,222,0,0.09) 0%,transparent 55%), radial-gradient(ellipse at 10% 110%,rgba(249,115,22,0.07) 0%,transparent 50%)" }} />
+        <div className="relative z-10 px-4 pt-4 pb-4">
+          <div
+            className="inline-block mb-2.5 text-[10px] font-black px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", letterSpacing: "0.08em" }}
+          >
+            PREMIUM TRADING HUB
+          </div>
+          <h2 className="text-lg font-black leading-snug mb-1.5" style={{ color: "#fff" }}>
+            免費、極簡、方便快捷<br />全系列圖鑑卡牌交易空間
+          </h2>
+          <p className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
+            內建完整高清卡牌圖鑑，透明成交，一鍵查價、光速成交
+          </p>
+
+          {/* Stats */}
+          <div className="flex gap-2 mb-4">
+            {[
+              { v: String(listings.length),   label: "上架中",   color: "#4ade80" },
+              { v: String(wtbList.length),     label: "求購 WTB", color: "#c084fc" },
+            ].map(s => (
+              <div key={s.label} className="flex-1 rounded-xl py-2 text-center" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <p className="text-base font-black leading-none" style={{ color: s.color }}>{s.v}</p>
+                <p className="text-[9px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate("/cardzzz/market/sell")}
+              className="text-sm font-black px-4 py-2 rounded-full"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
+            >
+              瀏覽全部系列
+            </button>
+            {isAuthenticated && (
               <button
-                onClick={() => navigate("/cardzzz/market/sell")}
-                className="text-sm font-black px-4 py-1.5 rounded-full"
-                style={{ background: "rgba(255,255,255,0.18)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+                onClick={() => navigate("/cardzzz/market/my")}
+                className="text-sm font-black px-4 py-2 rounded-full flex items-center gap-1.5"
+                style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
               >
-                瀏覽全部系列
+                <ClipboardList className="w-3.5 h-3.5" />我的清單
               </button>
-              {isAuthenticated && (
-                <button
-                  onClick={() => navigate("/cardzzz/market/my")}
-                  className="text-sm font-black px-4 py-1.5 rounded-full flex items-center gap-1.5"
-                  style={{ background: "rgba(255,255,255,0.18)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
-                >
-                  <ClipboardList className="w-3.5 h-3.5" />
-                  我的清單
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Hot listings carousel */}
+      {/* ── Content area ── */}
+      <div className="px-3">
+
+        {/* Hot listings */}
         {hotListings.length > 0 && !search && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Flame className="w-4 h-4" style={{ color: "#F97316" }} />
-              <h2 className="text-sm font-black" style={{ color: "#111827" }}>熱門交易卡牌</h2>
-              <span className="text-xs" style={{ color: "#9ca3af" }}>1 / {hotListings.length}</span>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1 h-4 rounded-full" style={{ background: "#F97316" }} />
+                <span className="text-sm font-black" style={{ color: "#111827" }}>熱門卡牌</span>
+                <Flame className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
+              </div>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+            <div className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
               {hotListings.map(l => (
                 <HotCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />
               ))}
@@ -805,17 +830,22 @@ export default function CardMarket() {
         )}
 
         {/* Search */}
-        <form onSubmit={handleSearch} className="relative mb-4">
+        <form onSubmit={handleSearch} className="relative mb-2.5">
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="搜尋卡牌名稱..."
-            className="w-full pr-10 pl-4 py-2.5 text-sm"
-            style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+            placeholder="搜尋卡牌名稱、系列..."
+            className="w-full pl-9 pr-4 py-2.5 text-sm"
+            style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
           />
-          <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
+          <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2">
             <Search className="w-4 h-4" style={{ color: "#9ca3af" }} />
           </button>
+          {search && (
+            <button type="button" onClick={() => { setSearch(""); setSearchInput(""); }} className="absolute right-3 top-1/2 -translate-y-1/2">
+              <X className="w-4 h-4" style={{ color: "#9ca3af" }} />
+            </button>
+          )}
         </form>
 
         {/* Game tabs */}
@@ -824,10 +854,10 @@ export default function CardMarket() {
             <button
               key={g.id}
               onClick={() => setGame(g.id)}
-              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
+              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-semibold"
               style={game === g.id
-                ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }
-                : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }
+                ? (GAME_TAB_ACTIVE[g.id] ?? GAME_TAB_ACTIVE[""])
+                : { background: "#fff", color: "#6b7280", border: "1px solid #e5e7eb" }
               }
             >
               {g.label}
@@ -835,68 +865,77 @@ export default function CardMarket() {
           ))}
         </div>
 
-        {/* Recent listings header */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className="text-sm font-black" style={{ color: "#374151" }}>最近上架卡牌</span>
-          {recentListings.length > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f3f4f6", color: "#9ca3af", border: "1px solid #e5e7eb" }}>{recentListings.length}</span>
+        {/* Recent listings */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 rounded-full" style={{ background: "#FFDE00" }} />
+            <span className="text-sm font-black" style={{ color: "#111827" }}>最新上架</span>
+            {recentListings.length > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "#f3f4f6", color: "#6b7280" }}>{recentListings.length}</span>
+            )}
+          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "#e5e7eb", borderTopColor: "#F97316" }} />
+            </div>
+          ) : recentListings.length === 0 ? (
+            <div className="flex flex-col items-center py-12 gap-3">
+              <span style={{ fontSize: 48 }}>🃏</span>
+              <p className="text-sm" style={{ color: "#9ca3af" }}>暫時未有上架記錄</p>
+              {isAuthenticated && (
+                <button onClick={() => navigate("/cardzzz/market/sell")}
+                  className="text-sm px-4 py-2 rounded-full font-bold"
+                  style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
+                  立即上架
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              {recentListings.map(l => (
+                <ListingCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />
+              ))}
+            </div>
           )}
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "#e5e7eb", borderTopColor: "#F97316" }} />
-          </div>
-        ) : recentListings.length === 0 ? (
-          <div className="flex flex-col items-center py-12 gap-3">
-            <span style={{ fontSize: 48 }}>🃏</span>
-            <p className="text-sm" style={{ color: "#9ca3af" }}>暫時未有上架記錄</p>
-            {isAuthenticated && (
-              <button onClick={() => navigate("/cardzzz/market/sell")}
-                className="text-sm px-4 py-2 rounded-full font-bold"
-                style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
-                立即上架
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            {recentListings.map(l => (
-              <ListingCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />
-            ))}
-          </div>
-        )}
-
         {/* WTB section */}
-        {(wtbs as WTB[]).length > 0 && (
-          <div className="mb-6">
-            <button
-              className="flex items-center justify-between w-full mb-3"
-              onClick={() => setShowWTB(p => !p)}
-            >
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4" style={{ color: "#F97316" }} />
-                <span className="text-sm font-black" style={{ color: "#374151" }}>求購清單 (WTB)</span>
-                <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>{(wtbs as WTB[]).length}</span>
+        {wtbList.length > 0 && (
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1 h-4 rounded-full" style={{ background: "#7c3aed" }} />
+                <ShoppingBag className="w-3.5 h-3.5" style={{ color: "#7c3aed" }} />
+                <span className="text-sm font-black" style={{ color: "#111827" }}>求購清單</span>
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "#ede9fe", color: "#6d28d9" }}>{wtbList.length}</span>
               </div>
-              <ChevronRight className="w-4 h-4 transition-transform" style={{ color: "#9ca3af", transform: showWTB ? "rotate(90deg)" : "none" }} />
-            </button>
-            {showWTB && (
-              <div className="flex flex-col gap-2">
-                {(wtbs as WTB[]).map(w => <WTBCard key={w.id} wtb={w} />)}
-                <button onClick={() => navigate("/cardzzz/market/wtb")}
-                  className="text-xs text-center py-2"
-                  style={{ color: "#F97316" }}>
-                  我想求購 →
+              <button
+                onClick={() => navigate("/cardzzz/market/wtb")}
+                className="text-xs font-bold"
+                style={{ color: "#F97316" }}
+              >
+                登記求購 →
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {wtbList.slice(0, showWTB ? wtbList.length : 3).map(w => <WTBCard key={w.id} wtb={w} />)}
+              {wtbList.length > 3 && (
+                <button
+                  onClick={() => setShowWTB(p => !p)}
+                  className="text-xs text-center py-2 font-bold"
+                  style={{ color: "#F97316" }}
+                >
+                  {showWTB ? "收起" : `查看全部 ${wtbList.length} 筆求購 →`}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
         {/* WTB promo / empty */}
-        {(wtbs as WTB[]).length === 0 && (
-          <div className="mb-5 p-4 rounded-2xl flex items-center justify-between" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
+        {wtbList.length === 0 && (
+          <div className="mb-5 p-4 rounded-2xl flex items-center justify-between" style={{ background: "#fff", border: "1px solid #f0f0f0" }}>
             <div>
               <p className="text-sm font-bold" style={{ color: "#F97316" }}>想求購特定卡？</p>
               <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>登記 WTB，有人上架即通知你</p>
@@ -910,18 +949,21 @@ export default function CardMarket() {
         )}
 
         {/* Sell CTA */}
-        <div className="mb-6 p-5 rounded-2xl text-center" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
-          <p className="text-base font-black mb-1" style={{ color: "#111827" }}>手邊有珍藏卡牌想要出售？</p>
-          <p className="text-xs mb-4" style={{ color: "#6b7280" }}>
-            不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZzz 均可快速上架，直面港台數萬名藏家
-          </p>
-          <button
-            onClick={() => { if (isAuthenticated) navigate("/cardzzz/market/sell"); else navigate("/login"); }}
-            className="px-6 py-2.5 rounded-full font-black text-sm"
-            style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
-          >
-            立即刊登商品
-          </button>
+        <div className="mb-6 p-4 rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg,#111827 0%,#1e293b 100%)" }}>
+          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 100% 0%,rgba(255,222,0,0.1) 0%,transparent 55%)" }} />
+          <div className="relative z-10">
+            <p className="text-sm font-black text-white leading-snug">手邊有珍藏卡牌想要出售？</p>
+            <p className="text-xs mt-1 mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>
+              不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZzz 均可快速上架，直面港台數萬名藏家
+            </p>
+            <button
+              onClick={() => { if (isAuthenticated) navigate("/cardzzz/market/sell"); else navigate("/login"); }}
+              className="px-5 py-2 rounded-full font-black text-xs"
+              style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
+            >
+              立即刊登商品
+            </button>
+          </div>
         </div>
       </div>
 
@@ -930,7 +972,7 @@ export default function CardMarket() {
         <button
           onClick={() => navigate("/cardzzz/market/sell")}
           className="fixed z-40 rounded-full shadow-xl flex items-center gap-2 font-black text-sm"
-          style={{ bottom: 76, right: 16, background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827", padding: "12px 18px", boxShadow: "0 4px 20px rgba(255,222,0,0.45)" }}
+          style={{ bottom: 76, right: 16, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", padding: "12px 18px", boxShadow: "0 4px 20px rgba(255,184,0,0.5)" }}
         >
           <Plus className="w-4 h-4" />
           上架
