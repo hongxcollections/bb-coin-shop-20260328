@@ -601,7 +601,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
     setContacting(true);
     try {
       const room = await openRoomMut.mutateAsync({ sellerId: listing.userId, listingId: listing.id });
-      navigate(`/chat/${room.roomId}`);
+      navigate(`/messages/${room.roomId}`);
     } catch {
       toast.error("開啟對話失敗，請稍後再試");
     } finally {
@@ -729,21 +729,26 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
         </div>
 
         {sellerActive.length > 0 && (
-          <div className="mb-2 -mx-4">
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2 mx-4" style={{ background: "#111827", color: "#fff" }}>
-              賣家上架中（{sellerActive.length}）
-            </span>
-            <div className="flex gap-2 px-4 overflow-x-auto" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
-              {sellerActive.map(l => {
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#111827", color: "#fff" }}>
+                賣家上架中（{sellerActive.length}）
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+              {sellerActive.slice(0, 9).map(l => {
                 const thumb = l.photoUrls?.[0] ?? l.officialImageUrl;
                 return (
                   <button key={l.id} onClick={() => onSelectListing?.(l)}
-                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
-                    style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb" }}
+                    className="rounded-xl overflow-hidden relative"
+                    style={{ aspectRatio: "3/4", background: "#f3f4f6", border: "1px solid #e5e7eb" }}
                   >
-                    {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>}
-                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
-                      <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
+                    {thumb
+                      ? <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      : <div className="absolute inset-0 flex items-center justify-center" style={{ fontSize: 22 }}>🃏</div>}
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "linear-gradient(transparent,rgba(0,0,0,0.72))" }}>
+                      <p className="text-[9px] font-black leading-tight line-clamp-1" style={{ color: "#FFDE00" }}>${l.priceHKD.toLocaleString()}</p>
+                      <p className="text-[8px] leading-tight line-clamp-1" style={{ color: "rgba(255,255,255,0.7)" }}>{l.cardName}</p>
                     </div>
                   </button>
                 );
@@ -753,25 +758,30 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
         )}
 
         {sellerSold.length > 0 && (
-          <div className="mb-3 -mx-4">
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full inline-block mb-2 mx-4" style={{ background: "#111827", color: "#fff" }}>
-              賣家已售出（{sellerSold.length}）
-            </span>
-            <div className="flex gap-2 px-4 overflow-x-auto" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
-              {sellerSold.map(l => {
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#6b7280", color: "#fff" }}>
+                賣家已售出（{sellerSold.length}）
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 5 }}>
+              {sellerSold.slice(0, 12).map(l => {
                 const soldPhotos = l.photoUrls?.length ? l.photoUrls : (l.officialImageUrl ? [l.officialImageUrl] : []);
                 const thumb = soldPhotos[0];
                 return (
                   <button key={l.id}
                     onClick={() => { if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD }); }}
-                    className="flex-shrink-0 rounded-xl overflow-hidden relative"
-                    style={{ width: 80, height: 100, background: "#f3f4f6", border: "1px solid #e5e7eb", opacity: 0.8 }}
+                    className="rounded-xl overflow-hidden relative"
+                    style={{ aspectRatio: "3/4", background: "#f3f4f6", border: "1px solid #e5e7eb" }}
                   >
-                    {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 20 }}>🃏</div>}
-                    <div className="absolute top-1 left-1">
-                      <span className="text-[8px] font-black px-1 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.9)", color: "#fff" }}>已售</span>
+                    {thumb
+                      ? <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: "grayscale(25%)" }} />
+                      : <div className="absolute inset-0 flex items-center justify-center" style={{ fontSize: 18 }}>🃏</div>}
+                    <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.18)" }} />
+                    <div className="absolute top-0.5 left-0.5">
+                      <span className="text-[7px] font-black px-1 py-0.5 rounded" style={{ background: "rgba(22,163,74,0.9)", color: "#fff" }}>已售</span>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>
+                    <div className="absolute bottom-0 left-0 right-0 px-0.5 py-0.5" style={{ background: "linear-gradient(transparent,rgba(0,0,0,0.75))" }}>
                       <p className="text-[8px] font-black leading-tight line-clamp-1" style={{ color: "#fff" }}>${l.priceHKD.toLocaleString()}</p>
                     </div>
                   </button>
