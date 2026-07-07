@@ -25338,7 +25338,7 @@ EXAMPLE OUTPUT (exact format):
         const { getRawPool: getRawPool2, getOrCreateChatRoom: getOrCreateChatRoom2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const pool = await getRawPool2();
         const [rows] = await pool.execute(
-          "SELECT id, userId FROM cardWTBs WHERE id = ? AND isActive = 1 LIMIT 1",
+          "SELECT id, userId FROM cardWantToBuy WHERE id = ? AND isActive = 1 LIMIT 1",
           [input.wtbId]
         );
         const wtb = Array.isArray(rows) ? rows[0] : null;

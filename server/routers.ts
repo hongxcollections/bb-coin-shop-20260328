@@ -14465,7 +14465,7 @@ EXAMPLE OUTPUT (exact format):
         const { getRawPool, getOrCreateChatRoom } = await import('./db') as any;
         const pool = await getRawPool();
         const [rows]: any = await pool.execute(
-          'SELECT id, userId FROM cardWTBs WHERE id = ? AND isActive = 1 LIMIT 1',
+          'SELECT id, userId FROM cardWantToBuy WHERE id = ? AND isActive = 1 LIMIT 1',
           [input.wtbId],
         );
         const wtb = Array.isArray(rows) ? rows[0] : null;

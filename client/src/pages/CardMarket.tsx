@@ -320,6 +320,127 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
   );
 }
 
+function WTBImageLightbox({ imageUrl, cardName, maxPriceHKD, onClose }: {
+  imageUrl: string; cardName: string; maxPriceHKD?: number | null; onClose: () => void;
+}) {
+  const [zoom, setZoom] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [mode, setMode] = useState<'v' | 'h'>('v');
+  const zoomRef = useRef(1);
+  const pinchStartDist = useRef(0);
+  const pinchStartZoom = useRef(1);
+  const panStartTouch = useRef({ x: 0, y: 0 });
+  const panStartOffset = useRef({ x: 0, y: 0 });
+  const lastTapTime = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+
+  function resetZoom() { setZoom(1); zoomRef.current = 1; setPanX(0); setPanY(0); }
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    function onTS(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchStartDist.current = Math.sqrt(dx * dx + dy * dy);
+        pinchStartZoom.current = zoomRef.current;
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapTime.current < 280 && zoomRef.current > 1) resetZoom();
+        lastTapTime.current = now;
+        panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        panStartOffset.current = { x: panX, y: panY };
+      }
+    }
+    el.addEventListener('touchstart', onTS, { passive: false });
+    return () => el.removeEventListener('touchstart', onTS);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panX, panY]);
+
+  function onMove(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const z = Math.min(6, Math.max(1, pinchStartZoom.current * (d / pinchStartDist.current)));
+      setZoom(z); zoomRef.current = z; setPanX(0); setPanY(0);
+    } else if (e.touches.length === 1 && zoomRef.current > 1) {
+      e.preventDefault();
+      setPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);
+      setPanY(panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y);
+    }
+  }
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[99999] flex flex-col" style={{ bottom: 60, background: 'rgba(0,0,0,0.96)' }}>
+      <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p className="text-sm font-bold leading-snug line-clamp-2" style={{ color: '#fff', marginBottom: 2 }}>{cardName}</p>
+          {maxPriceHKD ? (
+            <p className="text-base font-black" style={{ color: '#22c55e' }}>求購上限 HKD ${maxPriceHKD.toLocaleString()}</p>
+          ) : (
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>價格面議</p>
+          )}
+        </div>
+        <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'center' }}>
+          <button
+            onClick={() => { setMode('h'); resetZoom(); }}
+            style={{ padding: '6px 10px', background: mode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+            title="橫向"
+          ><LayoutGrid className="w-4 h-4" /></button>
+          <button
+            onClick={() => { setMode('v'); resetZoom(); }}
+            style={{ padding: '6px 10px', background: mode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+            title="直立"
+          ><LayoutList className="w-4 h-4" /></button>
+        </div>
+        <button
+          className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
+          style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', alignSelf: 'center' }}
+          onClick={onClose}
+        >關閉</button>
+      </div>
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-hidden"
+        style={{ display: 'flex', alignItems: mode === 'h' ? 'center' : 'flex-start', justifyContent: 'center', overflowY: mode === 'v' ? 'auto' : 'hidden' }}
+        onTouchMove={onMove}
+      >
+        <img
+          src={imageUrl}
+          className="select-none"
+          style={{
+            maxWidth: '100%',
+            ...(mode === 'h' ? { maxHeight: '100%', objectFit: 'contain' } : { width: '100%', objectFit: 'contain' }),
+            borderRadius: 14, display: 'block', pointerEvents: 'none',
+            transform: `translate(${panX}px,${panY}px) scale(${zoom})`,
+            transformOrigin: 'center center',
+          }}
+          alt="" draggable={false}
+        />
+      </div>
+      <div className="flex items-center px-4 pt-2 pb-3 flex-shrink-0">
+        {zoom > 1 ? (
+          <button className="text-white/60 text-xs px-3 py-1.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.1)' }} onClick={resetZoom}>重設縮放</button>
+        ) : (
+          <p className="text-[11px] text-white/30">雙指放大 · 雙擊重設 · {mode === 'v' ? '直立式' : '橫向式'}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }) {
   const img = listing.photoUrls[0] ?? listing.officialImageUrl;
   const rarityBadge = getRarityShort(listing.rarity);
@@ -408,7 +529,7 @@ interface WTB {
   minCondition: string | null; notes: string | null; createdAt: string; buyerName: string | null;
 }
 
-function WTBCard({ wtb, onContact }: { wtb: WTB; onContact?: () => void }) {
+function WTBCard({ wtb, onContact, onImageClick }: { wtb: WTB; onContact?: () => void; onImageClick?: () => void }) {
   const gameStyle = GAME_BADGE_STYLE[wtb.game] ?? { background: "#f3f4f6", color: "#6b7280" };
   const gameLabel = GAMES.find(g => g.id === wtb.game)?.label ?? wtb.game;
   return (
@@ -417,7 +538,9 @@ function WTBCard({ wtb, onContact }: { wtb: WTB; onContact?: () => void }) {
       style={{ background: "#fff", border: "1px solid #f0f0f0", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", borderLeft: "3px solid #F97316" }}
     >
       {wtb.officialImageUrl ? (
-        <img src={wtb.officialImageUrl} alt="" className="rounded-lg flex-shrink-0 object-cover" style={{ width: 36, height: 50 }} />
+        <button type="button" onClick={onImageClick} className="flex-shrink-0 rounded-lg overflow-hidden" style={{ width: 36, height: 50, cursor: onImageClick ? 'pointer' : 'default' }}>
+          <img src={wtb.officialImageUrl} alt="" className="w-full h-full object-cover" />
+        </button>
       ) : (
         <div className="rounded-lg flex-shrink-0 flex items-center justify-center" style={{ width: 36, height: 50, background: "#f3f4f6" }}>
           <span style={{ fontSize: 18 }}>🃏</span>
@@ -686,6 +809,7 @@ export default function CardMarket() {
   const [searchInput, setSearchInput] = useState("");
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showWTB, setShowWTB] = useState(false);
+  const [wtbLightbox, setWtbLightbox] = useState<WTB | null>(null);
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
@@ -760,6 +884,15 @@ export default function CardMarket() {
 
       {selectedListing && (
         <ListingDetailSheet key={selectedListing.id} listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
+      )}
+
+      {wtbLightbox && wtbLightbox.officialImageUrl && (
+        <WTBImageLightbox
+          imageUrl={wtbLightbox.officialImageUrl}
+          cardName={wtbLightbox.cardName}
+          maxPriceHKD={wtbLightbox.maxPriceHKD}
+          onClose={() => setWtbLightbox(null)}
+        />
       )}
 
       {/* ── CardZzz sub-header strip ── */}
@@ -968,6 +1101,7 @@ export default function CardMarket() {
                   key={w.id}
                   wtb={w}
                   onContact={user?.id !== w.userId ? () => handleContactWTBBuyer(w.id) : undefined}
+                  onImageClick={w.officialImageUrl ? () => setWtbLightbox(w) : undefined}
                 />
               ))}
               {wtbList.length > 3 && (
