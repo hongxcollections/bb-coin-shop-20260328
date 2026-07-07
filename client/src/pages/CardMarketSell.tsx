@@ -14,7 +14,7 @@ const GAMES = [
   { id: "onepiece", label: "航海王", emoji: "⚓" },
   { id: "dragonball", label: "龍珠", emoji: "🐉" },
   { id: "digimon", label: "數碼暴龍", emoji: "💾" },
-  { id: "other", label: "其他", emoji: "🃏" },
+  { id: "other", label: "手動填寫", emoji: "🃏" },
 ] as const;
 
 type GameId = typeof GAMES[number]["id"];
@@ -74,7 +74,6 @@ export default function CardMarketSell() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [game, setGame] = useState<GameId | "">("");
-  const [customGame, setCustomGame] = useState("");
 
   const [step2Tab, setStep2Tab] = useState<Step2Tab>("browse");
   const [selectedSet, setSelectedSet] = useState<SetResult | null>(null);
@@ -231,7 +230,7 @@ export default function CardMarketSell() {
     setSubmitting(true);
     try {
       await createListingMut.mutateAsync({
-        game: (game === "other" && customGame.trim()) ? customGame.trim() : (game as string),
+        game: game as GameId,
         cardApiId: selectedCard?.cardApiId,
         cardName,
         cardNameJa: selectedCard?.cardNameJa,
@@ -265,7 +264,7 @@ export default function CardMarketSell() {
     setSubmitting(true);
     try {
       await createWTBMut.mutateAsync({
-        game: (game === "other" && customGame.trim()) ? customGame.trim() : (game as string),
+        game: game as GameId,
         cardApiId: selectedCard?.cardApiId,
         cardName,
         cardNameJa: selectedCard?.cardNameJa,
@@ -311,7 +310,7 @@ export default function CardMarketSell() {
       <div className="max-w-lg mx-auto px-[5px] pt-4">
         {/* ── CardZzz sub-header strip ── */}
         <div
-          style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8 }}
+          style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3 }}
           className="px-4 pt-3 pb-3 flex items-center justify-between mb-5"
         >
           <div className="flex items-baseline gap-0.5">
@@ -375,16 +374,14 @@ export default function CardMarketSell() {
                   key={g.id}
                   onClick={() => {
                     setGame(g.id);
-                    if (g.id !== "other") {
-                      setStep(2);
-                      setSelectedCard(null);
-                      setSelectedSet(null);
-                      setSearchQuery("");
-                      setSearchResults([]);
-                      setAccCards([]);
-                      prevSetRef.current = null;
-                      setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) ? "browse" : "search");
-                    }
+                    setStep(2);
+                    setSelectedCard(null);
+                    setSelectedSet(null);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setAccCards([]);
+                    prevSetRef.current = null;
+                    setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) ? "browse" : "search");
                   }}
                   className="flex items-center gap-3 p-3 rounded-2xl transition-all"
                   style={{ background: game === g.id ? "rgba(255,222,0,0.15)" : "#fff", border: `1px solid ${game === g.id ? "rgba(255,222,0,0.4)" : "#e5e7eb"}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
@@ -394,35 +391,6 @@ export default function CardMarketSell() {
                 </button>
               ))}
             </div>
-            {game === "other" && (
-              <div className="mt-4">
-                <p className="text-xs font-bold mb-2" style={{ color: "#6b7280" }}>請填寫遊戲名稱</p>
-                <input
-                  value={customGame}
-                  onChange={e => setCustomGame(e.target.value)}
-                  placeholder="例如：Flesh and Blood"
-                  className="w-full px-3 py-2 text-sm outline-none"
-                  style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
-                />
-                <button
-                  onClick={() => {
-                    if (!customGame.trim()) { toast.error("請填寫遊戲名稱"); return; }
-                    setStep(2);
-                    setSelectedCard(null);
-                    setSelectedSet(null);
-                    setSearchQuery("");
-                    setSearchResults([]);
-                    setAccCards([]);
-                    prevSetRef.current = null;
-                    setStep2Tab("search");
-                  }}
-                  className="w-full mt-3 py-2.5 rounded-xl text-sm font-black"
-                  style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
-                >
-                  確認
-                </button>
-              </div>
-            )}
           </div>
         )}
 
