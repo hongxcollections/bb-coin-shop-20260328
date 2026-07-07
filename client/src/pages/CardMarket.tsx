@@ -534,6 +534,7 @@ function WTBCard({ wtb, onContact, onImageClick }: { wtb: WTB; onContact?: () =>
   const gameLabel = GAMES.find(g => g.id === wtb.game)?.label ?? wtb.game;
   return (
     <div
+      id={`wtb-${wtb.id}`}
       className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
       style={{ background: "#fff", border: "1px solid #f0f0f0", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", borderLeft: "3px solid #F97316" }}
     >
@@ -824,7 +825,7 @@ export default function CardMarket() {
     if (!isAuthenticated) { navigate("/login"); return; }
     try {
       const { roomId } = await contactWTBMut.mutateAsync({ wtbId });
-      navigate(`/messages/${roomId}?from=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      navigate(`/messages/${roomId}?from=${encodeURIComponent(window.location.pathname + window.location.search + '#wtb-' + wtbId)}`);
     } catch (err: any) {
       toast.error(err?.message ?? "聯絡失敗");
     }
@@ -836,6 +837,13 @@ export default function CardMarket() {
     limit: 50,
     offset: 0,
   }, { staleTime: 30000 });
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash) return;
+    const el = document.getElementById(hash.slice(1));
+    if (el) setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 200);
+  }, []);
 
   useEffect(() => {
     if (!searchStr || allListings.length === 0 || selectedListing) return;

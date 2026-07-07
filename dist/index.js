@@ -25123,7 +25123,7 @@ EXAMPLE OUTPUT (exact format):
       }),
       // ── Listing CRUD ─────────────────────────────────────────────────────────
       createListing: protectedProcedure.input(z2.object({
-        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
+        game: z2.string().min(1).max(50),
         cardApiId: z2.string().optional(),
         cardName: z2.string().min(1).max(200),
         cardNameJa: z2.string().max(200).optional(),
@@ -25282,7 +25282,7 @@ EXAMPLE OUTPUT (exact format):
       }),
       // ── WTB (Want To Buy) ────────────────────────────────────────────────────
       createWTB: protectedProcedure.input(z2.object({
-        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
+        game: z2.string().min(1).max(50),
         cardApiId: z2.string().optional(),
         cardName: z2.string().min(1).max(200),
         cardNameJa: z2.string().max(200).optional(),

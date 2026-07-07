@@ -74,6 +74,7 @@ export default function CardMarketSell() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [game, setGame] = useState<GameId | "">("");
+  const [customGame, setCustomGame] = useState("");
 
   const [step2Tab, setStep2Tab] = useState<Step2Tab>("browse");
   const [selectedSet, setSelectedSet] = useState<SetResult | null>(null);
@@ -230,7 +231,7 @@ export default function CardMarketSell() {
     setSubmitting(true);
     try {
       await createListingMut.mutateAsync({
-        game: game as GameId,
+        game: (game === "other" && customGame.trim()) ? customGame.trim() : (game as string),
         cardApiId: selectedCard?.cardApiId,
         cardName,
         cardNameJa: selectedCard?.cardNameJa,
@@ -264,7 +265,7 @@ export default function CardMarketSell() {
     setSubmitting(true);
     try {
       await createWTBMut.mutateAsync({
-        game: game as GameId,
+        game: (game === "other" && customGame.trim()) ? customGame.trim() : (game as string),
         cardApiId: selectedCard?.cardApiId,
         cardName,
         cardNameJa: selectedCard?.cardNameJa,
@@ -308,12 +309,22 @@ export default function CardMarketSell() {
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa", color: "#111827" }}>
       <Header />
       <div className="max-w-lg mx-auto px-[5px] pt-4">
-        {/* Back + title */}
-        <div className="flex items-center gap-3 mb-5">
-          <button onClick={() => navigate("/cardzzz/market")} className="p-1.5 rounded-full" style={{ background: "#f3f4f6", border: "1px solid #e5e7eb" }}>
-            <ChevronLeft className="w-4 h-4" style={{ color: "#6b7280" }} />
+        {/* ── CardZzz sub-header strip ── */}
+        <div
+          style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8 }}
+          className="px-4 pt-3 pb-3 flex items-center justify-between mb-5"
+        >
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
+            <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
+          </div>
+          <button
+            onClick={() => navigate("/cardzzz/market")}
+            className="p-1.5 rounded-full"
+            style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            <ChevronLeft className="w-4 h-4 text-white" />
           </button>
-          <h1 className="text-xl font-black" style={{ color: "#CC0000" }}>CardZzz 市場</h1>
         </div>
 
         {/* Mode toggle */}
@@ -364,14 +375,16 @@ export default function CardMarketSell() {
                   key={g.id}
                   onClick={() => {
                     setGame(g.id);
-                    setStep(2);
-                    setSelectedCard(null);
-                    setSelectedSet(null);
-                    setSearchQuery("");
-                    setSearchResults([]);
-                    setAccCards([]);
-                    prevSetRef.current = null;
-                    setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) ? "browse" : "search");
+                    if (g.id !== "other") {
+                      setStep(2);
+                      setSelectedCard(null);
+                      setSelectedSet(null);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                      setAccCards([]);
+                      prevSetRef.current = null;
+                      setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) ? "browse" : "search");
+                    }
                   }}
                   className="flex items-center gap-3 p-3 rounded-2xl transition-all"
                   style={{ background: game === g.id ? "rgba(255,222,0,0.15)" : "#fff", border: `1px solid ${game === g.id ? "rgba(255,222,0,0.4)" : "#e5e7eb"}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
@@ -381,6 +394,35 @@ export default function CardMarketSell() {
                 </button>
               ))}
             </div>
+            {game === "other" && (
+              <div className="mt-4">
+                <p className="text-xs font-bold mb-2" style={{ color: "#6b7280" }}>請填寫遊戲名稱</p>
+                <input
+                  value={customGame}
+                  onChange={e => setCustomGame(e.target.value)}
+                  placeholder="例如：Flesh and Blood"
+                  className="w-full px-3 py-2 text-sm outline-none"
+                  style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                />
+                <button
+                  onClick={() => {
+                    if (!customGame.trim()) { toast.error("請填寫遊戲名稱"); return; }
+                    setStep(2);
+                    setSelectedCard(null);
+                    setSelectedSet(null);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setAccCards([]);
+                    prevSetRef.current = null;
+                    setStep2Tab("search");
+                  }}
+                  className="w-full mt-3 py-2.5 rounded-xl text-sm font-black"
+                  style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
+                >
+                  確認
+                </button>
+              </div>
+            )}
           </div>
         )}
 

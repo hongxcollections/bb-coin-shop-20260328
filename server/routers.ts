@@ -14218,7 +14218,7 @@ EXAMPLE OUTPUT (exact format):
     // ── Listing CRUD ─────────────────────────────────────────────────────────
     createListing: protectedProcedure
       .input(z.object({
-        game: z.enum(['pokemon', 'yugioh', 'mtg', 'digimon', 'onepiece', 'dragonball', 'other']),
+        game: z.string().min(1).max(50),
         cardApiId: z.string().optional(),
         cardName: z.string().min(1).max(200),
         cardNameJa: z.string().max(200).optional(),
@@ -14399,7 +14399,7 @@ EXAMPLE OUTPUT (exact format):
     // ── WTB (Want To Buy) ────────────────────────────────────────────────────
     createWTB: protectedProcedure
       .input(z.object({
-        game: z.enum(['pokemon', 'yugioh', 'mtg', 'digimon', 'onepiece', 'dragonball', 'other']),
+        game: z.string().min(1).max(50),
         cardApiId: z.string().optional(),
         cardName: z.string().min(1).max(200),
         cardNameJa: z.string().max(200).optional(),
