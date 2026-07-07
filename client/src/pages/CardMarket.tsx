@@ -728,8 +728,8 @@ export default function CardMarket() {
         <ListingDetailSheet key={selectedListing.id} listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
       )}
 
-      {/* ── CardZzz dark sub-header strip ── */}
-      <div style={{ background: "#111827" }} className="px-4 pt-3 pb-3 flex items-center justify-between">
+      {/* ── CardZzz sub-header strip ── */}
+      <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)" }} className="px-4 pt-3 pb-3 flex items-center justify-between">
         <div className="flex items-baseline gap-0.5">
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
@@ -757,8 +757,8 @@ export default function CardMarket() {
       </div>
 
       {/* ── Hero card — dark, rounded ── */}
-      <div className="mx-[5px] mt-[3px] mb-4 overflow-hidden relative" style={{ background: "linear-gradient(150deg,#111827 0%,#1a2535 100%)", borderRadius: 20 }}>
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,222,0,0.09) 0%,transparent 55%), radial-gradient(ellipse at 10% 110%,rgba(249,115,22,0.07) 0%,transparent 50%)" }} />
+      <div className="mx-[5px] mt-[3px] mb-4 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 20 }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,255,255,0.12) 0%,transparent 55%)" }} />
         <div className="relative z-10 px-4 pt-4 pb-4">
           <div
             className="inline-block mb-2.5 text-[10px] font-black px-2.5 py-1 rounded-full"
@@ -776,13 +776,13 @@ export default function CardMarket() {
           {/* Stats */}
           <div className="flex gap-2 mb-4">
             {[
-              { v: String(listings.length),   label: "上架中",   color: "#4ade80" },
-              { v: "0",                        label: "今日成交", color: "#fb923c" },
-              { v: String(wtbList.length),     label: "求購 WTB", color: "#c084fc" },
+              { v: String(listings.length),   label: "上架中" },
+              { v: "0",                        label: "今日成交" },
+              { v: String(wtbList.length),     label: "求購 WTB" },
             ].map(s => (
-              <div key={s.label} className="flex-1 rounded-xl py-2 text-center" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <p className="text-base font-black leading-none" style={{ color: s.color }}>{s.v}</p>
-                <p className="text-[9px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{s.label}</p>
+              <div key={s.label} className="flex-1 rounded-xl py-2 text-center" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                <p className="text-base font-black leading-none text-white">{s.v}</p>
+                <p className="text-[9px] mt-0.5" style={{ color: "rgba(255,255,255,0.65)" }}>{s.label}</p>
               </div>
             ))}
           </div>
