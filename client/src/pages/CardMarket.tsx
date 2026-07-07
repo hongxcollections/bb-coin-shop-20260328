@@ -757,7 +757,7 @@ export default function CardMarket() {
       </div>
 
       {/* ── Hero card — dark, rounded ── */}
-      <div className="mx-3 mb-4 overflow-hidden relative" style={{ background: "linear-gradient(150deg,#111827 0%,#1a2535 100%)", borderRadius: 20 }}>
+      <div className="mx-[5px] mt-[3px] mb-4 overflow-hidden relative" style={{ background: "linear-gradient(150deg,#111827 0%,#1a2535 100%)", borderRadius: 20 }}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,222,0,0.09) 0%,transparent 55%), radial-gradient(ellipse at 10% 110%,rgba(249,115,22,0.07) 0%,transparent 50%)" }} />
         <div className="relative z-10 px-4 pt-4 pb-4">
           <div
@@ -777,6 +777,7 @@ export default function CardMarket() {
           <div className="flex gap-2 mb-4">
             {[
               { v: String(listings.length),   label: "上架中",   color: "#4ade80" },
+              { v: "0",                        label: "今日成交", color: "#fb923c" },
               { v: String(wtbList.length),     label: "求購 WTB", color: "#c084fc" },
             ].map(s => (
               <div key={s.label} className="flex-1 rounded-xl py-2 text-center" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -809,7 +810,7 @@ export default function CardMarket() {
       </div>
 
       {/* ── Content area ── */}
-      <div className="px-3">
+      <div className="px-[5px]">
 
         {/* Hot listings */}
         {hotListings.length > 0 && !search && (
