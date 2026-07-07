@@ -722,6 +722,18 @@ export default function CardMarket() {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "#f4f5f7", color: "#111827" }}>
+      <style>{`
+        @keyframes cardzzz-scan {
+          0%   { transform: translateX(-160%); }
+          100% { transform: translateX(160%); }
+        }
+        @keyframes cardzzz-flicker {
+          0%,100% { opacity: 0.75; }
+          30%     { opacity: 1; }
+          65%     { opacity: 0.55; }
+          80%     { opacity: 0.9; }
+        }
+      `}</style>
       <Header />
 
       {selectedListing && (
@@ -759,6 +771,15 @@ export default function CardMarket() {
       {/* ── Hero card — dark, rounded ── */}
       <div className="mx-[5px] mt-[3px] mb-4 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 20 }}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,255,255,0.12) 0%,transparent 55%)" }} />
+        {/* scan shimmer overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.22) 50%, transparent 65%)",
+            animation: "cardzzz-scan 2.8s ease-in-out infinite alternate, cardzzz-flicker 1.1s ease-in-out infinite",
+            zIndex: 5,
+          }}
+        />
         <div className="relative z-10 px-4 pt-4 pb-4">
           <div
             className="inline-block mb-2.5 text-[10px] font-black px-2.5 py-1 rounded-full"
