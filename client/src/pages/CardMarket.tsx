@@ -741,7 +741,7 @@ export default function CardMarket() {
       )}
 
       {/* ── CardZzz sub-header strip ── */}
-      <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 2, marginLeft: 0, marginRight: 0 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
+      <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 2, marginLeft: 5, marginRight: 5 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
         <div className="flex items-baseline gap-0.5">
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
@@ -795,15 +795,15 @@ export default function CardMarket() {
           </p>
 
           {/* Stats */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-1.5 mb-3">
             {[
-              { v: String(listings.length),   label: "上架中" },
-              { v: "0",                        label: "今日成交" },
-              { v: String(wtbList.length),     label: "求購 WTB" },
+              { v: String(listings.length), label: "上架中" },
+              { v: "0",                      label: "今日成交" },
+              { v: String(wtbList.length),   label: "求購 WTB" },
             ].map(s => (
-              <div key={s.label} className="flex-1 rounded-xl py-2 text-center" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                <p className="text-base font-black leading-none text-white">{s.v}</p>
-                <p className="text-[9px] mt-0.5" style={{ color: "rgba(255,255,255,0.65)" }}>{s.label}</p>
+              <div key={s.label} className="flex items-center gap-1.5 flex-1 px-2 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                <span className="text-sm font-black leading-none text-white">{s.v}</span>
+                <span className="text-[9px] leading-none" style={{ color: "rgba(255,255,255,0.7)" }}>{s.label}</span>
               </div>
             ))}
           </div>
