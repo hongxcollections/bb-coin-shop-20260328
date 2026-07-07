@@ -741,7 +741,7 @@ export default function CardMarket() {
       )}
 
       {/* ── CardZzz sub-header strip ── */}
-      <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)" }} className="px-4 pt-3 pb-3 flex items-center justify-between">
+      <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 2, marginLeft: 0, marginRight: 0 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
         <div className="flex items-baseline gap-0.5">
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
@@ -769,7 +769,7 @@ export default function CardMarket() {
       </div>
 
       {/* ── Hero card — dark, rounded ── */}
-      <div className="mx-[5px] mt-[3px] mb-4 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 20 }}>
+      <div className="mx-[5px] mt-[3px] mb-4 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 12 }}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,255,255,0.12) 0%,transparent 55%)" }} />
         {/* scan shimmer overlay */}
         <div
