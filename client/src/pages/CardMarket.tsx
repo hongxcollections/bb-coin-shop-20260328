@@ -824,7 +824,7 @@ export default function CardMarket() {
     if (!isAuthenticated) { navigate("/login"); return; }
     try {
       const { roomId } = await contactWTBMut.mutateAsync({ wtbId });
-      navigate(`/messages?room=${roomId}`);
+      navigate(`/messages/${roomId}?from=${encodeURIComponent(window.location.pathname + window.location.search)}`);
     } catch (err: any) {
       toast.error(err?.message ?? "聯絡失敗");
     }
