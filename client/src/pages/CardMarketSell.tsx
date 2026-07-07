@@ -307,25 +307,24 @@ export default function CardMarketSell() {
     <>
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa", color: "#111827" }}>
       <Header />
-      <div className="max-w-lg mx-auto px-[5px] pt-4">
-        {/* ── CardZzz sub-header strip ── */}
-        <div
-          style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3 }}
-          className="px-4 pt-3 pb-3 flex items-center justify-between mb-5"
-        >
-          <div className="flex items-baseline gap-0.5">
-            <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
-            <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
-          </div>
-          <button
-            onClick={() => navigate("/cardzzz/market")}
-            className="p-1.5 rounded-full"
-            style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
-          >
-            <ChevronLeft className="w-4 h-4 text-white" />
-          </button>
+      {/* ── CardZzz sub-header strip ── */}
+      <div
+        style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }}
+        className="px-4 pt-3 pb-3 flex items-center justify-between"
+      >
+        <div className="flex items-baseline gap-0.5">
+          <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
+          <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
         </div>
-
+        <button
+          onClick={() => navigate("/cardzzz/market")}
+          className="p-1.5 rounded-full"
+          style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+        >
+          <ChevronLeft className="w-4 h-4 text-white" />
+        </button>
+      </div>
+      <div className="max-w-lg mx-auto px-[5px] pt-4">
         {/* Mode toggle */}
         <div className="flex gap-2 mb-5 p-1 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
           <button
