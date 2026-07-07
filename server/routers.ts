@@ -14459,6 +14459,24 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    openRoomWithWTBBuyer: protectedProcedure
+      .input(z.object({ wtbId: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool, getOrCreateChatRoom } = await import('./db') as any;
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          'SELECT id, userId FROM cardWTBs WHERE id = ? AND isActive = 1 LIMIT 1',
+          [input.wtbId],
+        );
+        const wtb = Array.isArray(rows) ? rows[0] : null;
+        if (!wtb) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到此求購記錄' });
+        const buyerId: number = wtb.userId;
+        if (buyerId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '呢個係你自己嘅求購記錄' });
+        const result = await getOrCreateChatRoom(-buyerId, ctx.user.id, buyerId);
+        if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
+        return { roomId: result.room.id };
+      }),
+
     openRoomWithSeller: protectedProcedure
       .input(z.object({ listingId: z.number().int() }))
       .mutation(async ({ input, ctx }) => {

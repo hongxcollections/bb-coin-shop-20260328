@@ -408,7 +408,7 @@ interface WTB {
   minCondition: string | null; notes: string | null; createdAt: string; buyerName: string | null;
 }
 
-function WTBCard({ wtb }: { wtb: WTB }) {
+function WTBCard({ wtb, onContact }: { wtb: WTB; onContact?: () => void }) {
   const gameStyle = GAME_BADGE_STYLE[wtb.game] ?? { background: "#f3f4f6", color: "#6b7280" };
   const gameLabel = GAMES.find(g => g.id === wtb.game)?.label ?? wtb.game;
   return (
@@ -426,13 +426,24 @@ function WTBCard({ wtb }: { wtb: WTB }) {
       <div className="flex-1 min-w-0">
         <p className="text-xs font-black leading-tight line-clamp-1" style={{ color: "#111827" }}>{wtb.cardName}</p>
         {wtb.setName && <p className="text-[10px] line-clamp-1" style={{ color: "#9ca3af" }}>{wtb.setName}</p>}
-        <div className="flex items-center gap-1.5 mt-0.5">
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={gameStyle}>{gameLabel}</span>
           {wtb.maxPriceHKD && <span className="text-[10px] font-bold" style={{ color: "#16a34a" }}>上限 ${wtb.maxPriceHKD.toLocaleString()}</span>}
           {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
         </div>
       </div>
-      <span className="text-[10px] flex-shrink-0" style={{ color: "#9ca3af" }}>{wtb.buyerName ?? "用戶"}</span>
+      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+        <span className="text-[10px]" style={{ color: "#9ca3af" }}>{wtb.buyerName ?? "用戶"}</span>
+        {onContact && (
+          <button
+            onClick={onContact}
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
+          >
+            私訊
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -476,7 +487,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#fff" }}>
+    <div className="fixed inset-0 z-[210] flex flex-col" style={{ background: "#fff" }}>
       <div className="flex items-center justify-between px-4 pt-3 pb-3 flex-shrink-0">
         <h2 className="text-base font-black" style={{ color: "#111827" }}>卡牌詳情</h2>
         <button onClick={onClose} className="text-xs px-3 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>關閉</button>
@@ -651,7 +662,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
       {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} cardName={listing.cardName} priceHKD={listing.priceHKD} onClose={() => setLightboxOpen(false)} />}
       {soldLb && <CardPhotoLightbox photos={soldLb.photos} initialIndex={0} cardName={soldLb.cardName} priceHKD={soldLb.priceHKD} onClose={() => setSoldLb(null)} />}
 
-      <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 40 }}>
+      <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 24 }}>
         <button
           onClick={handleContact}
           disabled={contacting}
@@ -669,12 +680,23 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
 export default function CardMarket() {
   const [, navigate] = useLocation();
   const searchStr = useSearch();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [game, setGame] = useState("");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showWTB, setShowWTB] = useState(false);
+  const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
+
+  async function handleContactWTBBuyer(wtbId: number) {
+    if (!isAuthenticated) { navigate("/login"); return; }
+    try {
+      const { roomId } = await contactWTBMut.mutateAsync({ wtbId });
+      navigate(`/messages?room=${roomId}`);
+    } catch (err: any) {
+      toast.error(err?.message ?? "聯絡失敗");
+    }
+  }
 
   const { data: allListings = [], isLoading } = trpc.cardTrading.getListings.useQuery({
     game: game || undefined,
@@ -941,7 +963,13 @@ export default function CardMarket() {
               </button>
             </div>
             <div className="flex flex-col gap-2">
-              {wtbList.slice(0, showWTB ? wtbList.length : 3).map(w => <WTBCard key={w.id} wtb={w} />)}
+              {wtbList.slice(0, showWTB ? wtbList.length : 3).map(w => (
+                <WTBCard
+                  key={w.id}
+                  wtb={w}
+                  onContact={user?.id !== w.userId ? () => handleContactWTBBuyer(w.id) : undefined}
+                />
+              ))}
               {wtbList.length > 3 && (
                 <button
                   onClick={() => setShowWTB(p => !p)}

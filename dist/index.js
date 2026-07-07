@@ -25334,6 +25334,21 @@ EXAMPLE OUTPUT (exact format):
         await deactivateCardWTB2(input.id, ctx.user.id);
         return { ok: true };
       }),
+      openRoomWithWTBBuyer: protectedProcedure.input(z2.object({ wtbId: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getRawPool: getRawPool2, getOrCreateChatRoom: getOrCreateChatRoom2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        const [rows] = await pool.execute(
+          "SELECT id, userId FROM cardWTBs WHERE id = ? AND isActive = 1 LIMIT 1",
+          [input.wtbId]
+        );
+        const wtb = Array.isArray(rows) ? rows[0] : null;
+        if (!wtb) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u5514\u5230\u6B64\u6C42\u8CFC\u8A18\u9304" });
+        const buyerId = wtb.userId;
+        if (buyerId === ctx.user.id) throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5462\u500B\u4FC2\u4F60\u81EA\u5DF1\u5605\u6C42\u8CFC\u8A18\u9304" });
+        const result = await getOrCreateChatRoom2(-buyerId, ctx.user.id, buyerId);
+        if (!result) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "\u5EFA\u7ACB\u5C0D\u8A71\u5931\u6557" });
+        return { roomId: result.room.id };
+      }),
       openRoomWithSeller: protectedProcedure.input(z2.object({ listingId: z2.number().int() })).mutation(async ({ input, ctx }) => {
         const { getCardListingById: getCardListingById2, getOrCreateChatRoom: getOrCreateChatRoom2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const listing = await getCardListingById2(input.listingId);
