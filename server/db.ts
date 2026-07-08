@@ -8135,6 +8135,7 @@ export async function bootstrapCardTradingTables() {
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  try { await pool.execute(`ALTER TABLE cardWantToBuy ADD COLUMN photoUrlsJson TEXT`); } catch {}
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardTransactions (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8311,7 +8312,10 @@ export async function getCardWTBs(opts: { userId?: number; game?: string; isActi
      ORDER BY w.createdAt DESC LIMIT ? OFFSET ?`,
     params
   );
-  return Array.isArray(rows[0]) ? rows[0] : rows;
+  return (Array.isArray(rows[0]) ? rows[0] : rows).map((r: any) => ({
+    ...r,
+    photoUrls: (() => { try { return JSON.parse(r.photoUrlsJson || '[]'); } catch { return []; } })(),
+  }));
 }
 
 export async function deactivateCardWTB(id: number, userId: number) {

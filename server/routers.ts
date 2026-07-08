@@ -14487,16 +14487,29 @@ EXAMPLE OUTPUT (exact format):
     updateWTB: protectedProcedure
       .input(z.object({
         id: z.number().int(),
+        cardName: z.string().min(1).max(200).optional(),
         maxPriceHKD: z.number().int().positive().nullable().optional(),
         minCondition: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
+        photoUrls: z.array(z.string()).max(6).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { getRawPool } = await import('./db') as any;
         const pool = await getRawPool();
+        const sets: string[] = [
+          'maxPriceHKD = ?', 'minCondition = ?', 'notes = ?', 'photoUrlsJson = ?',
+        ];
+        const vals: any[] = [
+          input.maxPriceHKD ?? null,
+          input.minCondition ?? null,
+          input.notes ?? null,
+          input.photoUrls !== undefined ? JSON.stringify(input.photoUrls) : null,
+        ];
+        if (input.cardName) { sets.push('cardName = ?'); vals.push(input.cardName); }
+        vals.push(input.id, ctx.user.id);
         await pool.execute(
-          'UPDATE cardWantToBuy SET maxPriceHKD = ?, minCondition = ?, notes = ? WHERE id = ? AND userId = ?',
-          [input.maxPriceHKD ?? null, input.minCondition ?? null, input.notes ?? null, input.id, ctx.user.id],
+          `UPDATE cardWantToBuy SET ${sets.join(', ')} WHERE id = ? AND userId = ?`,
+          vals,
         );
         return { ok: true };
       }),

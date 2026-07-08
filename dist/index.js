@@ -7642,6 +7642,10 @@ async function bootstrapCardTradingTables() {
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  try {
+    await pool.execute(`ALTER TABLE cardWantToBuy ADD COLUMN photoUrlsJson TEXT`);
+  } catch {
+  }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardTransactions (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -7871,7 +7875,16 @@ async function getCardWTBs(opts) {
      ORDER BY w.createdAt DESC LIMIT ? OFFSET ?`,
     params
   );
-  return Array.isArray(rows[0]) ? rows[0] : rows;
+  return (Array.isArray(rows[0]) ? rows[0] : rows).map((r) => ({
+    ...r,
+    photoUrls: (() => {
+      try {
+        return JSON.parse(r.photoUrlsJson || "[]");
+      } catch {
+        return [];
+      }
+    })()
+  }));
 }
 async function deactivateCardWTB(id, userId) {
   await bootstrapCardTradingTables();
@@ -25364,15 +25377,34 @@ EXAMPLE OUTPUT (exact format):
       }),
       updateWTB: protectedProcedure.input(z2.object({
         id: z2.number().int(),
+        cardName: z2.string().min(1).max(200).optional(),
         maxPriceHKD: z2.number().int().positive().nullable().optional(),
         minCondition: z2.string().nullable().optional(),
-        notes: z2.string().nullable().optional()
+        notes: z2.string().nullable().optional(),
+        photoUrls: z2.array(z2.string()).max(6).optional()
       })).mutation(async ({ input, ctx }) => {
         const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const pool = await getRawPool2();
+        const sets = [
+          "maxPriceHKD = ?",
+          "minCondition = ?",
+          "notes = ?",
+          "photoUrlsJson = ?"
+        ];
+        const vals = [
+          input.maxPriceHKD ?? null,
+          input.minCondition ?? null,
+          input.notes ?? null,
+          input.photoUrls !== void 0 ? JSON.stringify(input.photoUrls) : null
+        ];
+        if (input.cardName) {
+          sets.push("cardName = ?");
+          vals.push(input.cardName);
+        }
+        vals.push(input.id, ctx.user.id);
         await pool.execute(
-          "UPDATE cardWantToBuy SET maxPriceHKD = ?, minCondition = ?, notes = ? WHERE id = ? AND userId = ?",
-          [input.maxPriceHKD ?? null, input.minCondition ?? null, input.notes ?? null, input.id, ctx.user.id]
+          `UPDATE cardWantToBuy SET ${sets.join(", ")} WHERE id = ? AND userId = ?`,
+          vals
         );
         return { ok: true };
       }),
