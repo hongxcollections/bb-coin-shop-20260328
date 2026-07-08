@@ -1543,11 +1543,11 @@ export default function Home() {
             {/* 兩個 bar：absolute 喺右上，由右邊向左伸延 */}
             <div className="absolute -top-5 right-2 flex items-center gap-1.5 z-20">
               <button
-                onClick={() => setShowMerchantFlow(true)}
-                className="inline-flex items-center gap-1 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-sky-700/50"
+                onClick={() => navigate("/cardzx/market")}
+                className="inline-flex items-center gap-1 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-red-900/40"
                 style={{ borderRadius: 6 }}
               >
-                📋 商戶申請流程
+                🃏 CardZx 交易
               </button>
               {/* 微工具 dropdown — 一律顯示；點選工具項時才驗商戶/admin 權限 */}
               <div className="relative">
