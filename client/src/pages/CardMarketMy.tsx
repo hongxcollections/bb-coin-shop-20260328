@@ -371,13 +371,13 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
         {listing.status === "sold" && (
           <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 50, height: 50 }}>
             <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 50px 50px 0", borderColor: "transparent #dc2626 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 8, right: -1, width: 38, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已售出</div>
+            <div style={{ position: "absolute", top: 20, right: 7, width: 36, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1 }}>已售出</div>
           </div>
         )}
         {listing.status === "removed" && (
           <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 50, height: 50 }}>
             <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 50px 50px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 8, right: -1, width: 38, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已下架</div>
+            <div style={{ position: "absolute", top: 20, right: 7, width: 36, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1 }}>已下架</div>
           </div>
         )}
 
@@ -574,7 +574,7 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
         {!wtb.isActive && (
           <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 50, height: 50 }}>
             <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 50px 50px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 8, right: -1, width: 38, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已關閉</div>
+            <div style={{ position: "absolute", top: 20, right: 7, width: 36, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1 }}>已關閉</div>
           </div>
         )}
 
@@ -604,21 +604,22 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
             {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
           </div>
           {wtb.notes && <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: "#9ca3af" }}>{wtb.notes}</p>}
-          {!wtb.isActive && (
-            <div className="mt-1">
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px]" style={{ color: "#d1d5db" }}>{timeAgo(wtb.createdAt)}</span>
+            {!wtb.isActive && (
               <button
                 onClick={handleReactivate}
                 disabled={reactivateMut.isPending}
-                className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap"
+                className="ml-auto flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
                 style={{ background: "rgba(14,165,233,0.1)", border: "1px solid rgba(14,165,233,0.25)", color: "#0369a1" }}
               >
                 <RotateCcw className="w-3 h-3" />
                 重新開啟
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-        {wtb.isActive && (
+        {!!wtb.isActive && (
           <div className="flex flex-col gap-1.5 flex-shrink-0">
             <button onClick={() => setEditOpen(true)} className="p-1.5 rounded-lg" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)" }}>
               <Edit2 className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
