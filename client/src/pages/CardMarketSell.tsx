@@ -121,6 +121,10 @@ export default function CardMarketSell() {
   const [maxPriceStr, setMaxPriceStr] = useState("");
   const [wtbCondition, setWtbCondition] = useState<"NM" | "LP" | "MP" | "HP" | "DMG" | "">("NM");
   const [wtbNotes, setWtbNotes] = useState("");
+  const [wtbPhotos, setWtbPhotos] = useState<string[]>([]);
+  const [wtbOfficialUrl, setWtbOfficialUrl] = useState<string | null>(null);
+  const [wtbUploading, setWtbUploading] = useState(false);
+  const wtbFileInputRef = useRef<HTMLInputElement>(null);
 
   const [previewCard, setPreviewCard] = useState<CardResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -221,6 +225,32 @@ export default function CardMarketSell() {
     });
   }
 
+  // sync official image when card is selected
+  useEffect(() => {
+    setWtbOfficialUrl(selectedCard?.officialImageUrl ?? null);
+  }, [selectedCard]);
+
+  async function handleWtbPhotoUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const totalSlots = (wtbOfficialUrl ? 1 : 0) + wtbPhotos.length;
+    const remaining = 6 - totalSlots;
+    if (remaining <= 0) return;
+    const toUpload = Array.from(files).slice(0, remaining);
+    setWtbUploading(true);
+    try {
+      const urls = await Promise.all(toUpload.map(async file => {
+        const { blob, mimeType } = await compressImage(file);
+        const { uploadUrl, finalUrl } = await signUploadMut.mutateAsync({
+          mimeType, fileName: file.name.replace(/\.[^.]+$/, ".jpg"),
+        });
+        await fetch(uploadUrl, { method: "PUT", body: blob, headers: { "Content-Type": mimeType } });
+        return finalUrl;
+      }));
+      setWtbPhotos(p => [...p, ...urls]);
+    } catch { toast.error("上載失敗，請重試"); }
+    finally { setWtbUploading(false); }
+  }
+
   async function handlePhotoUpload(files: FileList | null) {
     if (!files || photos.length >= 6) return;
     const allowed = Math.min(files.length, 6 - photos.length);
@@ -295,10 +325,11 @@ export default function CardMarketSell() {
         cardNameJa: selectedCard?.cardNameJa,
         setName: (selectedCard?.setName ?? manualSet.trim()) || undefined,
         setNumber: (selectedCard?.setNumber ?? manualSetNo.trim()) || undefined,
-        officialImageUrl: selectedCard?.officialImageUrl,
+        officialImageUrl: wtbOfficialUrl || undefined,
         maxPriceHKD: maxPrice,
         minCondition: wtbCondition || undefined,
         notes: wtbNotes.trim() || undefined,
+        photoUrls: wtbPhotos.length > 0 ? wtbPhotos : undefined,
       });
       toast.success("已登記求購！有人上架同款卡即通知你");
       navigate("/cardzx/market/my?tab=wtb");
@@ -933,6 +964,49 @@ export default function CardMarketSell() {
             ) : (
               /* WTB mode */
               <>
+                {/* WTB 相片 */}
+                <div className="mb-4">
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>相片（最多 6 張，選填）</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {/* Official image slot */}
+                    {wtbOfficialUrl && (
+                      <div className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                        <img src={wtbOfficialUrl} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>官方圖</div>
+                        <button
+                          onClick={() => setWtbOfficialUrl(null)}
+                          className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(0,0,0,0.7)" }}
+                        ><X className="w-3 h-3 text-white" /></button>
+                      </div>
+                    )}
+                    {/* Uploaded photos */}
+                    {wtbPhotos.map((url, i) => (
+                      <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setWtbPhotos(p => p.filter((_, j) => j !== i))}
+                          className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(0,0,0,0.7)" }}
+                        ><X className="w-3 h-3 text-white" /></button>
+                      </div>
+                    ))}
+                    {/* Add button */}
+                    {(wtbOfficialUrl ? 1 : 0) + wtbPhotos.length < 6 && (
+                      <button
+                        onClick={() => wtbFileInputRef.current?.click()}
+                        disabled={wtbUploading}
+                        className="rounded-xl flex flex-col items-center justify-center gap-1 flex-shrink-0"
+                        style={{ width: 64, height: 88, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
+                      >
+                        {wtbUploading ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#9ca3af" }} /> : <Plus className="w-4 h-4" style={{ color: "#9ca3af" }} />}
+                        <span className="text-[9px]" style={{ color: "#9ca3af" }}>{wtbUploading ? "上載中" : "加相片"}</span>
+                      </button>
+                    )}
+                  </div>
+                  <input ref={wtbFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handleWtbPhotoUpload(e.target.files)} />
+                </div>
+
                 <div className="mb-4">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>最高出價 (HKD)（可選）</label>
                   <div className="relative">

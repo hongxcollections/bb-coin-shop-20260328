@@ -14409,6 +14409,7 @@ EXAMPLE OUTPUT (exact format):
         maxPriceHKD: z.number().int().min(1).optional(),
         minCondition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']).optional(),
         notes: z.string().max(500).optional(),
+        photoUrls: z.array(z.string()).max(6).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { createCardWTB } = await import('./db');
@@ -14421,6 +14422,7 @@ EXAMPLE OUTPUT (exact format):
           maxPriceHKD: input.maxPriceHKD ?? null,
           minCondition: input.minCondition ?? null,
           notes: input.notes ?? null,
+          photoUrlsJson: input.photoUrls ? JSON.stringify(input.photoUrls) : null,
         });
         return { id: result.id };
       }),
@@ -14492,20 +14494,16 @@ EXAMPLE OUTPUT (exact format):
         minCondition: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
         photoUrls: z.array(z.string()).max(6).optional(),
+        officialImageUrl: z.string().nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { getRawPool } = await import('./db') as any;
         const pool = await getRawPool();
-        const sets: string[] = [
-          'maxPriceHKD = ?', 'minCondition = ?', 'notes = ?', 'photoUrlsJson = ?',
-        ];
-        const vals: any[] = [
-          input.maxPriceHKD ?? null,
-          input.minCondition ?? null,
-          input.notes ?? null,
-          input.photoUrls !== undefined ? JSON.stringify(input.photoUrls) : null,
-        ];
+        const sets: string[] = ['maxPriceHKD = ?', 'minCondition = ?', 'notes = ?'];
+        const vals: any[] = [input.maxPriceHKD ?? null, input.minCondition ?? null, input.notes ?? null];
         if (input.cardName) { sets.push('cardName = ?'); vals.push(input.cardName); }
+        if (input.photoUrls !== undefined) { sets.push('photoUrlsJson = ?'); vals.push(JSON.stringify(input.photoUrls)); }
+        if (input.officialImageUrl !== undefined) { sets.push('officialImageUrl = ?'); vals.push(input.officialImageUrl ?? null); }
         vals.push(input.id, ctx.user.id);
         await pool.execute(
           `UPDATE cardWantToBuy SET ${sets.join(', ')} WHERE id = ? AND userId = ?`,

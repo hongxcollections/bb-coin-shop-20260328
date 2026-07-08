@@ -432,7 +432,9 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
 }
 
 function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void; onSaved: () => void }) {
+  const utils = trpc.useUtils();
   const [cardName, setCardName] = useState(wtb.cardName);
+  const [officialImgUrl, setOfficialImgUrl] = useState<string | null>(wtb.officialImageUrl);
   const [maxPriceStr, setMaxPriceStr] = useState(wtb.maxPriceHKD ? String(wtb.maxPriceHKD) : "");
   const [minCondition, setMinCondition] = useState(wtb.minCondition ?? "");
   const [notes, setNotes] = useState(wtb.notes ?? "");
@@ -444,18 +446,20 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
   const updateMut = trpc.cardTrading.updateWTB.useMutation();
   const signUploadMut = trpc.cardTrading.signPhotoUpload.useMutation();
 
+  const totalSlots = (officialImgUrl ? 1 : 0) + photos.length;
+
   async function handlePhotoUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const remaining = 6 - photos.length;
+    const remaining = 6 - totalSlots;
+    if (remaining <= 0) return;
     const toUpload = Array.from(files).slice(0, remaining);
     setUploading(true);
     try {
-      const urls: string[] = [];
-      for (const file of toUpload) {
+      const urls = await Promise.all(toUpload.map(async file => {
         const { uploadUrl, finalUrl } = await signUploadMut.mutateAsync({ mimeType: file.type, fileName: file.name });
         await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-        urls.push(finalUrl);
-      }
+        return finalUrl;
+      }));
       setPhotos(p => [...p, ...urls]);
     } catch { toast.error("上載相片失敗"); }
     finally { setUploading(false); }
@@ -472,7 +476,9 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
         minCondition: minCondition || null,
         notes: notes.trim() || null,
         photoUrls: photos,
+        officialImageUrl: officialImgUrl,
       });
+      await utils.cardTrading.getMyWTBs.invalidate();
       toast.success("已更新求購資料");
       onSaved();
       onClose();
@@ -519,10 +525,25 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
               />
             </div>
 
-            {/* 相片 */}
+            {/* 相片 — 官方圖 + 上載圖片 */}
             <div>
               <label className="text-xs font-bold mb-2 block" style={{ color: "#6b7280" }}>相片（最多 6 張，選填）</label>
               <div className="flex gap-2 flex-wrap">
+                {/* 官方圖 slot */}
+                {officialImgUrl && (
+                  <div className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                    <img src={officialImgUrl} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>官方圖</div>
+                    <button
+                      onClick={() => setOfficialImgUrl(null)}
+                      className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(0,0,0,0.7)" }}
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                )}
+                {/* 上載相片 */}
                 {photos.map((url, i) => (
                   <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
                     <img
@@ -539,7 +560,7 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
                     </button>
                   </div>
                 ))}
-                {photos.length < 6 && (
+                {totalSlots < 6 && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}

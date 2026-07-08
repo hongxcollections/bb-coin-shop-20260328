@@ -7829,8 +7829,8 @@ async function createCardWTB(data) {
   const pool = await getRawPool();
   const [res] = await pool.execute(
     `INSERT INTO cardWantToBuy
-     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes, photoUrlsJson)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId,
       data.game,
@@ -7842,7 +7842,8 @@ async function createCardWTB(data) {
       data.officialImageUrl ?? null,
       data.maxPriceHKD ?? null,
       data.minCondition ?? null,
-      data.notes ?? null
+      data.notes ?? null,
+      data.photoUrlsJson ?? null
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId };
@@ -25312,7 +25313,8 @@ EXAMPLE OUTPUT (exact format):
         officialImageUrl: z2.string().url().optional().or(z2.literal("")),
         maxPriceHKD: z2.number().int().min(1).optional(),
         minCondition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
-        notes: z2.string().max(500).optional()
+        notes: z2.string().max(500).optional(),
+        photoUrls: z2.array(z2.string()).max(6).optional()
       })).mutation(async ({ input, ctx }) => {
         const { createCardWTB: createCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const result = await createCardWTB2({
@@ -25326,7 +25328,8 @@ EXAMPLE OUTPUT (exact format):
           officialImageUrl: input.officialImageUrl || null,
           maxPriceHKD: input.maxPriceHKD ?? null,
           minCondition: input.minCondition ?? null,
-          notes: input.notes ?? null
+          notes: input.notes ?? null,
+          photoUrlsJson: input.photoUrls ? JSON.stringify(input.photoUrls) : null
         });
         return { id: result.id };
       }),
@@ -25381,25 +25384,24 @@ EXAMPLE OUTPUT (exact format):
         maxPriceHKD: z2.number().int().positive().nullable().optional(),
         minCondition: z2.string().nullable().optional(),
         notes: z2.string().nullable().optional(),
-        photoUrls: z2.array(z2.string()).max(6).optional()
+        photoUrls: z2.array(z2.string()).max(6).optional(),
+        officialImageUrl: z2.string().nullable().optional()
       })).mutation(async ({ input, ctx }) => {
         const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const pool = await getRawPool2();
-        const sets = [
-          "maxPriceHKD = ?",
-          "minCondition = ?",
-          "notes = ?",
-          "photoUrlsJson = ?"
-        ];
-        const vals = [
-          input.maxPriceHKD ?? null,
-          input.minCondition ?? null,
-          input.notes ?? null,
-          input.photoUrls !== void 0 ? JSON.stringify(input.photoUrls) : null
-        ];
+        const sets = ["maxPriceHKD = ?", "minCondition = ?", "notes = ?"];
+        const vals = [input.maxPriceHKD ?? null, input.minCondition ?? null, input.notes ?? null];
         if (input.cardName) {
           sets.push("cardName = ?");
           vals.push(input.cardName);
+        }
+        if (input.photoUrls !== void 0) {
+          sets.push("photoUrlsJson = ?");
+          vals.push(JSON.stringify(input.photoUrls));
+        }
+        if (input.officialImageUrl !== void 0) {
+          sets.push("officialImageUrl = ?");
+          vals.push(input.officialImageUrl ?? null);
         }
         vals.push(input.id, ctx.user.id);
         await pool.execute(

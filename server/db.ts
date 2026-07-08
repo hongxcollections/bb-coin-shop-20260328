@@ -8276,18 +8276,20 @@ export async function createCardWTB(data: {
   cardName: string; cardNameJa?: string | null; setName?: string | null;
   setNumber?: string | null; officialImageUrl?: string | null;
   maxPriceHKD?: number | null; minCondition?: string | null; notes?: string | null;
+  photoUrlsJson?: string | null;
 }) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   const [res]: any = await pool.execute(
     `INSERT INTO cardWantToBuy
-     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes, photoUrlsJson)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId, data.game, data.cardApiId ?? null,
       data.cardName, data.cardNameJa ?? null, data.setName ?? null,
       data.setNumber ?? null, data.officialImageUrl ?? null,
       data.maxPriceHKD ?? null, data.minCondition ?? null, data.notes ?? null,
+      data.photoUrlsJson ?? null,
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
