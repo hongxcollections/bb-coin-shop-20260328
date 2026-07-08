@@ -557,17 +557,35 @@ export default function CardMarketMy() {
   return (
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa" }}>
       <Header />
-      <div className="max-w-lg mx-auto px-[5px] pt-4">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <button onClick={() => navigate("/cardzzz/market")} className="p-1.5 rounded-full" style={{ background: "#f3f4f6", border: "1px solid #e5e7eb" }}>
-            <ChevronLeft className="w-4 h-4" style={{ color: "#6b7280" }} />
-          </button>
-          <h1 className="text-xl font-black flex-1" style={{ color: "#111827" }}>我的卡牌清單</h1>
-          <button onClick={() => navigate("/cardzzz/market/sell")} className="text-xs px-3 py-1.5 rounded-full font-bold" style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
+      {/* CardZzz sub-header strip */}
+      <div
+        className="flex items-center justify-between px-4 py-2.5"
+        style={{ marginTop: 3, marginLeft: 5, marginRight: 5, background: "linear-gradient(90deg,#1e3a5f 0%,#0369a1 60%,#0ea5e9 100%)", borderRadius: 10 }}
+      >
+        <div className="flex items-baseline gap-0.5">
+          <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
+          <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
+          <span className="text-xs font-bold ml-2" style={{ color: "rgba(255,255,255,0.6)" }}>我的清單</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate("/cardzzz/market/sell")}
+            className="text-xs px-3 py-1.5 rounded-full font-bold"
+            style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
+          >
             + 上架
           </button>
+          <button
+            onClick={() => navigate("/cardzzz/market")}
+            className="p-1.5 rounded-full"
+            style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            <ChevronLeft className="w-4 h-4 text-white" />
+          </button>
         </div>
+      </div>
+      <div className="max-w-lg mx-auto px-[5px] pt-4">
+
 
         {/* Tabs */}
         <div className="flex gap-1 mb-4 p-1 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
