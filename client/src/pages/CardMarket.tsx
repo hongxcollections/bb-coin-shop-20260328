@@ -609,7 +609,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
     setContacting(true);
     try {
       const room = await openRoomMut.mutateAsync({ sellerId: listing.userId, listingId: listing.id });
-      navigate(`/messages/${room.roomId}?from=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      navigate(`/messages/${room.roomId}?from=${encodeURIComponent(window.location.pathname + `?listing=${listing.id}`)}`);
     } catch {
       toast.error("開啟對話失敗，請稍後再試");
     } finally {
