@@ -367,18 +367,12 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
         document.body
       )}
       <div className="relative flex items-center gap-3 p-3 rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-        {/* Corner ribbon — top-right triangle */}
+        {/* Status badge — top-right corner */}
         {listing.status === "sold" && (
-          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 68, height: 68 }}>
-            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 68px 68px 0", borderColor: "transparent #dc2626 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 12, right: 2, width: 44, transform: "rotate(45deg)", color: "#fff", fontSize: 7, fontWeight: 900, textAlign: "center", lineHeight: 1 }}>已售出</div>
-          </div>
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 900, padding: "4px 10px", borderRadius: "0 16px 0 8px", lineHeight: 1.4 }}>已售出</div>
         )}
         {listing.status === "removed" && (
-          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 68, height: 68 }}>
-            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 68px 68px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 12, right: 2, width: 44, transform: "rotate(45deg)", color: "#fff", fontSize: 7, fontWeight: 900, textAlign: "center", lineHeight: 1 }}>已下架</div>
-          </div>
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 900, padding: "4px 10px", borderRadius: "0 16px 0 8px", lineHeight: 1.4 }}>已下架</div>
         )}
 
         <div className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 48, height: 66 }}>
@@ -570,12 +564,9 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
     <>
       {editOpen && <EditWTBSheet wtb={wtb} onClose={() => setEditOpen(false)} onSaved={onRefresh} />}
       <div className="relative flex items-center gap-3 p-3 rounded-2xl overflow-hidden" style={{ background: wtb.isActive ? "#fff" : "#fafafa", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-        {/* Corner ribbon for closed WTB */}
+        {/* Status badge — top-right corner */}
         {!wtb.isActive && (
-          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 68, height: 68 }}>
-            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 68px 68px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 12, right: 2, width: 44, transform: "rotate(45deg)", color: "#fff", fontSize: 7, fontWeight: 900, textAlign: "center", lineHeight: 1 }}>已關閉</div>
-          </div>
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 900, padding: "4px 10px", borderRadius: "0 16px 0 8px", lineHeight: 1.4 }}>已關閉</div>
         )}
 
         {wtb.officialImageUrl ? (
