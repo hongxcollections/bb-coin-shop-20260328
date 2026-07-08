@@ -1544,8 +1544,8 @@ export default function Home() {
             <div className="absolute -top-5 right-2 flex items-center gap-1.5 z-20">
               <button
                 onClick={() => navigate("/cardzx/market")}
-                className="inline-flex items-center gap-1 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-red-900/40"
-                style={{ borderRadius: 6 }}
+                className="inline-flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md cursor-pointer select-none whitespace-nowrap"
+                style={{ borderRadius: 6, background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", border: "1px solid rgba(2,132,199,0.5)" }}
               >
                 🃏 CardZx 交易
               </button>
