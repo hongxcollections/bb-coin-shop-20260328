@@ -102,15 +102,15 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
       description: "了解 hongxcollections 各級會員及商戶訂閱方案，享受更多競投優惠、優先預覽及商戶刊登功能。",
       canonical: `${base}/plans`,
     },
-    "/cardzzz": {
-      title: "CardZzz AI 卡片鑑定 — hongxcollections",
+    "/cardzx": {
+      title: "CardZx AI 卡片鑑定 — hongxcollections",
       description: "上傳卡片照片，AI 即時識別品名、套裝、稀有度及市場估值，支援 Pokémon、One Piece、MTG 等主流 TCG。",
-      canonical: `${base}/cardzzz`,
+      canonical: `${base}/cardzx`,
     },
-    "/cardzzz/collection": {
-      title: "我的 CardZzz 卡冊 — hongxcollections",
-      description: "CardZzz AI 卡片鑑定卡冊，記錄你的 TCG 收藏品名、稀有度及估值總覽。",
-      canonical: `${base}/cardzzz/collection`,
+    "/cardzx/collection": {
+      title: "我的 CardZx 卡冊 — hongxcollections",
+      description: "CardZx AI 卡片鑑定卡冊，記錄你的 TCG 收藏品名、稀有度及估值總覽。",
+      canonical: `${base}/cardzx/collection`,
     },
   };
 
@@ -679,7 +679,7 @@ async function injectCollectionPostOgMeta(html: string, reqPath: string, protoco
 }
 
 async function injectCardZzzzOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
-  const m = reqPath.match(/^\/cardzzz\/card\/(\d+)$/);
+  const m = reqPath.match(/^\/cardzx\/card\/(\d+)$/);
   if (!m) return null;
   try {
     const cardId = parseInt(m[1], 10);

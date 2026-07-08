@@ -14269,9 +14269,9 @@ EXAMPLE OUTPUT (exact format):
           for (const { userId } of wtbUsers) {
             if (userId === ctx.user.id) continue;
             sendPushToUser(userId, {
-              title: `🃏 CardZzz 有新上架`,
+              title: `🃏 CardZx 有新上架`,
               body: `${gameLabel}｜${input.cardName}｜HKD $${input.priceHKD}`,
-              url: `/cardzzz/market`,
+              url: `/cardzx/market`,
             }).catch(() => {});
           }
         } catch { /* ignore */ }

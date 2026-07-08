@@ -274,7 +274,7 @@ export default function CardMarketSell() {
       });
       await utils.cardTrading.getMyListings.invalidate();
       toast.success("已成功上架！");
-      navigate("/cardzzz/market/my?tab=active");
+      navigate("/cardzx/market/my?tab=active");
     } catch (e: any) {
       toast.error(e?.message ?? "上架失敗");
     } finally {
@@ -301,7 +301,7 @@ export default function CardMarketSell() {
         notes: wtbNotes.trim() || undefined,
       });
       toast.success("已登記求購！有人上架同款卡即通知你");
-      navigate("/cardzzz/market/my?tab=wtb");
+      navigate("/cardzx/market/my?tab=wtb");
     } catch (e: any) {
       toast.error(e?.message ?? "登記失敗");
     } finally {
@@ -342,7 +342,7 @@ export default function CardMarketSell() {
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
         </div>
         <button
-          onClick={() => navigate("/cardzzz/market")}
+          onClick={() => navigate("/cardzx/market")}
           className="p-1.5 rounded-full"
           style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
         >

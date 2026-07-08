@@ -250,12 +250,12 @@ function Router() {
       <Route path={"/merchant/galleries"} component={MerchantGallery} />
       <Route path={"/gallery/:id"} component={PublicGallery} />
       <Route path={"/coin-analysis"} component={CoinAnalysis} />
-      <Route path={"/cardzzz"} component={CardZzz} />
-      <Route path={"/cardzzz/collection"} component={PokeCollection} />
-      <Route path={"/cardzzz/market"} component={CardMarket} />
-      <Route path={"/cardzzz/market/sell"} component={CardMarketSell} />
-      <Route path={"/cardzzz/market/wtb"} component={CardMarketSell} />
-      <Route path={"/cardzzz/market/my"} component={CardMarketMy} />
+      <Route path={"/cardzx"} component={CardZzz} />
+      <Route path={"/cardzx/collection"} component={PokeCollection} />
+      <Route path={"/cardzx/market"} component={CardMarket} />
+      <Route path={"/cardzx/market/sell"} component={CardMarketSell} />
+      <Route path={"/cardzx/market/wtb"} component={CardMarketSell} />
+      <Route path={"/cardzx/market/my"} component={CardMarketMy} />
       <Route path={"/messages"} component={Messages} />
       <Route path={"/messages/:roomId"} component={ChatRoom} />
       <Route path={"/404"} component={NotFound} />

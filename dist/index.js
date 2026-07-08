@@ -25178,9 +25178,9 @@ EXAMPLE OUTPUT (exact format):
           for (const { userId } of wtbUsers) {
             if (userId === ctx.user.id) continue;
             sendPushToUser(userId, {
-              title: `\u{1F0CF} CardZzz \u6709\u65B0\u4E0A\u67B6`,
+              title: `\u{1F0CF} CardZx \u6709\u65B0\u4E0A\u67B6`,
               body: `${gameLabel}\uFF5C${input.cardName}\uFF5CHKD $${input.priceHKD}`,
-              url: `/cardzzz/market`
+              url: `/cardzx/market`
             }).catch(() => {
             });
           }
@@ -26223,15 +26223,15 @@ function injectStaticPageMeta(html, reqPath, base) {
       description: "\u4E86\u89E3 hongxcollections \u5404\u7D1A\u6703\u54E1\u53CA\u5546\u6236\u8A02\u95B1\u65B9\u6848\uFF0C\u4EAB\u53D7\u66F4\u591A\u7AF6\u6295\u512A\u60E0\u3001\u512A\u5148\u9810\u89BD\u53CA\u5546\u6236\u520A\u767B\u529F\u80FD\u3002",
       canonical: `${base}/plans`
     },
-    "/cardzzz": {
-      title: "CardZzz AI \u5361\u7247\u9451\u5B9A \u2014 hongxcollections",
+    "/cardzx": {
+      title: "CardZx AI \u5361\u7247\u9451\u5B9A \u2014 hongxcollections",
       description: "\u4E0A\u50B3\u5361\u7247\u7167\u7247\uFF0CAI \u5373\u6642\u8B58\u5225\u54C1\u540D\u3001\u5957\u88DD\u3001\u7A00\u6709\u5EA6\u53CA\u5E02\u5834\u4F30\u503C\uFF0C\u652F\u63F4 Pok\xE9mon\u3001One Piece\u3001MTG \u7B49\u4E3B\u6D41 TCG\u3002",
-      canonical: `${base}/cardzzz`
+      canonical: `${base}/cardzx`
     },
-    "/cardzzz/collection": {
-      title: "\u6211\u7684 CardZzz \u5361\u518A \u2014 hongxcollections",
-      description: "CardZzz AI \u5361\u7247\u9451\u5B9A\u5361\u518A\uFF0C\u8A18\u9304\u4F60\u7684 TCG \u6536\u85CF\u54C1\u540D\u3001\u7A00\u6709\u5EA6\u53CA\u4F30\u503C\u7E3D\u89BD\u3002",
-      canonical: `${base}/cardzzz/collection`
+    "/cardzx/collection": {
+      title: "\u6211\u7684 CardZx \u5361\u518A \u2014 hongxcollections",
+      description: "CardZx AI \u5361\u7247\u9451\u5B9A\u5361\u518A\uFF0C\u8A18\u9304\u4F60\u7684 TCG \u6536\u85CF\u54C1\u540D\u3001\u7A00\u6709\u5EA6\u53CA\u4F30\u503C\u7E3D\u89BD\u3002",
+      canonical: `${base}/cardzx/collection`
     }
   };
   let page = pages[reqPath];
@@ -26670,7 +26670,7 @@ async function injectCollectionPostOgMeta(html, reqPath, protocol, host) {
   }
 }
 async function injectCardZzzzOgMeta(html, reqPath, protocol, host) {
-  const m = reqPath.match(/^\/cardzzz\/card\/(\d+)$/);
+  const m = reqPath.match(/^\/cardzx\/card\/(\d+)$/);
   if (!m) return null;
   try {
     const cardId = parseInt(m[1], 10);

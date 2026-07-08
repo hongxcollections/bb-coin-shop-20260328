@@ -255,7 +255,7 @@ function ShareImageDialog({ imgUrl, cardName, onClose }: { imgUrl: string; cardN
   function handleSave() {
     const a = document.createElement("a");
     a.href = imgUrl;
-    a.download = `${cardName || "cardzzz"}-analysis.png`;
+    a.download = `${cardName || "cardzx"}-analysis.png`;
     a.click();
   }
 
@@ -306,8 +306,8 @@ function PokeShareMenu({ result, savedCardId }: { result: PokeResult; savedCardI
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const pokeUrl = savedCardId
-    ? `${SHARE_ORIGIN}/cardzzz/card/${savedCardId}`
-    : `${SHARE_ORIGIN}/cardzzz`;
+    ? `${SHARE_ORIGIN}/cardzx/card/${savedCardId}`
+    : `${SHARE_ORIGIN}/cardzx`;
 
   const priceLine = [
     result.marketPriceHKD ? `裸卡 ~HK$${result.marketPriceHKD.toLocaleString("en-HK")}` : null,
@@ -1010,7 +1010,7 @@ export default function CardZzz() {
         {!imagePreview && !isAnalyzing && (
           <div data-share-skip="true" className="flex gap-2 mb-4">
             <button
-              onClick={() => navigate("/cardzzz/market")}
+              onClick={() => navigate("/cardzx/market")}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
               style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.35)", color: "#111827" }}
             >
@@ -1019,7 +1019,7 @@ export default function CardZzz() {
             </button>
             {isAuthenticated && (
               <button
-                onClick={() => navigate("/cardzzz/market/sell")}
+                onClick={() => navigate("/cardzx/market/sell")}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold"
                 style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}
               >
@@ -1096,18 +1096,18 @@ export default function CardZzz() {
               ↩ 重新上載
             </button>
             <button
-              onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; navigate("/cardzzz"); }}
+              onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; navigate("/cardzx"); }}
               className="text-xs px-3 py-1 rounded-full font-medium"
               style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
               回主頁
             </button>
             {isAuthenticated && (
               <div className="ml-auto flex items-center gap-1.5">
-                <button onClick={() => navigate("/cardzzz/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)", color: "#111827" }}>
+                <button onClick={() => navigate("/cardzx/market/sell")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)", color: "#111827" }}>
                   <Banknote className="w-3.5 h-3.5" />
                   出售
                 </button>
-                <button onClick={() => navigate("/cardzzz/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}>
+                <button onClick={() => navigate("/cardzx/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316" }}>
                   <BookOpen className="w-3.5 h-3.5" />
                   卡冊
                 </button>
@@ -1671,7 +1671,7 @@ export default function CardZzz() {
       {shareDialogOpen && shareImgUrl && (
         <ShareImageDialog
           imgUrl={shareImgUrl}
-          cardName={result?.cardName ?? "cardzzz"}
+          cardName={result?.cardName ?? "cardzx"}
           onClose={() => setShareDialogOpen(false)}
         />
       )}

@@ -569,14 +569,14 @@ export default function CardMarketMy() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/cardzzz/market/sell")}
+            onClick={() => navigate("/cardzx/market/sell")}
             className="text-xs px-3 py-1.5 rounded-full font-bold"
             style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
           >
             + 上架
           </button>
           <button
-            onClick={() => navigate("/cardzzz/market")}
+            onClick={() => navigate("/cardzx/market")}
             className="p-1.5 rounded-full"
             style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
           >
@@ -619,7 +619,7 @@ export default function CardMarketMy() {
                   {tab === "active" ? "未有上架記錄" : tab === "sold" ? "未有售出記錄" : "未有下架記錄"}
                 </p>
                 {tab === "active" && (
-                  <button onClick={() => navigate("/cardzzz/market/sell")} className="text-sm px-4 py-2 rounded-full font-bold" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
+                  <button onClick={() => navigate("/cardzx/market/sell")} className="text-sm px-4 py-2 rounded-full font-bold" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
                     立即上架
                   </button>
                 )}
@@ -636,7 +636,7 @@ export default function CardMarketMy() {
               <div className="flex flex-col items-center py-10 gap-3">
                 <span style={{ fontSize: 40 }}>🔍</span>
                 <p className="text-sm" style={{ color: "#9ca3af" }}>未有求購記錄</p>
-                <button onClick={() => navigate("/cardzzz/market/wtb")} className="text-sm px-4 py-2 rounded-full font-bold" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
+                <button onClick={() => navigate("/cardzx/market/wtb")} className="text-sm px-4 py-2 rounded-full font-bold" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
                   登記求購
                 </button>
               </div>

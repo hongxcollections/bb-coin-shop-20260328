@@ -291,7 +291,7 @@ export default function PokeCollection() {
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa" }}>
       <Header />
       <div className="max-w-lg mx-auto px-[5px] pt-4">
-        <button onClick={() => navigate("/cardzzz")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "#9ca3af" }}>
+        <button onClick={() => navigate("/cardzx")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "#9ca3af" }}>
           <ChevronLeft className="w-4 h-4" /> 返回 CardZx
         </button>
 
@@ -387,7 +387,7 @@ export default function PokeCollection() {
               {search ? "搜尋不到結果" : "卡冊仍是空的"}
             </p>
             {!search && (
-              <button onClick={() => navigate("/cardzzz")} className="mt-2 px-4 py-2 rounded-xl text-xs font-bold"
+              <button onClick={() => navigate("/cardzx")} className="mt-2 px-4 py-2 rounded-xl text-xs font-bold"
                 style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.4)", color: "#111827" }}>
                 去分析卡片
               </button>
@@ -528,7 +528,7 @@ export default function PokeCollection() {
                   刪除
                 </button>
                 <button
-                  onClick={() => navigate("/cardzzz")}
+                  onClick={() => navigate("/cardzx")}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold"
                   style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
                   再分析卡片

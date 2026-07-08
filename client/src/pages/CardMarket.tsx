@@ -887,11 +887,11 @@ export default function CardMarket() {
   return (
     <div className="min-h-screen pb-20" style={{ background: "#f4f5f7", color: "#111827" }}>
       <style>{`
-        @keyframes cardzzz-scan {
+        @keyframes cardzx-scan {
           0%   { transform: translateX(-160%); }
           100% { transform: translateX(160%); }
         }
-        @keyframes cardzzz-flicker {
+        @keyframes cardzx-flicker {
           0%,100% { opacity: 0.75; }
           30%     { opacity: 1; }
           65%     { opacity: 0.55; }
@@ -922,7 +922,7 @@ export default function CardMarket() {
         <div className="flex items-center gap-2">
           {isAuthenticated && (
             <button
-              onClick={() => navigate("/cardzzz/market/my")}
+              onClick={() => navigate("/cardzx/market/my")}
               className="p-1.5 rounded-full"
               style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
             >
@@ -931,7 +931,7 @@ export default function CardMarket() {
           )}
           {isAuthenticated && (
             <button
-              onClick={() => navigate("/cardzzz/market/sell")}
+              onClick={() => navigate("/cardzx/market/sell")}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full font-black text-xs"
               style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
             >
@@ -949,7 +949,7 @@ export default function CardMarket() {
           className="absolute inset-0 pointer-events-none"
           style={{
             background: "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.22) 50%, transparent 65%)",
-            animation: "cardzzz-scan 2.8s ease-in-out infinite alternate, cardzzz-flicker 1.1s ease-in-out infinite",
+            animation: "cardzx-scan 2.8s ease-in-out infinite alternate, cardzx-flicker 1.1s ease-in-out infinite",
             zIndex: 5,
           }}
         />
@@ -970,7 +970,7 @@ export default function CardMarket() {
           {/* CTA buttons */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate("/cardzzz/market/sell")}
+              onClick={() => navigate("/cardzx/market/sell")}
               className="text-sm font-black px-4 py-2 rounded-full"
               style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
             >
@@ -978,7 +978,7 @@ export default function CardMarket() {
             </button>
             {isAuthenticated && (
               <button
-                onClick={() => navigate("/cardzzz/market/my")}
+                onClick={() => navigate("/cardzx/market/my")}
                 className="text-sm font-black px-4 py-2 rounded-full flex items-center gap-1.5"
                 style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
               >
@@ -1079,7 +1079,7 @@ export default function CardMarket() {
               <span style={{ fontSize: 48 }}>🃏</span>
               <p className="text-sm" style={{ color: "#9ca3af" }}>暫時未有上架記錄</p>
               {isAuthenticated && (
-                <button onClick={() => navigate("/cardzzz/market/sell")}
+                <button onClick={() => navigate("/cardzx/market/sell")}
                   className="text-sm px-4 py-2 rounded-full font-bold"
                   style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
                   立即上架
@@ -1106,7 +1106,7 @@ export default function CardMarket() {
                 <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "#ede9fe", color: "#6d28d9" }}>{wtbList.length}</span>
               </div>
               <button
-                onClick={() => navigate("/cardzzz/market/wtb")}
+                onClick={() => navigate("/cardzx/market/wtb")}
                 className="text-xs font-bold"
                 style={{ color: "#F97316" }}
               >
@@ -1142,7 +1142,7 @@ export default function CardMarket() {
               <p className="text-sm font-bold" style={{ color: "#F97316" }}>想求購特定卡？</p>
               <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>登記 WTB，有人上架即通知你</p>
             </div>
-            <button onClick={() => navigate("/cardzzz/market/wtb")}
+            <button onClick={() => navigate("/cardzx/market/wtb")}
               className="text-xs px-3 py-1.5 rounded-full font-bold flex-shrink-0"
               style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
               登記
@@ -1159,7 +1159,7 @@ export default function CardMarket() {
               不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZx 均可快速上架，直面港台數萬名藏家
             </p>
             <button
-              onClick={() => { if (isAuthenticated) navigate("/cardzzz/market/sell"); else navigate("/login"); }}
+              onClick={() => { if (isAuthenticated) navigate("/cardzx/market/sell"); else navigate("/login"); }}
               className="px-5 py-2 rounded-full font-black text-xs"
               style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
             >
@@ -1172,7 +1172,7 @@ export default function CardMarket() {
       {/* FAB */}
       {isAuthenticated && (
         <button
-          onClick={() => navigate("/cardzzz/market/sell")}
+          onClick={() => navigate("/cardzx/market/sell")}
           className="fixed z-40 rounded-full shadow-xl flex items-center gap-2 font-black text-sm"
           style={{ bottom: 76, right: 16, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", padding: "12px 18px", boxShadow: "0 4px 20px rgba(255,184,0,0.5)" }}
         >
