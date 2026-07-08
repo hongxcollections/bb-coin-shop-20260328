@@ -313,20 +313,13 @@ export default function CardMarketSell() {
   const cardSet = selectedCard?.setName ?? manualSet;
   const cardImg = selectedCard?.officialImageUrl;
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen pb-20 flex flex-col" style={{ background: "#fff" }}>
-        <Header />
-        <div className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
-          <span style={{ fontSize: 48 }}>🔒</span>
-          <p className="text-sm" style={{ color: "#6b7280" }}>請先登入才可上架或求購</p>
-          <button onClick={() => navigate("/login")} className="px-6 py-2 rounded-full font-bold text-sm" style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
-            前往登入
-          </button>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate(`/login?from=${encodeURIComponent(window.location.pathname)}`);
+    }
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) return null;
 
   return (
     <>

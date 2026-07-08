@@ -597,7 +597,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
   const sellerSold = sellerSoldRaw as Listing[];
 
   async function handleContact() {
-    if (!isAuthenticated) { navigate("/login"); return; }
+    if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
     if (listing.userId === user?.id) { toast.info("不能聯絡自己"); return; }
     setContacting(true);
     try {
@@ -822,7 +822,7 @@ export default function CardMarket() {
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
-    if (!isAuthenticated) { navigate("/login"); return; }
+    if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search + '#wtb-' + wtbId)}`); return; }
     try {
       const { roomId } = await contactWTBMut.mutateAsync({ wtbId });
       navigate(`/messages/${roomId}?from=${encodeURIComponent(window.location.pathname + window.location.search + '#wtb-' + wtbId)}`);
@@ -920,24 +920,20 @@ export default function CardMarket() {
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
         </div>
         <div className="flex items-center gap-2">
-          {isAuthenticated && (
-            <button
-              onClick={() => navigate("/cardzx/market/my")}
-              className="p-1.5 rounded-full"
-              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
-            >
-              <ClipboardList className="w-4 h-4" style={{ color: "rgba(255,255,255,0.55)" }} />
-            </button>
-          )}
-          {isAuthenticated && (
-            <button
-              onClick={() => navigate("/cardzx/market/sell")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full font-black text-xs"
-              style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
-            >
-              <Plus className="w-3.5 h-3.5" />上架
-            </button>
-          )}
+          <button
+            onClick={() => isAuthenticated ? navigate("/cardzx/market/my") : navigate(`/login?from=${encodeURIComponent("/cardzx/market/my")}`)}
+            className="p-1.5 rounded-full"
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <ClipboardList className="w-4 h-4" style={{ color: "rgba(255,255,255,0.55)" }} />
+          </button>
+          <button
+            onClick={() => isAuthenticated ? navigate("/cardzx/market/sell") : navigate(`/login?from=${encodeURIComponent("/cardzx/market/sell")}`)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full font-black text-xs"
+            style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
+          >
+            <Plus className="w-3.5 h-3.5" />上架
+          </button>
         </div>
       </div>
 
@@ -976,15 +972,13 @@ export default function CardMarket() {
             >
               瀏覽全部系列
             </button>
-            {isAuthenticated && (
-              <button
-                onClick={() => navigate("/cardzx/market/my")}
-                className="text-sm font-black px-4 py-2 rounded-full flex items-center gap-1.5"
-                style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
-              >
-                <ClipboardList className="w-3.5 h-3.5" />我的清單
-              </button>
-            )}
+            <button
+              onClick={() => isAuthenticated ? navigate("/cardzx/market/my") : navigate(`/login?from=${encodeURIComponent("/cardzx/market/my")}`)}
+              className="text-sm font-black px-4 py-2 rounded-full flex items-center gap-1.5"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />我的清單
+            </button>
           </div>
         </div>
       </div>
@@ -1078,13 +1072,12 @@ export default function CardMarket() {
             <div className="flex flex-col items-center py-12 gap-3">
               <span style={{ fontSize: 48 }}>🃏</span>
               <p className="text-sm" style={{ color: "#9ca3af" }}>暫時未有上架記錄</p>
-              {isAuthenticated && (
-                <button onClick={() => navigate("/cardzx/market/sell")}
-                  className="text-sm px-4 py-2 rounded-full font-bold"
-                  style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
-                  立即上架
-                </button>
-              )}
+              <button
+                onClick={() => isAuthenticated ? navigate("/cardzx/market/sell") : navigate(`/login?from=${encodeURIComponent("/cardzx/market/sell")}`)}
+                className="text-sm px-4 py-2 rounded-full font-bold"
+                style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
+                立即上架
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
@@ -1159,7 +1152,7 @@ export default function CardMarket() {
               不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZx 均可快速上架，直面港台數萬名藏家
             </p>
             <button
-              onClick={() => { if (isAuthenticated) navigate("/cardzx/market/sell"); else navigate("/login"); }}
+              onClick={() => isAuthenticated ? navigate("/cardzx/market/sell") : navigate(`/login?from=${encodeURIComponent("/cardzx/market/sell")}`)}
               className="px-5 py-2 rounded-full font-black text-xs"
               style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
             >
@@ -1170,16 +1163,14 @@ export default function CardMarket() {
       </div>
 
       {/* FAB */}
-      {isAuthenticated && (
-        <button
-          onClick={() => navigate("/cardzx/market/sell")}
-          className="fixed z-40 rounded-full shadow-xl flex items-center gap-2 font-black text-sm"
-          style={{ bottom: 76, right: 16, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", padding: "12px 18px", boxShadow: "0 4px 20px rgba(255,184,0,0.5)" }}
-        >
-          <Plus className="w-4 h-4" />
-          上架
-        </button>
-      )}
+      <button
+        onClick={() => isAuthenticated ? navigate("/cardzx/market/sell") : navigate(`/login?from=${encodeURIComponent("/cardzx/market/sell")}`)}
+        className="fixed z-40 rounded-full shadow-xl flex items-center gap-2 font-black text-sm"
+        style={{ bottom: 76, right: 16, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", padding: "12px 18px", boxShadow: "0 4px 20px rgba(255,184,0,0.5)" }}
+      >
+        <Plus className="w-4 h-4" />
+        上架
+      </button>
     </div>
   );
 }

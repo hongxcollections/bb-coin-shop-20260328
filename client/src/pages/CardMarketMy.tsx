@@ -516,20 +516,13 @@ export default function CardMarketMy() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen pb-20 flex flex-col" style={{ background: "#fff" }}>
-        <Header />
-        <div className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
-          <span style={{ fontSize: 48 }}>🔒</span>
-          <p className="text-sm" style={{ color: "#6b7280" }}>請先登入</p>
-          <button onClick={() => navigate("/login")} className="px-6 py-2 rounded-full font-bold text-sm" style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}>
-            前往登入
-          </button>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+    }
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) return null;
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: "active", label: "上架中", count: (activeListings as Listing[]).length },
