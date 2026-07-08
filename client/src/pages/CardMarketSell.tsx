@@ -72,7 +72,7 @@ export default function CardMarketSell() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<Mode>(location.includes("/wtb") ? "wtb" : "sell");
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [game, setGame] = useState<GameId | "">("");
 
   const [step2Tab, setStep2Tab] = useState<Step2Tab>("browse");
@@ -139,7 +139,7 @@ export default function CardMarketSell() {
 
   const setsQuery = trpc.cardTrading.getSets.useQuery(
     { game: game as BrowsableGame },
-    { enabled: !!isBrowsable && step2Tab === "browse" && step === 2 && !selectedSet, staleTime: 300000 }
+    { enabled: !!isBrowsable && mode !== "wtb" && step2Tab === "browse" && step === 1 && !selectedSet, staleTime: 300000 }
   );
 
   const setCardsQuery = trpc.cardTrading.getSetCards.useQuery(
@@ -184,7 +184,7 @@ export default function CardMarketSell() {
 
   function handleSelectCard(card: CardResult) {
     setSelectedCard(card);
-    setStep(3);
+    setStep(2);
   }
 
   async function handleSearch() {
@@ -395,52 +395,53 @@ export default function CardMarketSell() {
 
         {/* Step indicator */}
         <div className="flex items-center gap-2 mb-6">
-          {[1, 2, 3].map(s => (
+          {[1, 2].map(s => (
             <div key={s} className="flex items-center gap-2 flex-1">
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
                 style={step >= s ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" } : { background: "#f3f4f6", color: "#d1d5db", border: "1px solid #e5e7eb" }}>
                 {step > s ? <Check className="w-3 h-3" /> : s}
               </div>
-              {s < 3 && <div className="flex-1 h-px" style={{ background: step > s ? "rgba(255,222,0,0.5)" : "#e5e7eb" }} />}
+              {s < 2 && <div className="flex-1 h-px" style={{ background: step > s ? "rgba(255,222,0,0.5)" : "#e5e7eb" }} />}
             </div>
           ))}
         </div>
 
-        {/* ── Step 1: Choose game ──────────────────────────── */}
+        {/* ── Step 1: Choose game + Find card ──────────────────────────── */}
         {step === 1 && (
           <div>
-            <p className="text-sm font-bold mb-3" style={{ color: "#6b7280" }}>選擇遊戲類型</p>
-            <div className="grid grid-cols-2 gap-2">
+            {/* Game chips */}
+            <p className="text-xs font-bold mb-2" style={{ color: "#6b7280" }}>選擇遊戲</p>
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               {GAMES.map(g => (
                 <button
                   key={g.id}
                   onClick={() => {
-                    setGame(g.id);
-                    setStep(2);
-                    setSelectedCard(null);
-                    setSelectedSet(null);
-                    setSearchQuery("");
-                    setSearchResults([]);
-                    setAccCards([]);
-                    prevSetRef.current = null;
-                    setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) ? "browse" : "search");
+                    if (game !== g.id) {
+                      setGame(g.id);
+                      setSelectedCard(null);
+                      setSelectedSet(null);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                      setAccCards([]);
+                      prevSetRef.current = null;
+                      setStep2Tab(BROWSABLE_GAMES.includes(g.id as GameId) && mode !== "wtb" ? "browse" : "search");
+                    }
                   }}
-                  className="flex items-center gap-3 p-3 rounded-2xl transition-all"
-                  style={{ background: game === g.id ? "rgba(255,222,0,0.15)" : "#fff", border: `1px solid ${game === g.id ? "rgba(255,222,0,0.4)" : "#e5e7eb"}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+                  style={game === g.id
+                    ? { background: "rgba(255,222,0,0.15)", color: "#CC0000", border: "1px solid rgba(255,222,0,0.4)" }
+                    : { background: "#fff", color: "#6b7280", border: "1px solid #e5e7eb" }}
                 >
-                  <span style={{ fontSize: 24 }}>{g.emoji}</span>
-                  <span className="text-sm font-bold" style={{ color: game === g.id ? "#CC0000" : "#111827" }}>{g.label}</span>
+                  <span>{g.emoji}</span>
+                  <span>{g.label}</span>
                 </button>
               ))}
             </div>
-          </div>
-        )}
 
-        {/* ── Step 2: Find card ──────────────────────────── */}
-        {step === 2 && (
-          <div>
-            {/* Tab toggle — only for browsable games */}
-            {isBrowsable && (
+            {!game && <div className="py-8 text-center text-sm" style={{ color: "#9ca3af" }}>請先選擇遊戲類型</div>}
+
+            {/* Tab toggle — sell mode + browsable games only */}
+            {isBrowsable && mode !== "wtb" && (
               <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
                 <button
                   onClick={() => { setStep2Tab("browse"); setSearchResults([]); }}
@@ -466,7 +467,7 @@ export default function CardMarketSell() {
             )}
 
             {/* ── Browse mode ── */}
-            {step2Tab === "browse" && isBrowsable && (
+            {game && step2Tab === "browse" && isBrowsable && mode !== "wtb" && (
               <div>
                 {!selectedSet ? (
                   <div>
@@ -601,10 +602,10 @@ export default function CardMarketSell() {
             )}
 
             {/* ── Search mode ── */}
-            {(step2Tab === "search" || !isBrowsable) && (
+            {game && (step2Tab === "search" || !isBrowsable || mode === "wtb") && (
               <div>
                 <p className="text-xs mb-4" style={{ color: "#9ca3af" }}>
-                  {isBrowsable ? "輸入卡名搜尋，或切換「按系列瀏覽」" : "請手動填寫卡牌資料"}
+                  {(isBrowsable && mode !== "wtb") ? "輸入卡名搜尋，或切換「按系列瀏覽」" : isBrowsable ? "輸入卡名搜尋" : "請手動填寫卡牌資料"}
                 </p>
 
                 {isBrowsable && (
@@ -710,13 +711,10 @@ export default function CardMarketSell() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button onClick={() => setStep(1)} className="flex-1 py-2.5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-                    上一步
-                  </button>
+                <div>
                   <button
-                    onClick={() => { if (manualName.trim()) { setSelectedCard(null); setStep(3); } else { toast.error("請先搜尋選擇卡牌，或手動填寫名稱"); } }}
-                    className="flex-1 py-2.5 rounded-2xl text-sm font-bold"
+                    onClick={() => { if (manualName.trim()) { setSelectedCard(null); setStep(2); } else { toast.error("請先搜尋選擇卡牌，或手動填寫名稱"); } }}
+                    className="w-full py-2.5 rounded-2xl text-sm font-bold"
                     style={{ background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" }}
                   >
                     手動填寫繼續
@@ -725,19 +723,11 @@ export default function CardMarketSell() {
               </div>
             )}
 
-            {/* Back button for browse mode */}
-            {step2Tab === "browse" && isBrowsable && (
-              <div className="mt-4">
-                <button onClick={() => setStep(1)} className="w-full py-2.5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-                  上一步
-                </button>
-              </div>
-            )}
           </div>
         )}
 
-        {/* ── Step 3: Details ──────────────────────────────── */}
-        {step === 3 && (
+        {/* ── Step 2: Details ──────────────────────────────── */}
+        {step === 2 && (
           <div>
             {/* Card preview */}
             <div className="flex gap-4 mb-5 p-4 rounded-2xl items-center" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -780,7 +770,7 @@ export default function CardMarketSell() {
                 </span>
                 {/* Change button */}
                 <div className="mt-2">
-                  <button onClick={() => setStep(2)} className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
+                  <button onClick={() => setStep(1)} className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                     更換卡牌
                   </button>
                 </div>
@@ -947,7 +937,7 @@ export default function CardMarketSell() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(2)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
+                  <button onClick={() => setStep(1)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                     上一步
                   </button>
                   <button
@@ -1054,7 +1044,7 @@ export default function CardMarketSell() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(2)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
+                  <button onClick={() => setStep(1)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
                     上一步
                   </button>
                   <button
@@ -1139,7 +1129,7 @@ export default function CardMarketSell() {
                 onClick={() => {
                   setMode("wtb");
                   setSelectedCard(previewCard);
-                  setStep(3);
+                  setStep(2);
                   setPreviewCard(null);
                 }}
                 className="flex-1 py-3 px-3 rounded-2xl font-bold flex items-center justify-center gap-1.5"
@@ -1170,7 +1160,7 @@ export default function CardMarketSell() {
                 onClick={() => {
                   setMode("sell");
                   setSelectedCard(previewCard);
-                  setStep(3);
+                  setStep(2);
                   setPreviewCard(null);
                 }}
                 className="rounded-2xl font-black flex items-center justify-center"
