@@ -25353,6 +25353,29 @@ EXAMPLE OUTPUT (exact format):
         await deactivateCardWTB2(input.id, ctx.user.id);
         return { ok: true };
       }),
+      reactivateWTB: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        await pool.execute(
+          "UPDATE cardWantToBuy SET isActive = 1 WHERE id = ? AND userId = ?",
+          [input.id, ctx.user.id]
+        );
+        return { ok: true };
+      }),
+      updateWTB: protectedProcedure.input(z2.object({
+        id: z2.number().int(),
+        maxPriceHKD: z2.number().int().positive().nullable().optional(),
+        minCondition: z2.string().nullable().optional(),
+        notes: z2.string().nullable().optional()
+      })).mutation(async ({ input, ctx }) => {
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        await pool.execute(
+          "UPDATE cardWantToBuy SET maxPriceHKD = ?, minCondition = ?, notes = ? WHERE id = ? AND userId = ?",
+          [input.maxPriceHKD ?? null, input.minCondition ?? null, input.notes ?? null, input.id, ctx.user.id]
+        );
+        return { ok: true };
+      }),
       openRoomWithWTBBuyer: protectedProcedure.input(z2.object({ wtbId: z2.number().int() })).mutation(async ({ input, ctx }) => {
         const { getRawPool: getRawPool2, getOrCreateChatRoom: getOrCreateChatRoom2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const pool = await getRawPool2();

@@ -14472,6 +14472,35 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    reactivateWTB: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        await pool.execute(
+          'UPDATE cardWantToBuy SET isActive = 1 WHERE id = ? AND userId = ?',
+          [input.id, ctx.user.id],
+        );
+        return { ok: true };
+      }),
+
+    updateWTB: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        maxPriceHKD: z.number().int().positive().nullable().optional(),
+        minCondition: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        await pool.execute(
+          'UPDATE cardWantToBuy SET maxPriceHKD = ?, minCondition = ?, notes = ? WHERE id = ? AND userId = ?',
+          [input.maxPriceHKD ?? null, input.minCondition ?? null, input.notes ?? null, input.id, ctx.user.id],
+        );
+        return { ok: true };
+      }),
+
     openRoomWithWTBBuyer: protectedProcedure
       .input(z.object({ wtbId: z.number().int() }))
       .mutation(async ({ input, ctx }) => {
