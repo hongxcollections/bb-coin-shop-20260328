@@ -1547,7 +1547,7 @@ export default function Home() {
                 className="inline-flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md cursor-pointer select-none whitespace-nowrap"
                 style={{ borderRadius: 6, background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", border: "1px solid rgba(2,132,199,0.5)" }}
               >
-                🃏 <span className="font-black text-white">Card</span><span className="font-black" style={{ color: "#FFDE00" }}>Zx</span><span className="font-black text-white"> 交易</span>
+                🃏 <span className="font-black"><span className="text-white">Card</span><span style={{ color: "#FFDE00" }}>Zx</span></span><span className="font-black text-white"> 交易</span>
               </button>
               {/* 微工具 dropdown — 一律顯示；點選工具項時才驗商戶/admin 權限 */}
               <div className="relative">
