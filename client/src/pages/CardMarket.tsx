@@ -917,7 +917,7 @@ export default function CardMarket() {
       <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
         <div className="flex items-baseline gap-0.5">
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
-          <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
+          <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
         </div>
         <div className="flex items-center gap-2">
           {isAuthenticated && (
@@ -1156,7 +1156,7 @@ export default function CardMarket() {
           <div className="relative z-10">
             <p className="text-sm font-black text-white leading-snug">手邊有珍藏卡牌想要出售？</p>
             <p className="text-xs mt-1 mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>
-              不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZzz 均可快速上架，直面港台數萬名藏家
+              不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZx 均可快速上架，直面港台數萬名藏家
             </p>
             <button
               onClick={() => { if (isAuthenticated) navigate("/cardzzz/market/sell"); else navigate("/login"); }}

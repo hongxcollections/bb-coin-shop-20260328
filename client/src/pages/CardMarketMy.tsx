@@ -564,7 +564,7 @@ export default function CardMarketMy() {
       >
         <div className="flex items-baseline gap-0.5">
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
-          <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zzz</span>
+          <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
           <span className="text-xs font-bold ml-2" style={{ color: "rgba(255,255,255,0.6)" }}>我的清單</span>
         </div>
         <div className="flex items-center gap-2">

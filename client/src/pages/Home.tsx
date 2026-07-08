@@ -1580,7 +1580,7 @@ export default function Home() {
                         className="flex items-center gap-2 w-full px-3.5 py-2.5 text-[11px] font-semibold hover:bg-red-50 whitespace-nowrap"
                         style={{ color: "#CC0000" }}
                       >
-                        <span style={{ fontSize: 11 }}>⬤</span> CardZzz
+                        <span style={{ fontSize: 11 }}>⬤</span> CardZx
                       </button>
                       <div className="h-px bg-gray-100" />
                       <button

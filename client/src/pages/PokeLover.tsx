@@ -316,11 +316,11 @@ function PokeShareMenu({ result, savedCardId }: { result: PokeResult; savedCardI
   ].filter(Boolean).join(" | ");
 
   const shareText = [
-    `🃏 ${result.cardName ?? "CardZzz 卡片"}${result.cardNameJa ? `（${result.cardNameJa}）` : ""}`,
+    `🃏 ${result.cardName ?? "CardZx 卡片"}${result.cardNameJa ? `（${result.cardNameJa}）` : ""}`,
     result.set ? `📦 ${result.set}${result.setNumber ? ` #${result.setNumber}` : ""}` : null,
     result.rarity ? `⭐ ${result.rarity}${result.hp ? ` | HP ${result.hp}` : ""}` : null,
     priceLine ? `💰 ${priceLine}` : null,
-    `AI CardZzz 卡片鑑定 👇\n${pokeUrl}`,
+    `AI CardZx 卡片鑑定 👇\n${pokeUrl}`,
   ].filter(Boolean).join("\n");
 
   const calcPos = useCallback(() => {
@@ -361,7 +361,7 @@ function PokeShareMenu({ result, savedCardId }: { result: PokeResult; savedCardI
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
-        await navigator.share({ title: result.cardName ?? "CardZzz 卡片", text: shareText.replace("\n" + pokeUrl, "").trim(), url: pokeUrl });
+        await navigator.share({ title: result.cardName ?? "CardZx 卡片", text: shareText.replace("\n" + pokeUrl, "").trim(), url: pokeUrl });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
           try { await navigator.clipboard.writeText(shareText); } catch {}
@@ -916,9 +916,9 @@ export default function CardZzz() {
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #e5e7eb" }} />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#CC0000" }}>
-              CardZzz
+              CardZx
             </h1>
-            <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>AI 智能 CardZzz 卡片鑑定 · 交易市場</p>
+            <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>AI 智能 CardZx 卡片鑑定 · 交易市場</p>
           </div>
         </div>
 
@@ -1586,7 +1586,7 @@ export default function CardZzz() {
             {/* Share footer — visible in generated image */}
             <div style={{ textAlign: "center", paddingTop: 10, paddingBottom: 10 }}>
               <span style={{ fontSize: 10, color: "#9ca3af" }}>
-                hongxcollections.com · CardZzz AI
+                hongxcollections.com · CardZx AI
               </span>
             </div>
           </>
@@ -1596,7 +1596,7 @@ export default function CardZzz() {
         {!imagePreview && !analysisError && (
           <>
             <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
-              <p className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ color: "#F97316" }}>CardZzz 可以做到</p>
+              <p className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ color: "#F97316" }}>CardZx 可以做到</p>
               {[
                 "識別卡片名稱、系列、卡號、稀有度",
                 "參考市場估價（裸卡 / PSA 9 / PSA 10）",
@@ -1685,8 +1685,8 @@ export default function CardZzz() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(to bottom, #FFDE00 50%, #f5f5f5 50%)", border: "2px solid #333", flexShrink: 0 }} />
             <div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "#FFDE00", lineHeight: 1 }}>CardZzz</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 CardZzz 卡片鑑定 · 交易市場</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#FFDE00", lineHeight: 1 }}>CardZx</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 CardZx 卡片鑑定 · 交易市場</div>
             </div>
           </div>
 
@@ -1823,7 +1823,7 @@ export default function CardZzz() {
 
           {/* Footer */}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10, marginTop: 4, textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>hongxcollections.com · CardZzz AI</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>hongxcollections.com · CardZx AI</div>
           </div>
         </div>
       )}

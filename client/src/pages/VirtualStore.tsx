@@ -29,7 +29,7 @@ const CAT_INFO: Record<string, { color: string; emoji: string }> = {
   "金幣":     { color: "#eab308", emoji: "🥇" },
   "紙幣":     { color: "#10b981", emoji: "💵" },
   "古錢":     { color: "#f97316", emoji: "⚱️" },
-  "CardZzz":  { color: "#e11d48", emoji: "🃏" },
+  "CardZx":  { color: "#e11d48", emoji: "🃏" },
 };
 function catInfo(c: string) { return CAT_INFO[c.trim()] ?? { color: "#94a3b8", emoji: "💎" }; }
 

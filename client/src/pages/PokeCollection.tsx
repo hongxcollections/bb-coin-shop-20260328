@@ -153,7 +153,7 @@ export default function PokeCollection() {
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
 
       ctx.fillStyle = "#CC0000"; ctx.font = "bold 22px sans-serif";
-      ctx.fillText("我的 CardZzz 卡冊", PAD, 32);
+      ctx.fillText("我的 CardZx 卡冊", PAD, 32);
       ctx.fillStyle = "#6b7280"; ctx.font = "12px sans-serif";
       ctx.fillText(`${filtered.length} 張  ·  合計估值 HKD$${totalValue.toLocaleString("en-HK")}`, PAD, 52);
 
@@ -211,7 +211,7 @@ export default function PokeCollection() {
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         const file = new File([blob], "我的卡冊.png", { type: "image/png" });
-        await navigator.share({ files: [file], title: "我的 CardZzz 卡冊" });
+        await navigator.share({ files: [file], title: "我的 CardZx 卡冊" });
       } else {
         const a = document.createElement("a"); a.download = "我的卡冊.png"; a.href = dataUrl; a.click();
       }
@@ -292,7 +292,7 @@ export default function PokeCollection() {
       <Header />
       <div className="max-w-lg mx-auto px-[5px] pt-4">
         <button onClick={() => navigate("/cardzzz")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "#9ca3af" }}>
-          <ChevronLeft className="w-4 h-4" /> 返回 CardZzz
+          <ChevronLeft className="w-4 h-4" /> 返回 CardZx
         </button>
 
         {/* Title + share button */}
