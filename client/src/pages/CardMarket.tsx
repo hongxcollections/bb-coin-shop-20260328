@@ -527,20 +527,22 @@ interface WTB {
   cardNameJa: string | null; setName: string | null; setNumber: string | null;
   officialImageUrl: string | null; maxPriceHKD: number | null;
   minCondition: string | null; notes: string | null; createdAt: string; buyerName: string | null;
+  photoUrls: string[];
 }
 
 function WTBCard({ wtb, onContact, onImageClick }: { wtb: WTB; onContact?: () => void; onImageClick?: () => void }) {
   const gameStyle = GAME_BADGE_STYLE[wtb.game] ?? { background: "#f3f4f6", color: "#6b7280" };
   const gameLabel = GAMES.find(g => g.id === wtb.game)?.label ?? wtb.game;
+  const thumbImg = wtb.officialImageUrl ?? wtb.photoUrls?.[0] ?? null;
   return (
     <div
       id={`wtb-${wtb.id}`}
       className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
       style={{ background: "#fff", border: "1px solid #f0f0f0", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", borderLeft: "3px solid #F97316" }}
     >
-      {wtb.officialImageUrl ? (
+      {thumbImg ? (
         <button type="button" onClick={onImageClick} className="flex-shrink-0 rounded-lg overflow-hidden" style={{ width: 36, height: 50, cursor: onImageClick ? 'pointer' : 'default' }}>
-          <img src={wtb.officialImageUrl} alt="" className="w-full h-full object-cover" />
+          <img src={thumbImg} alt="" className="w-full h-full object-cover" />
         </button>
       ) : (
         <div className="rounded-lg flex-shrink-0 flex items-center justify-center" style={{ width: 36, height: 50, background: "#f3f4f6" }}>
@@ -904,14 +906,21 @@ export default function CardMarket() {
         <ListingDetailSheet key={selectedListing.id} listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
       )}
 
-      {wtbLightbox && wtbLightbox.officialImageUrl && (
-        <WTBImageLightbox
-          imageUrl={wtbLightbox.officialImageUrl}
-          cardName={wtbLightbox.cardName}
-          maxPriceHKD={wtbLightbox.maxPriceHKD}
-          onClose={() => setWtbLightbox(null)}
-        />
-      )}
+      {wtbLightbox && (() => {
+        const allPhotos = [
+          ...(wtbLightbox.officialImageUrl ? [wtbLightbox.officialImageUrl] : []),
+          ...(wtbLightbox.photoUrls ?? []),
+        ];
+        return allPhotos.length > 0 ? (
+          <CardPhotoLightbox
+            photos={allPhotos}
+            initialIndex={0}
+            cardName={wtbLightbox.cardName}
+            priceHKD={wtbLightbox.maxPriceHKD ?? undefined}
+            onClose={() => setWtbLightbox(null)}
+          />
+        ) : null;
+      })()}
 
       {/* ── CardZzz sub-header strip ── */}
       <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
@@ -1112,7 +1121,7 @@ export default function CardMarket() {
                   key={w.id}
                   wtb={w}
                   onContact={user?.id !== w.userId ? () => handleContactWTBBuyer(w.id) : undefined}
-                  onImageClick={w.officialImageUrl ? () => setWtbLightbox(w) : undefined}
+                  onImageClick={(w.officialImageUrl || w.photoUrls?.length > 0) ? () => setWtbLightbox(w) : undefined}
                 />
               ))}
               {wtbList.length > 3 && (
