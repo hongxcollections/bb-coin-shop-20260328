@@ -390,7 +390,7 @@ function WTBImageLightbox({ imageUrl, cardName, maxPriceHKD, onClose }: {
           {maxPriceHKD ? (
             <p className="text-base font-black" style={{ color: '#22c55e' }}>求購上限 HKD ${maxPriceHKD.toLocaleString()}</p>
           ) : (
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>HKD 價錢面議</p>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>HKD 價格面議</p>
           )}
         </div>
         <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'center' }}>
@@ -555,7 +555,7 @@ function WTBCard({ wtb, onContact, onImageClick }: { wtb: WTB; onContact?: () =>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={gameStyle}>{gameLabel}</span>
           <span className="text-[10px] font-bold" style={{ color: (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? "#16a34a" : "#9ca3af" }}>
-            {(wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 $${wtb.maxPriceHKD.toLocaleString()}` : "HKD 價錢面議"}
+            {(wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 $${wtb.maxPriceHKD.toLocaleString()}` : "HKD 價格面議"}
           </span>
           {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
         </div>

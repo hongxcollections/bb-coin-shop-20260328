@@ -695,7 +695,7 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
                   onClose={() => setLbOpen(false)}
                   caption={{
                     name: wtb.cardName,
-                    price: (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 HKD $${wtb.maxPriceHKD}` : "HKD 價錢面議",
+                    price: (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 HKD $${wtb.maxPriceHKD}` : "HKD 價格面議",
                   }}
                 />,
                 document.body
@@ -712,7 +712,7 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>{GAMES_LABEL[wtb.game] ?? wtb.game}</span>
             <span className="text-[10px] font-bold" style={{ color: (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? "#16a34a" : "#9ca3af" }}>
-              {(wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 $${wtb.maxPriceHKD}` : "HKD 價錢面議"}
+              {(wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 $${wtb.maxPriceHKD}` : "HKD 價格面議"}
             </span>
             {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
           </div>
