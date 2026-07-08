@@ -916,7 +916,7 @@ export default function CardMarket() {
             photos={allPhotos}
             initialIndex={0}
             cardName={wtbLightbox.cardName}
-            priceHKD={wtbLightbox.maxPriceHKD ?? undefined}
+            priceHKD={wtbLightbox.maxPriceHKD ?? 0}
             onClose={() => setWtbLightbox(null)}
           />
         ) : null;
