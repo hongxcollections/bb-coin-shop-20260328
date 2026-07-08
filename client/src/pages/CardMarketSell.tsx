@@ -197,6 +197,30 @@ export default function CardMarketSell() {
     }
   }
 
+  async function compressImage(file: File, maxPx = 1400, quality = 0.82): Promise<{ blob: Blob; mimeType: string }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+          else { width = Math.round(width * maxPx / height); height = maxPx; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error("compress failed")); return; }
+          resolve({ blob, mimeType: "image/jpeg" });
+        }, "image/jpeg", quality);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
   async function handlePhotoUpload(files: FileList | null) {
     if (!files || photos.length >= 6) return;
     const allowed = Math.min(files.length, 6 - photos.length);
@@ -205,11 +229,12 @@ export default function CardMarketSell() {
     try {
       for (let i = 0; i < allowed; i++) {
         const file = files[i];
+        const { blob, mimeType } = await compressImage(file);
         const { uploadUrl, finalUrl } = await signUploadMut.mutateAsync({
-          mimeType: file.type || "image/jpeg",
-          fileName: file.name || "card.jpg",
+          mimeType,
+          fileName: file.name.replace(/\.[^.]+$/, ".jpg"),
         });
-        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
+        await fetch(uploadUrl, { method: "PUT", body: blob, headers: { "Content-Type": mimeType } });
         newUrls.push(finalUrl);
       }
       setPhotos(p => [...p, ...newUrls]);

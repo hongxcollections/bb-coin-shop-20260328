@@ -942,7 +942,7 @@ export default function CardMarket() {
       </div>
 
       {/* ── Hero card — dark, rounded ── */}
-      <div className="mx-[5px] mt-[3px] mb-4 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 12 }}>
+      <div className="mx-[5px] mt-[3px] mb-0 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 12 }}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,255,255,0.12) 0%,transparent 55%)" }} />
         {/* scan shimmer overlay */}
         <div
