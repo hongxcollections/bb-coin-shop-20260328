@@ -674,24 +674,31 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
           <div className="absolute pointer-events-none" style={{ top: 0, right: 0, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 900, padding: "4px 10px", borderRadius: "0 16px 0 8px", lineHeight: 1.4 }}>已關閉</div>
         )}
 
-        {wtb.officialImageUrl ? (
-          <>
-            <img
-              src={wtb.officialImageUrl} alt=""
-              className="rounded-xl flex-shrink-0 object-cover cursor-pointer"
-              style={{ width: 40, height: 56, opacity: wtb.isActive ? 1 : 0.45 }}
-              onClick={() => setLbOpen(true)}
-            />
-            {lbOpen && createPortal(
-              <ImageLightbox images={[wtb.officialImageUrl]} initialIndex={0} onClose={() => setLbOpen(false)} />,
-              document.body
-            )}
-          </>
-        ) : (
-          <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 40, height: 56, background: "#f8f9fa" }}>
-            <span style={{ fontSize: 20 }}>🃏</span>
-          </div>
-        )}
+        {(() => {
+          const allPhotos = [
+            ...(wtb.officialImageUrl ? [wtb.officialImageUrl] : []),
+            ...(wtb.photoUrls ?? []),
+          ];
+          const thumbImg = allPhotos[0] ?? null;
+          return thumbImg ? (
+            <>
+              <img
+                src={thumbImg} alt=""
+                className="rounded-xl flex-shrink-0 object-cover cursor-pointer"
+                style={{ width: 40, height: 56, opacity: wtb.isActive ? 1 : 0.45 }}
+                onClick={() => setLbOpen(true)}
+              />
+              {lbOpen && createPortal(
+                <ImageLightbox images={allPhotos} initialIndex={0} onClose={() => setLbOpen(false)} />,
+                document.body
+              )}
+            </>
+          ) : (
+            <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 40, height: 56, background: "#f8f9fa" }}>
+              <span style={{ fontSize: 20 }}>🃏</span>
+            </div>
+          );
+        })()}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-black leading-tight line-clamp-1" style={{ color: wtb.isActive ? "#111827" : "#9ca3af" }}>{wtb.cardName}</p>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
