@@ -494,7 +494,7 @@ type Tab = "active" | "sold" | "removed" | "wtb";
 export default function CardMarketMy() {
   const [, navigate] = useLocation();
   const search = useSearch();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [tab, setTab] = useState<Tab>(() => {
     const p = new URLSearchParams(search).get("tab");
     if (p === "sold" || p === "removed" || p === "wtb") return p;
@@ -517,12 +517,12 @@ export default function CardMarketMy() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`);
     }
-  }, [isAuthenticated]);
+  }, [authLoading, isAuthenticated]);
 
-  if (!isAuthenticated) return null;
+  if (authLoading || !isAuthenticated) return null;
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: "active", label: "上架中", count: (activeListings as Listing[]).length },

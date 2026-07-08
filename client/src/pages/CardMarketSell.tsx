@@ -69,7 +69,7 @@ const BROWSABLE_GAMES: GameId[] = ["pokemon", "yugioh", "mtg", "digimon"];
 
 export default function CardMarketSell() {
   const [location, navigate] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<Mode>(location.includes("/wtb") ? "wtb" : "sell");
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -314,12 +314,12 @@ export default function CardMarketSell() {
   const cardImg = selectedCard?.officialImageUrl;
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       navigate(`/login?from=${encodeURIComponent(window.location.pathname)}`);
     }
-  }, [isAuthenticated]);
+  }, [authLoading, isAuthenticated]);
 
-  if (!isAuthenticated) return null;
+  if (authLoading || !isAuthenticated) return null;
 
   return (
     <>
