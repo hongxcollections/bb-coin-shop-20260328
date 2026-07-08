@@ -212,7 +212,10 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
       <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
         <div style={{ flex: 1, minWidth: 0 }}>
           <p className="text-sm font-bold leading-snug truncate" style={{ color: '#fff', marginBottom: 2 }}>{cardName}</p>
-          <p className="text-base font-black" style={{ color: '#F97316', letterSpacing: '-0.3px' }}>HKD ${priceHKD.toLocaleString()}</p>
+          {priceHKD > 0
+            ? <p className="text-base font-black" style={{ color: '#F97316', letterSpacing: '-0.3px' }}>HKD ${priceHKD.toLocaleString()}</p>
+            : <p className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.45)' }}>HKD 價格面議</p>
+          }
         </div>
         {photos.length > 1 && (
           <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'center' }}>
