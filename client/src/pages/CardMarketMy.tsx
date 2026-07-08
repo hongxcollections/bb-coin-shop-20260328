@@ -366,25 +366,33 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
         <ImageLightbox images={photos} initialIndex={lbIdx} onClose={() => setLbIdx(null)} bottomInset={80} />,
         document.body
       )}
-      <div className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-        <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 48, height: 66 }}>
+      <div className="relative flex items-center gap-3 p-3 rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+        {/* Corner ribbon for non-active status */}
+        {listing.status === "sold" && (
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 72, height: 72 }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 72px 72px 0", borderColor: "transparent #dc2626 transparent transparent" }} />
+            <div style={{ position: "absolute", top: 13, right: 1, width: 54, transform: "rotate(45deg)", color: "#fff", fontSize: 9, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已售出</div>
+          </div>
+        )}
+        {listing.status === "removed" && (
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 72, height: 72 }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 72px 72px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
+            <div style={{ position: "absolute", top: 13, right: 1, width: 54, transform: "rotate(45deg)", color: "#fff", fontSize: 9, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已下架</div>
+          </div>
+        )}
+
+        <div className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 48, height: 66 }}>
           {img ? (
             <img
               src={img} alt=""
               className="w-full h-full object-cover cursor-pointer active:opacity-80"
-              style={{ opacity: listing.status !== "active" ? 0.55 : 1 }}
+              style={{ opacity: listing.status !== "active" ? 0.5 : 1 }}
               onClick={() => setLbIdx(0)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center" style={{ background: "#f8f9fa" }}>
               <span style={{ fontSize: 24 }}>🃏</span>
             </div>
-          )}
-          {listing.status === "sold" && (
-            <div className="absolute" style={{ top: 8, right: -16, width: 56, transform: "rotate(45deg)", background: "#dc2626", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", padding: "2px 0", letterSpacing: "0.02em" }}>已售出</div>
-          )}
-          {listing.status === "removed" && (
-            <div className="absolute" style={{ top: 8, right: -16, width: 56, transform: "rotate(45deg)", background: "#6b7280", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", padding: "2px 0", letterSpacing: "0.02em" }}>已下架</div>
           )}
         </div>
         <div className="flex-1 min-w-0">
@@ -415,27 +423,13 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
             </button>
           </div>
         )}
-        {listing.status === "sold" && (
-          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ background: "rgba(22,163,74,0.1)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.2)" }}>已售出</span>
-            <button
-              onClick={handleRelist}
-              disabled={relistMut.isPending}
-              className="text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap"
-              style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none" }}
-            >重新上架</button>
-          </div>
-        )}
-        {listing.status === "removed" && (
-          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#9ca3af", border: "1px solid #e5e7eb" }}>已下架</span>
-            <button
-              onClick={handleRelist}
-              disabled={relistMut.isPending}
-              className="text-[10px] font-black px-2 py-1 rounded-full whitespace-nowrap"
-              style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none" }}
-            >重新上架</button>
-          </div>
+        {(listing.status === "sold" || listing.status === "removed") && (
+          <button
+            onClick={handleRelist}
+            disabled={relistMut.isPending}
+            className="flex-shrink-0 text-[10px] font-black px-2 py-1.5 rounded-full whitespace-nowrap"
+            style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none", marginRight: 4 }}
+          >重新上架</button>
         )}
       </div>
     </>
