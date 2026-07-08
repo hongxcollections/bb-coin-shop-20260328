@@ -854,6 +854,8 @@ export default function CardMarket() {
     if (found) setSelectedListing(found);
   }, [searchStr, allListings]);
 
+  const { data: marketStats } = trpc.cardTrading.getMarketStats.useQuery(undefined, { staleTime: 60000 });
+
   const { data: wtbs = [] } = trpc.cardTrading.getWTBs.useQuery({
     game: game || undefined,
     isActive: true,
@@ -965,20 +967,6 @@ export default function CardMarket() {
             內建完整高清卡牌圖鑑，透明成交，一鍵查價、光速成交
           </p>
 
-          {/* Stats */}
-          <div className="flex gap-1.5 mb-3">
-            {[
-              { v: String(listings.length), label: "上架中" },
-              { v: "0",                      label: "今日成交" },
-              { v: String(wtbList.length),   label: "求購 WTB" },
-            ].map(s => (
-              <div key={s.label} className="flex items-center gap-1.5 flex-1 px-2 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                <span className="text-sm font-black leading-none text-white">{s.v}</span>
-                <span className="text-[9px] leading-none" style={{ color: "rgba(255,255,255,0.7)" }}>{s.label}</span>
-              </div>
-            ))}
-          </div>
-
           {/* CTA buttons */}
           <div className="flex items-center gap-2">
             <button
@@ -999,6 +987,20 @@ export default function CardMarket() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── Market stats badges (below Hero, right-aligned) ── */}
+      <div className="flex justify-end gap-1.5 px-[5px] mt-2 mb-1">
+        {[
+          { label: "出售", v: marketStats?.activeListing ?? "—" },
+          { label: "成交", v: marketStats?.soldListing ?? "—" },
+          { label: "WTB",  v: marketStats?.activeWTB ?? "—" },
+        ].map(s => (
+          <div key={s.label} className="flex items-center gap-1 px-2.5 py-1 rounded-full" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)" }}>
+            <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.label}</span>
+            <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.v}</span>
+          </div>
+        ))}
       </div>
 
       {/* ── Content area ── */}

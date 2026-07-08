@@ -14451,6 +14451,19 @@ EXAMPLE OUTPUT (exact format):
         return getCardWTBs({ userId: ctx.user.id, limit: input.limit, offset: input.offset });
       }),
 
+    getMarketStats: publicProcedure
+      .query(async () => {
+        const pool = await getRawPool();
+        const [[{ activeListing }]] = await pool.execute('SELECT COUNT(*) AS activeListing FROM cardListings WHERE status = ?', ['active']) as any;
+        const [[{ soldListing }]] = await pool.execute('SELECT COUNT(*) AS soldListing FROM cardListings WHERE status = ?', ['sold']) as any;
+        const [[{ activeWTB }]] = await pool.execute('SELECT COUNT(*) AS activeWTB FROM cardWantToBuy WHERE isActive = 1') as any;
+        return {
+          activeListing: Number(activeListing),
+          soldListing: Number(soldListing),
+          activeWTB: Number(activeWTB),
+        };
+      }),
+
     deactivateWTB: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ input, ctx }) => {

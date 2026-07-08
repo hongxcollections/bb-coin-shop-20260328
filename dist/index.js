@@ -25329,6 +25329,17 @@ EXAMPLE OUTPUT (exact format):
         const { getCardWTBs: getCardWTBs2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         return getCardWTBs2({ userId: ctx.user.id, limit: input.limit, offset: input.offset });
       }),
+      getMarketStats: publicProcedure.query(async () => {
+        const pool = await getRawPool();
+        const [[{ activeListing }]] = await pool.execute("SELECT COUNT(*) AS activeListing FROM cardListings WHERE status = ?", ["active"]);
+        const [[{ soldListing }]] = await pool.execute("SELECT COUNT(*) AS soldListing FROM cardListings WHERE status = ?", ["sold"]);
+        const [[{ activeWTB }]] = await pool.execute("SELECT COUNT(*) AS activeWTB FROM cardWantToBuy WHERE isActive = 1");
+        return {
+          activeListing: Number(activeListing),
+          soldListing: Number(soldListing),
+          activeWTB: Number(activeWTB)
+        };
+      }),
       deactivateWTB: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
         const { deactivateCardWTB: deactivateCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await deactivateCardWTB2(input.id, ctx.user.id);
