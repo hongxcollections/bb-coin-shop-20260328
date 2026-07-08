@@ -367,17 +367,17 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
         document.body
       )}
       <div className="relative flex items-center gap-3 p-3 rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-        {/* Corner ribbon for non-active status */}
+        {/* Corner ribbon — top-right triangle */}
         {listing.status === "sold" && (
-          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 72, height: 72 }}>
-            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 72px 72px 0", borderColor: "transparent #dc2626 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 13, right: 1, width: 54, transform: "rotate(45deg)", color: "#fff", fontSize: 9, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已售出</div>
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 50, height: 50 }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 50px 50px 0", borderColor: "transparent #dc2626 transparent transparent" }} />
+            <div style={{ position: "absolute", top: 8, right: -1, width: 38, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已售出</div>
           </div>
         )}
         {listing.status === "removed" && (
-          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 72, height: 72 }}>
-            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 72px 72px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
-            <div style={{ position: "absolute", top: 13, right: 1, width: 54, transform: "rotate(45deg)", color: "#fff", fontSize: 9, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已下架</div>
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 50, height: 50 }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 50px 50px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
+            <div style={{ position: "absolute", top: 8, right: -1, width: 38, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已下架</div>
           </div>
         )}
 
@@ -408,6 +408,14 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
             <Eye className="w-3 h-3" style={{ color: "#9ca3af" }} />
             <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.views}</span>
             <span className="text-[10px]" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
+            {(listing.status === "sold" || listing.status === "removed") && (
+              <button
+                onClick={handleRelist}
+                disabled={relistMut.isPending}
+                className="ml-auto text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
+                style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none" }}
+              >重新上架</button>
+            )}
           </div>
         </div>
         {listing.status === "active" && (
@@ -422,14 +430,6 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
               <Trash2 className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
             </button>
           </div>
-        )}
-        {(listing.status === "sold" || listing.status === "removed") && (
-          <button
-            onClick={handleRelist}
-            disabled={relistMut.isPending}
-            className="flex-shrink-0 text-[10px] font-black px-2 py-1.5 rounded-full whitespace-nowrap"
-            style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none", marginRight: 4 }}
-          >重新上架</button>
         )}
       </div>
     </>
@@ -569,7 +569,15 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   return (
     <>
       {editOpen && <EditWTBSheet wtb={wtb} onClose={() => setEditOpen(false)} onSaved={onRefresh} />}
-      <div className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: wtb.isActive ? "#fff" : "#fafafa", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+      <div className="relative flex items-center gap-3 p-3 rounded-2xl overflow-hidden" style={{ background: wtb.isActive ? "#fff" : "#fafafa", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+        {/* Corner ribbon for closed WTB */}
+        {!wtb.isActive && (
+          <div className="absolute pointer-events-none" style={{ top: 0, right: 0, width: 50, height: 50 }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0, borderStyle: "solid", borderWidth: "0 50px 50px 0", borderColor: "transparent #6b7280 transparent transparent" }} />
+            <div style={{ position: "absolute", top: 8, right: -1, width: 38, transform: "rotate(45deg)", color: "#fff", fontSize: 8, fontWeight: 900, textAlign: "center", lineHeight: 1.2 }}>已關閉</div>
+          </div>
+        )}
+
         {wtb.officialImageUrl ? (
           <>
             <img
@@ -589,20 +597,28 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs font-black leading-tight line-clamp-1" style={{ color: wtb.isActive ? "#111827" : "#9ca3af" }}>{wtb.cardName}</p>
-            {!wtb.isActive && (
-              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "#f3f4f6", color: "#9ca3af", border: "1px solid #e5e7eb" }}>已關閉</span>
-            )}
-          </div>
+          <p className="text-xs font-black leading-tight line-clamp-1" style={{ color: wtb.isActive ? "#111827" : "#9ca3af" }}>{wtb.cardName}</p>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>{GAMES_LABEL[wtb.game] ?? wtb.game}</span>
             {wtb.maxPriceHKD && <span className="text-[10px] font-bold" style={{ color: "#16a34a" }}>上限 ${wtb.maxPriceHKD}</span>}
             {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
           </div>
           {wtb.notes && <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: "#9ca3af" }}>{wtb.notes}</p>}
+          {!wtb.isActive && (
+            <div className="mt-1">
+              <button
+                onClick={handleReactivate}
+                disabled={reactivateMut.isPending}
+                className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap"
+                style={{ background: "rgba(14,165,233,0.1)", border: "1px solid rgba(14,165,233,0.25)", color: "#0369a1" }}
+              >
+                <RotateCcw className="w-3 h-3" />
+                重新開啟
+              </button>
+            </div>
+          )}
         </div>
-        {wtb.isActive ? (
+        {wtb.isActive && (
           <div className="flex flex-col gap-1.5 flex-shrink-0">
             <button onClick={() => setEditOpen(true)} className="p-1.5 rounded-lg" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)" }}>
               <Edit2 className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
@@ -611,16 +627,6 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
               <X className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
             </button>
           </div>
-        ) : (
-          <button
-            onClick={handleReactivate}
-            disabled={reactivateMut.isPending}
-            className="flex-shrink-0 flex items-center gap-1 text-[10px] font-black px-2 py-1.5 rounded-lg"
-            style={{ background: "rgba(14,165,233,0.1)", border: "1px solid rgba(14,165,233,0.25)", color: "#0369a1" }}
-          >
-            <RotateCcw className="w-3 h-3" />
-            重開
-          </button>
         )}
       </div>
     </>
