@@ -115,6 +115,7 @@ function GoogleLoginButton() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
   if (!googleClientId || googleClientId.trim() === '') return null;
   const handleClick = () => {
+    const fromPath = new URLSearchParams(window.location.search).get("from") || "/";
     const redirectUri = `${window.location.origin}/api/oauth/callback`;
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.searchParams.set('client_id', googleClientId);
@@ -122,6 +123,7 @@ function GoogleLoginButton() {
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('scope', 'openid email profile');
     url.searchParams.set('access_type', 'online');
+    url.searchParams.set('state', encodeURIComponent(fromPath));
     window.location.href = url.toString();
   };
   return (

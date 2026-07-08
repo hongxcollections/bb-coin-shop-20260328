@@ -1494,7 +1494,7 @@ export default function CardZzz() {
                 </button>
               ) : (
                 <button
-                  onClick={() => navigate("/login")}
+                  onClick={() => navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
                   style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", color: "#9ca3af" }}
                 >

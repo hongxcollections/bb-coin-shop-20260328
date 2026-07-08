@@ -231,7 +231,7 @@ export default function PokeCollection() {
           <BookOpen className="w-12 h-12 mb-4" style={{ color: "rgba(204,0,0,0.3)" }} />
           <p className="font-bold mb-2" style={{ color: "#111827" }}>請先登入</p>
           <p className="text-xs text-center mb-4" style={{ color: "#9ca3af" }}>登入後可儲存 Pokémon 卡片到你的卡冊</p>
-          <button onClick={() => navigate("/login")} className="px-6 py-2.5 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #FFDE00, #FFB800)", color: "#111827" }}>
+          <button onClick={() => navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`)} className="px-6 py-2.5 rounded-xl font-bold text-sm" style={{ background: "linear-gradient(135deg, #FFDE00, #FFB800)", color: "#111827" }}>
             立即登入
           </button>
         </div>

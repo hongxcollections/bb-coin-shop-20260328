@@ -12198,7 +12198,15 @@ function registerOAuthRoutes(app) {
         });
         const cookieOptions2 = getSessionCookieOptions(req);
         res.cookie(COOKIE_NAME, sessionToken2, { ...cookieOptions2, maxAge: ONE_YEAR_MS });
-        res.redirect(302, "/");
+        let redirectTo = "/";
+        try {
+          if (state) {
+            const decoded = decodeURIComponent(state);
+            if (decoded.startsWith("/") && !decoded.startsWith("//")) redirectTo = decoded;
+          }
+        } catch {
+        }
+        res.redirect(302, redirectTo);
         return;
       }
       if (!state) {
