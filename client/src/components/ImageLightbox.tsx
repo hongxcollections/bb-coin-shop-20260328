@@ -7,9 +7,10 @@ interface ImageLightboxProps {
   alt?: string;
   onClose: () => void;
   bottomInset?: number;
+  caption?: { name: string; price: string };
 }
 
-export default function ImageLightbox({ images, initialIndex = 0, onClose, bottomInset = 0 }: ImageLightboxProps) {
+export default function ImageLightbox({ images, initialIndex = 0, onClose, bottomInset = 0, caption }: ImageLightboxProps) {
   const [lbImgIdx, setLbImgIdx] = useState(initialIndex);
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
@@ -124,25 +125,33 @@ export default function ImageLightbox({ images, initialIndex = 0, onClose, botto
 
   return (
     <div className="fixed z-[9999] flex flex-col" style={{ top: 0, left: 0, right: 0, bottom: bottomInset, background: 'rgba(0,0,0,0.97)' }}>
-      <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
-        <p className="text-white/50 text-xs flex-1">{lbImgIdx + 1} / {images.length}</p>
-        {images.length > 1 && (
-          <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)' }}>
-            <button
-              onClick={() => { setLbMode('h'); resetLb(); }}
-              style={{ padding: '5px 8px', background: lbMode==='h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
-            ><LayoutGrid className="w-3.5 h-3.5" /></button>
-            <button
-              onClick={() => { setLbMode('v'); resetLb(); }}
-              style={{ padding: '5px 8px', background: lbMode==='v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
-            ><LayoutList className="w-3.5 h-3.5" /></button>
+      <div className="flex-shrink-0">
+        <div className="flex items-center justify-between px-3 pt-3 pb-1 gap-2">
+          <p className="text-white/50 text-xs flex-1">{lbImgIdx + 1} / {images.length}</p>
+          {images.length > 1 && (
+            <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)' }}>
+              <button
+                onClick={() => { setLbMode('h'); resetLb(); }}
+                style={{ padding: '5px 8px', background: lbMode==='h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+              ><LayoutGrid className="w-3.5 h-3.5" /></button>
+              <button
+                onClick={() => { setLbMode('v'); resetLb(); }}
+                style={{ padding: '5px 8px', background: lbMode==='v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+              ><LayoutList className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
+          <button
+            className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
+            onClick={onClose}
+          >關閉</button>
+        </div>
+        {caption && (
+          <div className="px-4 pb-2 flex items-baseline gap-2 flex-wrap">
+            <span className="text-white text-sm font-black leading-tight">{caption.name}</span>
+            <span className="text-xs font-bold" style={{ color: '#fb923c' }}>{caption.price}</span>
           </div>
         )}
-        <button
-          className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
-          style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
-          onClick={onClose}
-        >關閉</button>
       </div>
 
       <div className="flex-1 relative overflow-hidden">

@@ -689,7 +689,15 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
                 onClick={() => setLbOpen(true)}
               />
               {lbOpen && createPortal(
-                <ImageLightbox images={allPhotos} initialIndex={0} onClose={() => setLbOpen(false)} />,
+                <ImageLightbox
+                  images={allPhotos}
+                  initialIndex={0}
+                  onClose={() => setLbOpen(false)}
+                  caption={{
+                    name: wtb.cardName,
+                    price: (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 HKD $${wtb.maxPriceHKD}` : "HKD 價錢面議",
+                  }}
+                />,
                 document.body
               )}
             </>
@@ -703,7 +711,9 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
           <p className="text-xs font-black leading-tight line-clamp-1" style={{ color: wtb.isActive ? "#111827" : "#9ca3af" }}>{wtb.cardName}</p>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>{GAMES_LABEL[wtb.game] ?? wtb.game}</span>
-            {wtb.maxPriceHKD && <span className="text-[10px] font-bold" style={{ color: "#16a34a" }}>上限 ${wtb.maxPriceHKD}</span>}
+            <span className="text-[10px] font-bold" style={{ color: (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? "#16a34a" : "#9ca3af" }}>
+              {(wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 $${wtb.maxPriceHKD}` : "HKD 價錢面議"}
+            </span>
             {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
           </div>
           {wtb.notes && <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: "#9ca3af" }}>{wtb.notes}</p>}
@@ -882,7 +892,7 @@ export default function CardMarketMy() {
                 </button>
               </div>
             ) : (
-              (myWTBs as WTB[]).map(w => (
+              [...(myWTBs as WTB[])].sort((a, b) => b.isActive - a.isActive).map(w => (
                 <WTBRow key={w.id} wtb={w} onRefresh={refetchWTBs} />
               ))
             )}
