@@ -990,13 +990,13 @@ export default function CardMarket() {
       </div>
 
       {/* ── Market stats badges (below Hero, right-aligned) ── */}
-      <div className="flex justify-end gap-1.5 px-[5px]" style={{ marginTop: 5, marginBottom: 4 }}>
+      <div className="flex justify-end px-[5px]" style={{ marginTop: 5, marginBottom: 4, gap: 3 }}>
         {[
           { label: "出售", v: marketStats?.activeListing ?? "—" },
           { label: "成交", v: marketStats?.soldListing ?? "—" },
           { label: "WTB",  v: marketStats?.activeWTB ?? "—" },
         ].map(s => (
-          <div key={s.label} className="flex items-center gap-1 px-2.5 py-1" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", borderRadius: 4 }}>
+          <div key={s.label} className="flex items-center gap-1 px-2.5 py-1" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", borderRadius: 5 }}>
             <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.label}</span>
             <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.v}</span>
           </div>
