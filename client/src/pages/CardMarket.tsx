@@ -929,10 +929,10 @@ export default function CardMarket() {
 
       {/* ── CardZzz sub-header strip ── */}
       <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
-        <div className="flex items-baseline gap-0.5">
+        <button className="flex items-baseline gap-0.5" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           <button
             onClick={() => isAuthenticated ? navigate("/cardzx/market/my") : navigate(`/login?from=${encodeURIComponent("/cardzx/market/my")}`)}

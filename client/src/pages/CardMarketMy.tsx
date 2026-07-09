@@ -813,11 +813,11 @@ export default function CardMarketMy() {
         className="flex items-center justify-between px-4 py-2.5"
         style={{ marginTop: 3, marginLeft: 5, marginRight: 5, background: "linear-gradient(90deg,#1e3a5f 0%,#0369a1 60%,#0ea5e9 100%)", borderRadius: 10 }}
       >
-        <div className="flex items-baseline gap-0.5">
+        <button className="flex items-baseline gap-0.5" onClick={() => { navigate("/cardzx/market"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
           <span className="text-xs font-bold ml-2" style={{ color: "rgba(255,255,255,0.6)" }}>我的清單</span>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/cardzx/market/sell")}

@@ -361,12 +361,12 @@ export default function CardMarketSell() {
         style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }}
         className="px-4 pt-3 pb-3 flex items-center justify-between"
       >
-        <div className="flex items-baseline gap-0.5">
+        <button className="flex items-baseline gap-0.5" onClick={() => { navigate("/cardzx/market"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
-        </div>
+        </button>
         <button
-          onClick={() => navigate("/cardzx/market")}
+          onClick={() => { navigate("/cardzx/market"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
           className="p-1.5 rounded-full"
           style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
         >
@@ -409,10 +409,34 @@ export default function CardMarketSell() {
         {/* ── Step 1: Choose game + Find card ──────────────────────────── */}
         {step === 1 && (
           <div>
-            {/* Game chips */}
-            <p className="text-xs font-bold mb-2" style={{ color: "#6b7280" }}>選擇遊戲</p>
+            {/* 手動填寫 + 選擇遊戲 header row */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                onClick={() => {
+                  if (game !== "other") {
+                    setGame("other");
+                    setSelectedCard(null);
+                    setSelectedSet(null);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setAccCards([]);
+                    prevSetRef.current = null;
+                    setStep2Tab("search");
+                  }
+                }}
+                className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={game === "other"
+                  ? { background: "rgba(255,222,0,0.15)", color: "#CC0000", border: "1px solid rgba(255,222,0,0.4)" }
+                  : { background: "#fff", color: "#6b7280", border: "1px solid #e5e7eb" }}
+              >
+                🃏 手動填寫
+              </button>
+              <span className="text-xs font-bold" style={{ color: "#9ca3af" }}>或 選擇以下遊戲</span>
+            </div>
+
+            {/* Game chips (excluding 手動填寫) */}
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-              {GAMES.map(g => (
+              {GAMES.filter(g => g.id !== "other").map(g => (
                 <button
                   key={g.id}
                   onClick={() => {
