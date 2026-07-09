@@ -565,7 +565,7 @@ export default function CardMarketSell() {
                             return (
                               <button
                                 key={card.cardApiId}
-                                onClick={() => setPreviewCard(card)}
+                                onClick={() => { setSelectedCard(card); setStep(2); }}
                                 className="flex flex-col rounded-xl overflow-hidden text-left transition-all"
                                 style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                               >
@@ -660,7 +660,7 @@ export default function CardMarketSell() {
                       return (
                         <button
                           key={i}
-                          onClick={() => setPreviewCard(r)}
+                          onClick={() => { setSelectedCard(r); setStep(2); }}
                           className="flex flex-col rounded-xl overflow-hidden text-left"
                           style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                         >
