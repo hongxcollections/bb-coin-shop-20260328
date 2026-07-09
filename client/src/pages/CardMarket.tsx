@@ -4,7 +4,7 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown } from "lucide-react";
 
 const GAMES = [
   { id: "", label: "全部" },
@@ -826,6 +826,7 @@ export default function CardMarket() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showWTB, setShowWTB] = useState(false);
   const [wtbLightbox, setWtbLightbox] = useState<WTB | null>(null);
+  const [riskOpen, setRiskOpen] = useState(false);
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
@@ -997,19 +998,43 @@ export default function CardMarket() {
         </div>
       </div>
 
-      {/* ── Market stats badges (below Hero, right-aligned) ── */}
-      <div className="flex justify-end px-[5px]" style={{ marginTop: 5, marginBottom: 4, gap: 3 }}>
-        {[
-          { label: "出售", v: marketStats?.activeListing ?? "—" },
-          { label: "成交", v: marketStats?.soldListing ?? "—" },
-          { label: "WTB",  v: marketStats?.activeWTB ?? "—" },
-        ].map(s => (
-          <div key={s.label} className="flex items-center gap-1 px-2.5 py-1" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", borderRadius: 5 }}>
-            <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.label}</span>
-            <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.v}</span>
-          </div>
-        ))}
+      {/* ── Market stats badges (below Hero) + Risk badge ── */}
+      <div className="flex items-center justify-between px-[5px]" style={{ marginTop: 5, marginBottom: 0, gap: 3 }}>
+        {/* Risk notice badge — left */}
+        <button
+          onClick={() => setRiskOpen(v => !v)}
+          className="flex items-center gap-1 px-2.5 py-1 flex-shrink-0"
+          style={{ background: "#1d4ed8", borderRadius: 5 }}
+        >
+          <span className="text-[11px] font-black text-white">⚠ 風險交易提示</span>
+          <ChevronDown className="w-3 h-3 text-white transition-transform" style={{ transform: riskOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+        </button>
+        {/* Stats badges — right */}
+        <div className="flex items-center" style={{ gap: 3 }}>
+          {[
+            { label: "出售", v: marketStats?.activeListing ?? "—" },
+            { label: "成交", v: marketStats?.soldListing ?? "—" },
+            { label: "WTB",  v: marketStats?.activeWTB ?? "—" },
+          ].map(s => (
+            <div key={s.label} className="flex items-center gap-1 px-2.5 py-1" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", borderRadius: 5 }}>
+              <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.label}</span>
+              <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.v}</span>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* ── Risk notice collapsible panel ── */}
+      {riskOpen && (
+        <div className="px-[5px] mt-2 mb-1">
+          <img
+            src="/cardzx-risk-notice.png"
+            alt="交易風險提示"
+            className="w-full rounded-xl"
+            style={{ display: "block" }}
+          />
+        </div>
+      )}
 
       {/* ── Content area ── */}
       <div className="px-[5px]">
