@@ -1176,7 +1176,7 @@ export default function CardMarket() {
             {riskOpen && (
               <div className="mb-3">
                 <img
-                  src="/cardzx-risk-notice.png?v=2"
+                  src="/cardzx-risk-notice-v2.png"
                   alt="交易風險提示"
                   className="w-full rounded-xl"
                   style={{ display: "block" }}
