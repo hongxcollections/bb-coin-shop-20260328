@@ -25158,7 +25158,7 @@ EXAMPLE OUTPUT (exact format):
         gradingOrg: z2.string().max(20).optional(),
         gradeScore: z2.string().max(10).optional(),
         priceHKD: z2.number().int().min(1),
-        photoUrls: z2.array(z2.string()).max(6),
+        photoUrls: z2.array(z2.string()).max(10),
         description: z2.string().max(1e3).optional(),
         deliveryMethod: z2.string().max(50).optional()
       })).mutation(async ({ input, ctx }) => {
@@ -25239,7 +25239,7 @@ EXAMPLE OUTPUT (exact format):
         id: z2.number().int(),
         priceHKD: z2.number().int().min(1).optional(),
         description: z2.string().max(1e3).optional(),
-        photoUrls: z2.array(z2.string()).max(6).optional(),
+        photoUrls: z2.array(z2.string()).max(10).optional(),
         condition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
         isGraded: z2.boolean().optional(),
         gradingOrg: z2.string().max(20).optional().nullable(),
@@ -25314,7 +25314,7 @@ EXAMPLE OUTPUT (exact format):
         maxPriceHKD: z2.number().int().min(1).optional(),
         minCondition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
         notes: z2.string().max(500).optional(),
-        photoUrls: z2.array(z2.string()).max(6).optional()
+        photoUrls: z2.array(z2.string()).max(10).optional()
       })).mutation(async ({ input, ctx }) => {
         const { createCardWTB: createCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const result = await createCardWTB2({
@@ -25384,7 +25384,7 @@ EXAMPLE OUTPUT (exact format):
         maxPriceHKD: z2.number().int().positive().nullable().optional(),
         minCondition: z2.string().nullable().optional(),
         notes: z2.string().nullable().optional(),
-        photoUrls: z2.array(z2.string()).max(6).optional(),
+        photoUrls: z2.array(z2.string()).max(10).optional(),
         officialImageUrl: z2.string().nullable().optional()
       })).mutation(async ({ input, ctx }) => {
         const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));

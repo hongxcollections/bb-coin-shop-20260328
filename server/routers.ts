@@ -14231,7 +14231,7 @@ EXAMPLE OUTPUT (exact format):
         gradingOrg: z.string().max(20).optional(),
         gradeScore: z.string().max(10).optional(),
         priceHKD: z.number().int().min(1),
-        photoUrls: z.array(z.string()).max(6),
+        photoUrls: z.array(z.string()).max(10),
         description: z.string().max(1000).optional(),
         deliveryMethod: z.string().max(50).optional(),
       }))
@@ -14313,7 +14313,7 @@ EXAMPLE OUTPUT (exact format):
         id: z.number().int(),
         priceHKD: z.number().int().min(1).optional(),
         description: z.string().max(1000).optional(),
-        photoUrls: z.array(z.string()).max(6).optional(),
+        photoUrls: z.array(z.string()).max(10).optional(),
         condition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']).optional(),
         isGraded: z.boolean().optional(),
         gradingOrg: z.string().max(20).optional().nullable(),
@@ -14409,7 +14409,7 @@ EXAMPLE OUTPUT (exact format):
         maxPriceHKD: z.number().int().min(1).optional(),
         minCondition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']).optional(),
         notes: z.string().max(500).optional(),
-        photoUrls: z.array(z.string()).max(6).optional(),
+        photoUrls: z.array(z.string()).max(10).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { createCardWTB } = await import('./db');
@@ -14493,7 +14493,7 @@ EXAMPLE OUTPUT (exact format):
         maxPriceHKD: z.number().int().positive().nullable().optional(),
         minCondition: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
-        photoUrls: z.array(z.string()).max(6).optional(),
+        photoUrls: z.array(z.string()).max(10).optional(),
         officialImageUrl: z.string().nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
