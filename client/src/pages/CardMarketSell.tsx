@@ -100,6 +100,7 @@ export default function CardMarketSell() {
 
   // Photo lightbox
   const [lbIdx, setLbIdx] = useState<number | null>(null);
+  const [wtbLbIdx, setWtbLbIdx] = useState<number | null>(null);
   const lbZoom = useRef(1);
   const lbPanX = useRef(0);
   const lbPanY = useRef(0);
@@ -108,14 +109,17 @@ export default function CardMarketSell() {
   const panStartTouch = useRef({ x: 0, y: 0 });
   const panStartOffset = useRef({ x: 0, y: 0 });
   const lbImgRef = useRef<HTMLImageElement>(null);
+  const wtbLbImgRef = useRef<HTMLImageElement>(null);
   const [lbRender, setLbRender] = useState(0);
   const applyTransform = useCallback(() => {
     if (lbImgRef.current) {
       lbImgRef.current.style.transform = `translate(${lbPanX.current}px,${lbPanY.current}px) scale(${lbZoom.current})`;
     }
+    if (wtbLbImgRef.current) {
+      wtbLbImgRef.current.style.transform = `translate(${lbPanX.current}px,${lbPanY.current}px) scale(${lbZoom.current})`;
+    }
   }, []);
-  const [lbSingleImg, setLbSingleImg] = useState<string | null>(null);
-  const closeLb = useCallback(() => { setLbIdx(null); setLbSingleImg(null); lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; }, []);
+  const closeLb = useCallback(() => { setLbIdx(null); setWtbLbIdx(null); lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; }, []);
   const resetLbTransform = () => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; applyTransform(); setLbRender(n=>n+1); };
 
   const [maxPriceStr, setMaxPriceStr] = useState("");
@@ -377,14 +381,14 @@ export default function CardMarketSell() {
         {/* Mode toggle */}
         <div className="flex gap-2 mb-5 p-1 rounded-2xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
           <button
-            onClick={() => { setMode("sell"); }}
+            onClick={() => { setMode("sell"); setPhotos(p => p.length > 0 ? p : wtbPhotos); }}
             className="flex-1 py-2 rounded-xl font-bold text-sm transition-all"
             style={mode === "sell" ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" } : { color: "#9ca3af" }}
           >
             上架出售
           </button>
           <button
-            onClick={() => { setMode("wtb"); }}
+            onClick={() => { setMode("wtb"); setWtbPhotos(p => p.length > 0 ? p : photos); }}
             className="flex-1 py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
             style={mode === "wtb" ? { background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" } : { color: "#9ca3af" }}
           >
@@ -813,8 +817,18 @@ export default function CardMarketSell() {
                           src={url} alt="" className="w-full h-full object-cover cursor-pointer"
                           onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbIdx(i); }}
                         />
+                        {i === 0 && (
+                          <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5 pointer-events-none" style={{ background: "rgba(204,0,0,0.75)" }}>主圖</div>
+                        )}
+                        {i !== 0 && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setPhotos(p => [p[i], ...p.filter((_, j) => j !== i)]); }}
+                            className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5"
+                            style={{ background: "rgba(0,0,0,0.45)" }}
+                          >設主圖</button>
+                        )}
                         <button
-                          onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                          onClick={e => { e.stopPropagation(); setPhotos(p => p.filter((_, j) => j !== i)); }}
                           className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
                           style={{ background: "rgba(0,0,0,0.7)" }}
                         >
@@ -1006,7 +1020,7 @@ export default function CardMarketSell() {
                       >
                         <img
                           src={url} alt="" className="w-full h-full object-cover cursor-pointer"
-                          onClick={() => setLbSingleImg(url)}
+                          onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setWtbLbIdx(i); }}
                         />
                         {/* 主圖 badge on first */}
                         {i === 0 && (
@@ -1303,8 +1317,8 @@ export default function CardMarketSell() {
       document.body
     )}
 
-    {/* Single card image lightbox */}
-    {lbSingleImg && createPortal(
+    {/* WTB photo lightbox */}
+    {wtbLbIdx !== null && wtbPhotos[wtbLbIdx] && createPortal(
       <div
         style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', pointerEvents: 'auto' }}
         onClick={(e) => { if (e.target === e.currentTarget) closeLb(); }}
@@ -1340,21 +1354,37 @@ export default function CardMarketSell() {
             }
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '10px 14px 8px', flexShrink: 0, gap: 8 }}>
-            {lbZoom.current > 1 && (
-              <button onClick={resetLbTransform} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>重設</button>
-            )}
-            <button onClick={closeLb} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 20, padding: '5px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>關閉</button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px', flexShrink: 0 }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{(wtbLbIdx ?? 0) + 1} / {wtbPhotos.length}</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {lbZoom.current > 1 && (
+                <button onClick={resetLbTransform} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>重設</button>
+              )}
+              <button onClick={closeLb} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 20, padding: '5px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>關閉</button>
+            </div>
           </div>
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px 10px' }}>
             <img
-              ref={lbImgRef}
-              src={lbSingleImg}
+              ref={wtbLbImgRef}
+              src={wtbPhotos[wtbLbIdx]}
               alt=""
               draggable={false}
               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, display: 'block', userSelect: 'none', pointerEvents: 'none', transformOrigin: 'center center', willChange: 'transform' }}
             />
           </div>
+          {wtbPhotos.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, padding: '0 12px 10px', flexShrink: 0, overflowX: 'auto' }}>
+              {wtbPhotos.map((url, i) => (
+                <button
+                  key={i}
+                  onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setWtbLbIdx(i); }}
+                  style={{ flexShrink: 0, width: 44, height: 60, borderRadius: 8, overflow: 'hidden', border: i === wtbLbIdx ? '2px solid #FFDE00' : '2px solid transparent', padding: 0, cursor: 'pointer', background: 'none' }}
+                >
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </button>
+              ))}
+            </div>
+          )}
           <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', paddingBottom: 8, flexShrink: 0 }}>兩指放大 / 點背景關閉</p>
         </div>
       </div>,
