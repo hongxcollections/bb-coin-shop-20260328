@@ -998,43 +998,19 @@ export default function CardMarket() {
         </div>
       </div>
 
-      {/* ── Market stats badges (below Hero) + Risk badge ── */}
-      <div className="flex items-center justify-between px-[5px]" style={{ marginTop: 5, marginBottom: 0, gap: 3 }}>
-        {/* Risk notice badge — left */}
-        <button
-          onClick={() => setRiskOpen(v => !v)}
-          className="flex items-center gap-1 px-2.5 py-1 flex-shrink-0"
-          style={{ background: "#1d4ed8", borderRadius: 5 }}
-        >
-          <span className="text-[11px] font-black text-white">⚠ 風險交易提示</span>
-          <ChevronDown className="w-3 h-3 text-white transition-transform" style={{ transform: riskOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
-        </button>
-        {/* Stats badges — right */}
-        <div className="flex items-center" style={{ gap: 3 }}>
-          {[
-            { label: "出售", v: marketStats?.activeListing ?? "—" },
-            { label: "成交", v: marketStats?.soldListing ?? "—" },
-            { label: "WTB",  v: marketStats?.activeWTB ?? "—" },
-          ].map(s => (
-            <div key={s.label} className="flex items-center gap-1 px-2.5 py-1" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", borderRadius: 5 }}>
-              <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.label}</span>
-              <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.v}</span>
-            </div>
-          ))}
-        </div>
+      {/* ── Market stats badges (below Hero, right-aligned) ── */}
+      <div className="flex justify-end px-[5px]" style={{ marginTop: 5, marginBottom: 4, gap: 3 }}>
+        {[
+          { label: "出售", v: marketStats?.activeListing ?? "—" },
+          { label: "成交", v: marketStats?.soldListing ?? "—" },
+          { label: "WTB",  v: marketStats?.activeWTB ?? "—" },
+        ].map(s => (
+          <div key={s.label} className="flex items-center gap-1 px-2.5 py-1" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", borderRadius: 5 }}>
+            <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.label}</span>
+            <span className="text-[11px] font-black" style={{ color: "#fff" }}>{s.v}</span>
+          </div>
+        ))}
       </div>
-
-      {/* ── Risk notice collapsible panel ── */}
-      {riskOpen && (
-        <div className="px-[5px] mt-2 mb-1">
-          <img
-            src="/cardzx-risk-notice.png"
-            alt="交易風險提示"
-            className="w-full rounded-xl"
-            style={{ display: "block" }}
-          />
-        </div>
-      )}
 
       {/* ── Content area ── */}
       <div className="px-[5px]">
@@ -1186,8 +1162,28 @@ export default function CardMarket() {
         <div className="mb-6 p-4 rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg,#111827 0%,#1e293b 100%)" }}>
           <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 100% 0%,rgba(255,222,0,0.1) 0%,transparent 55%)" }} />
           <div className="relative z-10">
-            <p className="text-sm font-black text-white leading-snug">手邊有珍藏卡牌想要出售？</p>
-            <p className="text-xs mt-1 mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-black text-white leading-snug flex-1">手邊有珍藏卡牌想要出售？</p>
+              <button
+                onClick={() => setRiskOpen(v => !v)}
+                className="flex items-center gap-1 px-2.5 py-1 flex-shrink-0"
+                style={{ background: "#38bdf8", borderRadius: 5 }}
+              >
+                <span className="text-[11px] font-black text-white whitespace-nowrap">⚠ 風險提示</span>
+                <ChevronDown className="w-3 h-3 text-white" style={{ transform: riskOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+              </button>
+            </div>
+            {riskOpen && (
+              <div className="mb-3">
+                <img
+                  src="/cardzx-risk-notice.png"
+                  alt="交易風險提示"
+                  className="w-full rounded-xl"
+                  style={{ display: "block" }}
+                />
+              </div>
+            )}
+            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>
               不論是 Graded 評級卡、還是 RAW 裸卡，<br />在 CardZx 均可快速上架，直面港台數萬名藏家
             </p>
             <button
