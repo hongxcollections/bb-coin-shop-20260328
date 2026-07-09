@@ -233,7 +233,7 @@ export default function CardMarketSell() {
   async function handleWtbPhotoUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
     const totalSlots = (wtbOfficialUrl ? 1 : 0) + wtbPhotos.length;
-    const remaining = 6 - totalSlots;
+    const remaining = 10 - totalSlots;
     if (remaining <= 0) return;
     const toUpload = Array.from(files).slice(0, remaining);
     setWtbUploading(true);
@@ -252,8 +252,8 @@ export default function CardMarketSell() {
   }
 
   async function handlePhotoUpload(files: FileList | null) {
-    if (!files || photos.length >= 6) return;
-    const allowed = Math.min(files.length, 6 - photos.length);
+    if (!files || photos.length >= 10) return;
+    const allowed = Math.min(files.length, 10 - photos.length);
     setUploading(true);
     const newUrls: string[] = [];
     try {
@@ -805,10 +805,10 @@ export default function CardMarketSell() {
               <>
                 {/* Photos */}
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>實物相片（最多 6 張）*</label>
-                  <div className="flex gap-2 flex-wrap">
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>實物相片（最多 10 張）*</label>
+                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                     {photos.map((url, i) => (
-                      <div key={i} className="relative rounded-xl overflow-hidden" style={{ width: 72, height: 100 }}>
+                      <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 72, height: 100 }}>
                         <img
                           src={url} alt="" className="w-full h-full object-cover cursor-pointer"
                           onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbIdx(i); }}
@@ -822,11 +822,11 @@ export default function CardMarketSell() {
                         </button>
                       </div>
                     ))}
-                    {photos.length < 6 && (
+                    {photos.length < 10 && (
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploading}
-                        className="rounded-xl flex flex-col items-center justify-center gap-1"
+                        className="rounded-xl flex flex-col items-center justify-center gap-1 flex-shrink-0"
                         style={{ width: 72, height: 100, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
                       >
                         {uploading ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: "#9ca3af" }} /> : <Plus className="w-5 h-5" style={{ color: "#9ca3af" }} />}
@@ -980,11 +980,14 @@ export default function CardMarketSell() {
               <>
                 {/* WTB 相片 */}
                 <div className="mb-4">
-                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>相片（最多 6 張，選填）</label>
-                  <div className="flex gap-2 flex-wrap">
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>
+                    相片（最多 10 張，選填）
+                    {wtbPhotos.length > 0 && <span className="font-normal text-[10px] ml-2" style={{ color: "#9ca3af" }}>點擊非主圖可設為主圖</span>}
+                  </label>
+                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                     {/* Official image slot */}
                     {wtbOfficialUrl && (
-                      <div className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                      <div className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 72, height: 100 }}>
                         <img src={wtbOfficialUrl} alt="" className="w-full h-full object-cover" />
                         <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>官方圖</div>
                         <button
@@ -994,24 +997,39 @@ export default function CardMarketSell() {
                         ><X className="w-3 h-3 text-white" /></button>
                       </div>
                     )}
-                    {/* Uploaded photos */}
+                    {/* Uploaded photos — first is main */}
                     {wtbPhotos.map((url, i) => (
-                      <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                      <div
+                        key={i}
+                        className="relative rounded-xl overflow-hidden flex-shrink-0"
+                        style={{ width: 72, height: 100, cursor: i === 0 ? "default" : "pointer" }}
+                        onClick={() => {
+                          if (i !== 0) setWtbPhotos(p => [p[i], ...p.filter((_, j) => j !== i)]);
+                        }}
+                      >
                         <img src={url} alt="" className="w-full h-full object-cover" />
+                        {/* 主圖 badge on first */}
+                        {i === 0 && (
+                          <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(204,0,0,0.75)" }}>主圖</div>
+                        )}
+                        {/* Set-as-main hint on non-main photos */}
+                        {i !== 0 && (
+                          <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(0,0,0,0.45)" }}>設主圖</div>
+                        )}
                         <button
-                          onClick={() => setWtbPhotos(p => p.filter((_, j) => j !== i))}
+                          onClick={e => { e.stopPropagation(); setWtbPhotos(p => p.filter((_, j) => j !== i)); }}
                           className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
                           style={{ background: "rgba(0,0,0,0.7)" }}
                         ><X className="w-3 h-3 text-white" /></button>
                       </div>
                     ))}
                     {/* Add button */}
-                    {(wtbOfficialUrl ? 1 : 0) + wtbPhotos.length < 6 && (
+                    {(wtbOfficialUrl ? 1 : 0) + wtbPhotos.length < 10 && (
                       <button
                         onClick={() => wtbFileInputRef.current?.click()}
                         disabled={wtbUploading}
                         className="rounded-xl flex flex-col items-center justify-center gap-1 flex-shrink-0"
-                        style={{ width: 64, height: 88, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
+                        style={{ width: 72, height: 100, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
                       >
                         {wtbUploading ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#9ca3af" }} /> : <Plus className="w-4 h-4" style={{ color: "#9ca3af" }} />}
                         <span className="text-[9px]" style={{ color: "#9ca3af" }}>{wtbUploading ? "上載中" : "加相片"}</span>
