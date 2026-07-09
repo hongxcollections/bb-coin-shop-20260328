@@ -845,7 +845,7 @@ export default function CardMarketMy() {
       {/* CardZzz sub-header strip */}
       <div
         className="flex items-center justify-between px-4 py-2.5"
-        style={{ marginTop: 3, marginLeft: 5, marginRight: 5, background: "linear-gradient(90deg,#1e3a5f 0%,#0369a1 60%,#0ea5e9 100%)", borderRadius: 10 }}
+        style={{ marginTop: 3, marginLeft: 5, marginRight: 5, background: "linear-gradient(135deg,#0ea5e9 0%,#38bdf8 60%,#7dd3fc 100%)", borderRadius: 10 }}
       >
         <button className="flex items-baseline gap-0.5" onClick={() => { navigate("/cardzx/market"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>

@@ -362,7 +362,7 @@ export default function CardMarketSell() {
       <Header />
       {/* ── CardZzz sub-header strip ── */}
       <div
-        style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }}
+        style={{ background: "linear-gradient(135deg,#0ea5e9 0%,#38bdf8 60%,#7dd3fc 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }}
         className="px-4 pt-3 pb-3 flex items-center justify-between"
       >
         <button className="flex items-baseline gap-0.5" onClick={() => { navigate("/cardzx/market"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>

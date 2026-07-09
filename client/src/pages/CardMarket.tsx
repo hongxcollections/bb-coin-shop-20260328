@@ -929,7 +929,7 @@ export default function CardMarket() {
       })()}
 
       {/* ── CardZzz sub-header strip ── */}
-      <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
+      <div style={{ background: "linear-gradient(135deg,#0ea5e9 0%,#38bdf8 60%,#7dd3fc 100%)", borderRadius: 8, marginTop: 3, marginLeft: 5, marginRight: 5 }} className="px-4 pt-3 pb-3 flex items-center justify-between">
         <button className="flex items-baseline gap-0.5" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <span className="text-xl font-black text-white" style={{ letterSpacing: "-0.5px" }}>Card</span>
           <span className="text-xl font-black" style={{ color: "#FFDE00", letterSpacing: "-0.5px" }}>Zx</span>
@@ -953,7 +953,7 @@ export default function CardMarket() {
       </div>
 
       {/* ── Hero card — dark, rounded ── */}
-      <div className="mx-[5px] mt-[3px] mb-0 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0369a1 0%,#0284c7 60%,#0ea5e9 100%)", borderRadius: 12 }}>
+      <div className="mx-[5px] mt-[3px] mb-0 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#0ea5e9 0%,#38bdf8 60%,#7dd3fc 100%)", borderRadius: 12 }}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(ellipse at 80% 0%,rgba(255,255,255,0.12) 0%,transparent 55%)" }} />
         {/* scan shimmer overlay */}
         <div
