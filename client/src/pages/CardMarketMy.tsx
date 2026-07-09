@@ -389,17 +389,25 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
           <div className="absolute pointer-events-none" style={{ top: 0, right: 0, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 900, padding: "4px 10px", borderRadius: "0 16px 0 8px", lineHeight: 1.4 }}>已下架</div>
         )}
 
-        <div className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 48, height: 66 }}>
+        <div className="relative flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 80, height: 108 }}>
           {img ? (
-            <img
-              src={img} alt=""
-              className="w-full h-full object-cover cursor-pointer active:opacity-80"
-              style={{ opacity: listing.status !== "active" ? 0.5 : 1 }}
-              onClick={() => setLbIdx(0)}
-            />
+            <>
+              <img
+                src={img} alt=""
+                className="w-full h-full object-cover cursor-pointer active:opacity-80"
+                style={{ opacity: listing.status !== "active" ? 0.5 : 1 }}
+                onClick={() => setLbIdx(0)}
+              />
+              <div className="absolute bottom-0 left-0 right-0 px-1 py-1" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 100%)" }}>
+                <p className="text-white font-black leading-tight" style={{ fontSize: 9, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{listing.cardName}</p>
+                <p className="font-black" style={{ fontSize: 9, color: "#FFDE00", marginTop: 1 }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+              </div>
+            </>
           ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: "#f8f9fa" }}>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1" style={{ background: "#f8f9fa" }}>
               <span style={{ fontSize: 24 }}>🃏</span>
+              <p className="text-center px-1 font-black leading-tight" style={{ fontSize: 9, color: "#9ca3af", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{listing.cardName}</p>
+              <p className="font-black" style={{ fontSize: 9, color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
             </div>
           )}
         </div>
@@ -706,15 +714,32 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
             ...(wtb.photoUrls ?? []),
           ];
           const thumbImg = allPhotos[0] ?? null;
-          return thumbImg ? (
+          const priceLabel = (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 $${wtb.maxPriceHKD}` : "面議";
+          return (
             <>
-              <img
-                src={thumbImg} alt=""
-                className="rounded-xl flex-shrink-0 object-cover cursor-pointer"
-                style={{ width: 40, height: 56, opacity: wtb.isActive ? 1 : 0.45 }}
-                onClick={() => setLbOpen(true)}
-              />
-              {lbOpen && createPortal(
+              <div className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 80, height: 108 }}>
+                {thumbImg ? (
+                  <>
+                    <img
+                      src={thumbImg} alt=""
+                      className="w-full h-full object-cover cursor-pointer"
+                      style={{ opacity: wtb.isActive ? 1 : 0.45 }}
+                      onClick={() => setLbOpen(true)}
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 px-1 py-1" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 100%)" }}>
+                      <p className="text-white font-black leading-tight" style={{ fontSize: 9, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{wtb.cardName}</p>
+                      <p className="font-black" style={{ fontSize: 9, color: "#FFDE00", marginTop: 1 }}>{priceLabel}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1" style={{ background: "#f8f9fa" }}>
+                    <span style={{ fontSize: 24 }}>🃏</span>
+                    <p className="text-center px-1 font-black leading-tight" style={{ fontSize: 9, color: "#9ca3af", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{wtb.cardName}</p>
+                    <p className="font-black" style={{ fontSize: 9, color: "#F97316" }}>{priceLabel}</p>
+                  </div>
+                )}
+              </div>
+              {lbOpen && allPhotos.length > 0 && createPortal(
                 <ImageLightbox
                   images={allPhotos}
                   initialIndex={0}
@@ -727,10 +752,6 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
                 document.body
               )}
             </>
-          ) : (
-            <div className="rounded-xl flex-shrink-0 flex items-center justify-center" style={{ width: 40, height: 56, background: "#f8f9fa" }}>
-              <span style={{ fontSize: 20 }}>🃏</span>
-            </div>
           );
         })()}
         <div className="flex-1 min-w-0">
