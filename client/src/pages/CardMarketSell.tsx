@@ -411,6 +411,7 @@ export default function CardMarketSell() {
           <div>
             {/* 手動填寫 + 選擇遊戲 header row */}
             <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold" style={{ color: "#9ca3af" }}>選擇以下遊戲 或</span>
               <button
                 onClick={() => {
                   if (game !== "other") {
@@ -431,7 +432,6 @@ export default function CardMarketSell() {
               >
                 🃏 手動填寫
               </button>
-              <span className="text-xs font-bold" style={{ color: "#9ca3af" }}>或 選擇以下遊戲</span>
             </div>
 
             {/* Game chips (excluding 手動填寫) */}
