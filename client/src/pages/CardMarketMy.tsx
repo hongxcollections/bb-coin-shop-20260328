@@ -75,7 +75,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
 
   async function handlePhotoUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const remaining = 6 - photos.length;
+    const remaining = 10 - photos.length;
     const toUpload = Array.from(files).slice(0, remaining);
     setUploading(true);
     try {
@@ -140,17 +140,30 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
 
           {/* Photos */}
           <div>
-            <label className="text-xs font-bold mb-2 block" style={{ color: "#6b7280" }}>實物相片（最多 6 張）</label>
-            <div className="flex gap-2 flex-wrap">
+            <label className="text-xs font-bold mb-2 block" style={{ color: "#6b7280" }}>
+              實物相片（最多 10 張）
+              {photos.length > 1 && <span className="font-normal text-[10px] ml-2" style={{ color: "#9ca3af" }}>點擊非主圖可設為主圖</span>}
+            </label>
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               {photos.map((url, i) => (
-                <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 72, height: 100 }}>
                   <img
                     src={url} alt=""
                     className="w-full h-full object-cover cursor-pointer"
                     onClick={() => setLbIdx(i)}
                   />
+                  {i === 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5 pointer-events-none" style={{ background: "rgba(204,0,0,0.75)" }}>主圖</div>
+                  )}
+                  {i !== 0 && (
+                    <button
+                      onClick={e => { e.stopPropagation(); setPhotos(p => [p[i], ...p.filter((_, j) => j !== i)]); }}
+                      className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5"
+                      style={{ background: "rgba(0,0,0,0.45)" }}
+                    >設主圖</button>
+                  )}
                   <button
-                    onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                    onClick={e => { e.stopPropagation(); setPhotos(p => p.filter((_, j) => j !== i)); }}
                     className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
                     style={{ background: "rgba(0,0,0,0.7)" }}
                   >
@@ -158,12 +171,12 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
                   </button>
                 </div>
               ))}
-              {photos.length < 6 && (
+              {photos.length < 10 && (
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                   className="rounded-xl flex flex-col items-center justify-center gap-1 flex-shrink-0"
-                  style={{ width: 64, height: 88, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
+                  style={{ width: 72, height: 100, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
                 >
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#9ca3af" }} /> : <Plus className="w-4 h-4" style={{ color: "#9ca3af" }} />}
                   <span className="text-[9px]" style={{ color: "#9ca3af" }}>{uploading ? "上載中" : "加相片"}</span>
@@ -450,7 +463,7 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
 
   async function handlePhotoUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const remaining = 6 - totalSlots;
+    const remaining = 10 - totalSlots;
     if (remaining <= 0) return;
     const toUpload = Array.from(files).slice(0, remaining);
     setUploading(true);
@@ -527,13 +540,16 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
 
             {/* 相片 — 官方圖 + 上載圖片 */}
             <div>
-              <label className="text-xs font-bold mb-2 block" style={{ color: "#6b7280" }}>相片（最多 6 張，選填）</label>
-              <div className="flex gap-2 flex-wrap">
+              <label className="text-xs font-bold mb-2 block" style={{ color: "#6b7280" }}>
+                相片（最多 10 張，選填）
+                {photos.length > 1 && <span className="font-normal text-[10px] ml-2" style={{ color: "#9ca3af" }}>點擊非主圖可設為主圖</span>}
+              </label>
+              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                 {/* 官方圖 slot */}
                 {officialImgUrl && (
-                  <div className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                  <div className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 72, height: 100 }}>
                     <img src={officialImgUrl} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(0,0,0,0.6)" }}>官方圖</div>
+                    <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5 pointer-events-none" style={{ background: "rgba(0,0,0,0.6)" }}>官方圖</div>
                     <button
                       onClick={() => setOfficialImgUrl(null)}
                       className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
@@ -545,14 +561,24 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
                 )}
                 {/* 上載相片 */}
                 {photos.map((url, i) => (
-                  <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 64, height: 88 }}>
+                  <div key={i} className="relative rounded-xl overflow-hidden flex-shrink-0" style={{ width: 72, height: 100 }}>
                     <img
                       src={url} alt=""
                       className="w-full h-full object-cover cursor-pointer"
                       onClick={() => setLbIdx(i)}
                     />
+                    {i === 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5 pointer-events-none" style={{ background: "rgba(204,0,0,0.75)" }}>主圖</div>
+                    )}
+                    {i !== 0 && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setPhotos(p => [p[i], ...p.filter((_, j) => j !== i)]); }}
+                        className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5"
+                        style={{ background: "rgba(0,0,0,0.45)" }}
+                      >設主圖</button>
+                    )}
                     <button
-                      onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                      onClick={e => { e.stopPropagation(); setPhotos(p => p.filter((_, j) => j !== i)); }}
                       className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
                       style={{ background: "rgba(0,0,0,0.7)" }}
                     >
@@ -560,12 +586,12 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
                     </button>
                   </div>
                 ))}
-                {totalSlots < 6 && (
+                {totalSlots < 10 && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                     className="rounded-xl flex flex-col items-center justify-center gap-1 flex-shrink-0"
-                    style={{ width: 64, height: 88, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
+                    style={{ width: 72, height: 100, background: "#f8f9fa", border: "2px dashed #d1d5db" }}
                   >
                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#9ca3af" }} /> : <Plus className="w-4 h-4" style={{ color: "#9ca3af" }} />}
                     <span className="text-[9px]" style={{ color: "#9ca3af" }}>{uploading ? "上載中" : "加相片"}</span>
