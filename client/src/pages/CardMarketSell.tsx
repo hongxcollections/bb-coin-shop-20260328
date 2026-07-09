@@ -1002,19 +1002,23 @@ export default function CardMarketSell() {
                       <div
                         key={i}
                         className="relative rounded-xl overflow-hidden flex-shrink-0"
-                        style={{ width: 72, height: 100, cursor: i === 0 ? "default" : "pointer" }}
-                        onClick={() => {
-                          if (i !== 0) setWtbPhotos(p => [p[i], ...p.filter((_, j) => j !== i)]);
-                        }}
+                        style={{ width: 72, height: 100 }}
                       >
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={url} alt="" className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => setLbSingleImg(url)}
+                        />
                         {/* 主圖 badge on first */}
                         {i === 0 && (
-                          <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(204,0,0,0.75)" }}>主圖</div>
+                          <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5 pointer-events-none" style={{ background: "rgba(204,0,0,0.75)" }}>主圖</div>
                         )}
-                        {/* Set-as-main hint on non-main photos */}
+                        {/* Set-as-main button on non-main photos */}
                         {i !== 0 && (
-                          <div className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5" style={{ background: "rgba(0,0,0,0.45)" }}>設主圖</div>
+                          <button
+                            onClick={e => { e.stopPropagation(); setWtbPhotos(p => [p[i], ...p.filter((_, j) => j !== i)]); }}
+                            className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold text-white py-0.5"
+                            style={{ background: "rgba(0,0,0,0.45)" }}
+                          >設主圖</button>
                         )}
                         <button
                           onClick={e => { e.stopPropagation(); setWtbPhotos(p => p.filter((_, j) => j !== i)); }}
