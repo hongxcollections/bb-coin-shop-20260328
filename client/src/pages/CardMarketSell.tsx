@@ -435,7 +435,7 @@ export default function CardMarketSell() {
             </div>
 
             {/* Game chips (excluding 手動填寫) */}
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            <div className="flex flex-wrap gap-2 mb-4">
               {GAMES.filter(g => g.id !== "other").map(g => (
                 <button
                   key={g.id}
