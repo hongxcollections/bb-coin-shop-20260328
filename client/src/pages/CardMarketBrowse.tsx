@@ -393,6 +393,26 @@ export default function CardMarketBrowse() {
   const [tab, setTab] = useState<"browse" | "search">("browse");
   const utils = trpc.useUtils();
 
+  // Auto-open lightbox when landing via share URL (e.g. ?cardName=Luxio&game=pokemon&...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pCardName = params.get("cardName")?.trim() ?? "";
+    const pGame = params.get("game")?.trim() as BrowsableGame | "" ?? "";
+    if (!pCardName || !pGame) return;
+    const validGames = BROWSE_GAMES.map(g => g.id) as readonly string[];
+    if (!validGames.includes(pGame)) return;
+    setGame(pGame as BrowsableGame);
+    setLbCard({
+      cardApiId: params.get("cardApiId") ?? `share-${pCardName}`,
+      cardName: pCardName,
+      setName: params.get("setName") ?? undefined,
+      setNumber: params.get("setNumber") ?? undefined,
+      rarity: params.get("rarity") ?? undefined,
+      officialImageUrl: params.get("img") ?? undefined,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setsQuery = trpc.cardTrading.getSets.useQuery(
     { game: game as BrowsableGame },
     { enabled: !!game && tab === "browse" && !selectedSet, staleTime: 300000 }
