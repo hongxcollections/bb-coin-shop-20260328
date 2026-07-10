@@ -9,21 +9,21 @@ import { Search, Upload, X, ChevronLeft, Loader2, Check, Plus, ShoppingBag, Grid
 
 const GAMES = [
   { id: "pokemon",       label: "Pokémon" },
-  { id: "onepiece",      label: "航海王 One Piece" },
-  { id: "yugioh",        label: "遊戲王 Yu-Gi-Oh!" },
-  { id: "mtg",           label: "Magic: The Gathering" },
-  { id: "dragonball",    label: "龍珠 Dragon Ball" },
-  { id: "digimon",       label: "數碼暴龍 Digimon" },
-  { id: "vanguard",      label: "Cardfight!! Vanguard" },
+  { id: "onepiece",      label: "航海王" },
+  { id: "yugioh",        label: "遊戲王" },
+  { id: "mtg",           label: "MTG" },
+  { id: "dragonball",    label: "龍珠" },
+  { id: "digimon",       label: "數碼暴龍" },
+  { id: "vanguard",      label: "Vanguard" },
   { id: "weiss",         label: "Weiss Schwarz" },
   { id: "unionarena",    label: "Union Arena" },
-  { id: "shadowverse",   label: "Shadowverse Evolve" },
-  { id: "flesh_blood",   label: "Flesh and Blood" },
-  { id: "lorcana",       label: "Disney Lorcana" },
+  { id: "shadowverse",   label: "Shadowverse" },
+  { id: "flesh_blood",   label: "Flesh & Blood" },
+  { id: "lorcana",       label: "Lorcana" },
   { id: "grand_archive", label: "Grand Archive" },
-  { id: "battle_spirits",label: "Battle Spirits Saga" },
-  { id: "naruto",        label: "NARUTO CARD GAME" },
-  { id: "gundam",        label: "GUNDAM CARD GAME" },
+  { id: "battle_spirits",label: "Battle Spirits" },
+  { id: "naruto",        label: "NARUTO" },
+  { id: "gundam",        label: "GUNDAM" },
   { id: "other",         label: "其他" },
 ] as const;
 
@@ -761,19 +761,21 @@ export default function CardMarketSell() {
               <div className="flex flex-col gap-3">
                 <div>
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>遊戲類別 *</label>
-                  <div className="relative">
-                    <select
-                      value={game}
-                      onChange={e => setGame(e.target.value as GameId)}
-                      className="w-full px-3 py-2.5 text-sm appearance-none"
-                      style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: game ? "#111827" : "#9ca3af", outline: "none" }}
-                    >
-                      <option value="" disabled>選擇遊戲類別...</option>
-                      {GAMES.map(g => (
-                        <option key={g.id} value={g.id}>{g.label}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9ca3af" }}>▾</div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {GAMES.map(g => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setGame(g.id as GameId)}
+                        className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
+                        style={game === g.id
+                          ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid transparent" }
+                          : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }
+                        }
+                      >
+                        {g.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div>
