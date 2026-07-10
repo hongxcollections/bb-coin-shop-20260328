@@ -76,7 +76,7 @@ function RemoveActionSheet({ title, info, softLabel, onSoft, onHardDelete, onClo
           <p className="text-sm font-black" style={{ color: "#111827" }}>{title}</p>
           <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>{info}</p>
         </div>
-        <div className="px-4 pb-8 flex flex-col gap-2.5 mt-2">
+        <div className="px-4 pb-24 flex flex-col gap-2.5 mt-2">
           <button
             onClick={() => { onClose(); onSoft(); }}
             className="w-full py-3 rounded-2xl text-sm font-bold"
