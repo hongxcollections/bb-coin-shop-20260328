@@ -128,6 +128,9 @@ export default function CardMarketSell() {
 
   const [step, setStep] = useState<1 | 2>(2);
 
+  // Scroll to top on mount (when navigating from /browse)
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); }, []);
+
   // Read URL params from /browse page (cardName, setName, setNumber, game)
   const urlParams = new URLSearchParams(window.location.search);
   const initGame = (urlParams.get("game") ?? "") as GameId | "";

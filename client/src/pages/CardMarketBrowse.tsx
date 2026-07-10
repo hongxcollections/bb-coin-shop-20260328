@@ -67,16 +67,25 @@ const ThreadsIcon = () => (
   </svg>
 );
 
+const GAME_LABELS: Record<string, string> = {
+  pokemon: "Pokémon 寶可夢",
+  yugioh: "遊戲王 Yu-Gi-Oh!",
+  mtg: "MTG 萬智牌",
+  digimon: "數碼暴龍 Digimon",
+};
+
 const MENU_WIDTH = 176;
 const MENU_HEIGHT = 260;
 
 /* ── Card share dropdown — 照足 ProductShareMenu ─────────── */
-function CardShareDropdown({ card, shareUrl }: { card: CardResult; shareUrl: string }) {
+function CardShareDropdown({ card, game, shareUrl }: { card: CardResult; game: string; shareUrl: string }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const shareText = [card.cardName, card.setName, card.setNumber].filter(Boolean).join(" · ") + `\n${shareUrl}`;
+  const gameLabel = GAME_LABELS[game] ?? "";
+  const shareParts = [gameLabel, card.cardName, card.rarity, card.setNumber, card.setName].filter(Boolean);
+  const shareText = shareParts.join(" · ") + `\n${shareUrl}`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
@@ -236,7 +245,15 @@ function CardLightbox({ card, game, onClose, onSell, onWTB }: {
   const lastDist = useRef<number | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const browseUrl = `${SHARE_ORIGIN}/cardzx/market/browse`;
+  // Build share URL with card info as query params for OG meta injection
+  const cardShareParams = new URLSearchParams();
+  if (card.cardName) cardShareParams.set("cardName", card.cardName);
+  if (card.setName) cardShareParams.set("setName", card.setName);
+  if (card.setNumber) cardShareParams.set("setNumber", card.setNumber);
+  if (card.rarity) cardShareParams.set("rarity", card.rarity);
+  if (game) cardShareParams.set("game", game);
+  if (card.officialImageUrl) cardShareParams.set("img", card.officialImageUrl);
+  const browseUrl = `${SHARE_ORIGIN}/cardzx/market/browse?${cardShareParams.toString()}`;
 
   const getDistance = (touches: React.TouchList) =>
     Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
@@ -319,7 +336,7 @@ function CardLightbox({ card, game, onClose, onSell, onWTB }: {
           求購 WTB
         </button>
 
-        <CardShareDropdown card={card} shareUrl={browseUrl} />
+        <CardShareDropdown card={card} game={game} shareUrl={browseUrl} />
       </div>
     </div>,
     document.body

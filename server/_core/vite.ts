@@ -743,6 +743,71 @@ async function injectCardZzzzOgMeta(html: string, reqPath: string, protocol: str
   }
 }
 
+/**
+ * Inject OG meta for CardZx market browse page when ?cardName= query param is present.
+ * Reads cardName, setName, setNumber, rarity, game, img from query params.
+ * og:image served via /api/og-image-card-browse?url= proxy.
+ */
+function injectCardMarketBrowseOgMeta(html: string, reqPath: string, reqQuery: Record<string, string | string[] | undefined>, protocol: string, host: string): string | null {
+  if (reqPath !== "/cardzx/market/browse") return null;
+  const cardName = typeof reqQuery.cardName === "string" ? reqQuery.cardName.trim() : "";
+  if (!cardName) return null;
+
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const gameIdMap: Record<string, string> = {
+    pokemon: "Pokémon 寶可夢", yugioh: "遊戲王 Yu-Gi-Oh!", mtg: "MTG 萬智牌", digimon: "數碼暴龍 Digimon",
+  };
+  const gameId = typeof reqQuery.game === "string" ? reqQuery.game.trim() : "";
+  const gameLabel = gameIdMap[gameId] ?? "TCG 卡牌";
+  const setName = typeof reqQuery.setName === "string" ? reqQuery.setName.trim() : "";
+  const setNumber = typeof reqQuery.setNumber === "string" ? reqQuery.setNumber.trim() : "";
+  const rarity = typeof reqQuery.rarity === "string" ? reqQuery.rarity.trim() : "";
+  const imgUrl = typeof reqQuery.img === "string" ? reqQuery.img.trim() : "";
+
+  const titleParts = [cardName.length > 20 ? cardName.slice(0, 20) + "…" : cardName, rarity, setNumber].filter(Boolean);
+  const ogTitle = `${titleParts.join(" | ")} | ${gameLabel} | CardZx | hongxcollections.com`;
+  const descParts = [cardName, rarity, setNumber, setName, gameLabel].filter(Boolean);
+  const ogDesc = `${descParts.join(" · ")} | CardZx 卡牌市場 hongxcollections`;
+
+  const fullUrl = `${protocol}://${host}${reqPath}?${Object.entries(reqQuery).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&")}`;
+  const ogImageUrl = imgUrl ? `${protocol}://${host}/api/og-image-card-browse?url=${encodeURIComponent(imgUrl)}` : "";
+
+  const ogMeta = [
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="hongxcollections" />`,
+    `<meta property="og:title" content="${esc(ogTitle)}" />`,
+    `<meta property="og:description" content="${esc(ogDesc)}" />`,
+    `<meta property="og:url" content="${esc(fullUrl)}" />`,
+    `<meta property="og:locale" content="zh_HK" />`,
+    ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+    ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+    ogImageUrl ? `<meta property="og:image:type" content="image/jpeg" />` : "",
+    ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+    ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+    `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+    `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+    `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+    ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+    `<meta name="description" content="${esc(ogDesc)}" />`,
+    `<link rel="canonical" href="${esc(fullUrl)}" />`,
+    `<title>${esc(ogTitle)}</title>`,
+  ].filter(Boolean).join("\n    ");
+
+  let result = html
+    .replace(/<title>[^<]*<\/title>/gi, "")
+    .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+    .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+    .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+    .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+  const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+  result = viewportRe.test(result)
+    ? result.replace(viewportRe, (m) => `${m}\n    ${ogMeta}`)
+    : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
+  console.log(`[OG Meta] Injected for CardZx market browse: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
+  return result;
+}
+
 async function injectGalleryOgMeta(html: string, reqPath: string, reqQuery: Record<string, string | string[] | undefined>, protocol: string, host: string): Promise<string | null> {
   const galleryMatch = reqPath.match(/^\/gallery\/(\d+)$/);
   if (!galleryMatch) return null;
@@ -901,6 +966,7 @@ export async function setupVite(app: Express, server: Server) {
         ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host)
         ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? await injectGalleryOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
+        ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
@@ -1073,6 +1139,7 @@ export function serveStatic(app: Express) {
       ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host)
       ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? await injectGalleryOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
+      ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);

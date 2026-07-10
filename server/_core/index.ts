@@ -1981,6 +1981,38 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // OG image proxy for CardZx market browse — fetches card image from external CDN
+  app.get('/api/og-image-card-browse', async (req, res) => {
+    try {
+      const rawUrl = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+      if (!rawUrl) { res.status(400).send('Missing url param'); return; }
+      let target: URL;
+      try { target = new URL(rawUrl); } catch { res.status(400).send('Invalid URL'); return; }
+      if (target.protocol !== 'https:') { res.status(400).send('Invalid scheme'); return; }
+      // Allow card image CDNs only
+      const allowedHosts = [
+        'images.pokemontcg.io', 'assets.pokemon.com',
+        'static.yugipedia.com', 'images.ygoprodeck.com', 'ygoprodeck.com',
+        'cards.scryfall.io', 'c1.scryfall.com', 'img.scryfall.com',
+        'digimoncard.io', 'digimoncard.com', 'images.digimoncard.io',
+      ];
+      const host = target.hostname.toLowerCase();
+      const isAllowed = allowedHosts.some(h => host === h || host.endsWith(`.${h}`));
+      if (!isAllowed) { res.status(403).send('Host not allowed'); return; }
+      const r = await fetch(target.toString(), {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HongxCollections/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) { res.status(r.status).send('Upstream error'); return; }
+      const buf = Buffer.from(await r.arrayBuffer());
+      const cropped = await cropToOgSize(buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Card Browse Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   app.get('/api/og-image-community/:postId', async (req, res) => {
     try {
       const postId = parseInt(req.params.postId, 10);

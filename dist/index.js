@@ -26790,6 +26790,57 @@ async function injectCardZzzzOgMeta(html, reqPath, protocol, host) {
     return null;
   }
 }
+function injectCardMarketBrowseOgMeta(html, reqPath, reqQuery, protocol, host) {
+  if (reqPath !== "/cardzx/market/browse") return null;
+  const cardName = typeof reqQuery.cardName === "string" ? reqQuery.cardName.trim() : "";
+  if (!cardName) return null;
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const gameIdMap = {
+    pokemon: "Pok\xE9mon \u5BF6\u53EF\u5922",
+    yugioh: "\u904A\u6232\u738B Yu-Gi-Oh!",
+    mtg: "MTG \u842C\u667A\u724C",
+    digimon: "\u6578\u78BC\u66B4\u9F8D Digimon"
+  };
+  const gameId = typeof reqQuery.game === "string" ? reqQuery.game.trim() : "";
+  const gameLabel = gameIdMap[gameId] ?? "TCG \u5361\u724C";
+  const setName = typeof reqQuery.setName === "string" ? reqQuery.setName.trim() : "";
+  const setNumber = typeof reqQuery.setNumber === "string" ? reqQuery.setNumber.trim() : "";
+  const rarity = typeof reqQuery.rarity === "string" ? reqQuery.rarity.trim() : "";
+  const imgUrl = typeof reqQuery.img === "string" ? reqQuery.img.trim() : "";
+  const titleParts = [cardName.length > 20 ? cardName.slice(0, 20) + "\u2026" : cardName, rarity, setNumber].filter(Boolean);
+  const ogTitle = `${titleParts.join(" | ")} | ${gameLabel} | CardZx | hongxcollections.com`;
+  const descParts = [cardName, rarity, setNumber, setName, gameLabel].filter(Boolean);
+  const ogDesc = `${descParts.join(" \xB7 ")} | CardZx \u5361\u724C\u5E02\u5834 hongxcollections`;
+  const fullUrl = `${protocol}://${host}${reqPath}?${Object.entries(reqQuery).filter(([, v]) => v !== void 0).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&")}`;
+  const ogImageUrl = imgUrl ? `${protocol}://${host}/api/og-image-card-browse?url=${encodeURIComponent(imgUrl)}` : "";
+  const ogMeta = [
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="hongxcollections" />`,
+    `<meta property="og:title" content="${esc(ogTitle)}" />`,
+    `<meta property="og:description" content="${esc(ogDesc)}" />`,
+    `<meta property="og:url" content="${esc(fullUrl)}" />`,
+    `<meta property="og:locale" content="zh_HK" />`,
+    ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+    ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+    ogImageUrl ? `<meta property="og:image:type" content="image/jpeg" />` : "",
+    ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+    ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+    `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+    `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+    `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+    ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+    `<meta name="description" content="${esc(ogDesc)}" />`,
+    `<link rel="canonical" href="${esc(fullUrl)}" />`,
+    `<title>${esc(ogTitle)}</title>`
+  ].filter(Boolean).join("\n    ");
+  let result = html.replace(/<title>[^<]*<\/title>/gi, "").replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "").replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "").replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "").replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+  const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+  result = viewportRe.test(result) ? result.replace(viewportRe, (m) => `${m}
+    ${ogMeta}`) : result.replace("</head>", () => `    ${ogMeta}
+  </head>`);
+  console.log(`[OG Meta] Injected for CardZx market browse: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
+  return result;
+}
 async function injectGalleryOgMeta(html, reqPath, reqQuery, protocol, host) {
   const galleryMatch = reqPath.match(/^\/gallery\/(\d+)$/);
   if (!galleryMatch) return null;
@@ -26913,7 +26964,7 @@ async function setupVite(app, server) {
       const host = req.get("host") || "";
       const base = `${protocol}://${host}`;
       const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
-      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
+      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         const ua = req.headers["user-agent"] ?? "";
         const isBot = /facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Slackbot|ia_archiver|msnbot|googlebot|bingbot/i.test(ua);
@@ -27044,7 +27095,7 @@ function serveStatic(app) {
     const base = `${protocol}://${host}`;
     const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
     let html = await fs2.promises.readFile(indexPath, "utf-8");
-    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
+    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
       return;
@@ -28830,6 +28881,59 @@ Output ONLY the JSON, nothing else.`;
       sendImageResponse(res, "image/jpeg", cropped);
     } catch (err) {
       console.error("[OG Image Card Proxy] Error:", err);
+      res.status(500).send("Error");
+    }
+  });
+  app.get("/api/og-image-card-browse", async (req, res) => {
+    try {
+      const rawUrl = typeof req.query.url === "string" ? req.query.url.trim() : "";
+      if (!rawUrl) {
+        res.status(400).send("Missing url param");
+        return;
+      }
+      let target;
+      try {
+        target = new URL(rawUrl);
+      } catch {
+        res.status(400).send("Invalid URL");
+        return;
+      }
+      if (target.protocol !== "https:") {
+        res.status(400).send("Invalid scheme");
+        return;
+      }
+      const allowedHosts = [
+        "images.pokemontcg.io",
+        "assets.pokemon.com",
+        "static.yugipedia.com",
+        "images.ygoprodeck.com",
+        "ygoprodeck.com",
+        "cards.scryfall.io",
+        "c1.scryfall.com",
+        "img.scryfall.com",
+        "digimoncard.io",
+        "digimoncard.com",
+        "images.digimoncard.io"
+      ];
+      const host = target.hostname.toLowerCase();
+      const isAllowed = allowedHosts.some((h) => host === h || host.endsWith(`.${h}`));
+      if (!isAllowed) {
+        res.status(403).send("Host not allowed");
+        return;
+      }
+      const r = await fetch(target.toString(), {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; HongxCollections/1.0)" },
+        signal: AbortSignal.timeout(8e3)
+      });
+      if (!r.ok) {
+        res.status(r.status).send("Upstream error");
+        return;
+      }
+      const buf = Buffer.from(await r.arrayBuffer());
+      const cropped = await cropToOgSize(buf);
+      sendImageResponse(res, "image/jpeg", cropped);
+    } catch (err) {
+      console.error("[OG Image Card Browse Proxy] Error:", err);
       res.status(500).send("Error");
     }
   });
