@@ -386,8 +386,6 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   const cardInfo = `${listing.cardName}｜HKD $${listing.priceHKD.toLocaleString()}`;
 
   async function handleRemove() {
-    const ok = await confirm({ title: "下架此記錄？", description: `${cardInfo}\n\n下架後不會顯示在市場，可重新上架。`, confirmText: "確認下架" });
-    if (!ok) return;
     try {
       await removeMut.mutateAsync({ id: listing.id });
       toast.success("已下架");
@@ -396,8 +394,6 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   }
 
   async function handlePermanentDelete() {
-    const ok = await confirm({ title: "永久拆除？", description: `${cardInfo}\n\n此操作不可復原，記錄將被永久刪除。`, confirmText: "永久拆除" });
-    if (!ok) return;
     try {
       await permDeleteMut.mutateAsync({ id: listing.id });
       toast.success("已永久拆除");
@@ -746,8 +742,6 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   const wtbInfo = `${wtb.cardName}｜${(wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 HKD $${wtb.maxPriceHKD}` : "HKD 價格面議"}`;
 
   async function handleDeactivate() {
-    const ok = await confirm({ title: "關閉此求購記錄？", description: `${wtbInfo}\n\n關閉後不會再收到相關通知，可隨時重開。`, confirmText: "確認關閉" });
-    if (!ok) return;
     try {
       await deactivateMut.mutateAsync({ id: wtb.id });
       toast.success("已關閉求購記錄");
@@ -756,8 +750,6 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   }
 
   async function handlePermanentDeleteWTB() {
-    const ok = await confirm({ title: "永久拆除求購記錄？", description: `${wtbInfo}\n\n此操作不可復原，記錄將被永久刪除。`, confirmText: "永久拆除" });
-    if (!ok) return;
     try {
       await permDeleteWTBMut.mutateAsync({ id: wtb.id });
       toast.success("已永久拆除");
