@@ -14398,6 +14398,15 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    permanentDeleteListing: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        await pool.execute('DELETE FROM cardListings WHERE id = ? AND userId = ?', [input.id, ctx.user.id]);
+        return { ok: true };
+      }),
+
     markSold: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ input, ctx }) => {
@@ -14526,6 +14535,15 @@ EXAMPLE OUTPUT (exact format):
       .mutation(async ({ input, ctx }) => {
         const { deactivateCardWTB } = await import('./db');
         await deactivateCardWTB(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+
+    permanentDeleteWTB: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        await pool.execute('DELETE FROM cardWantToBuy WHERE id = ? AND userId = ?', [input.id, ctx.user.id]);
         return { ok: true };
       }),
 

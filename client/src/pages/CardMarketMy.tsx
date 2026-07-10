@@ -6,7 +6,7 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X, Plus, RotateCcw } from "lucide-react";
+import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X, Plus, RotateCcw, AlertTriangle } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-provider";
 
 const CONDITION_LABELS: Record<string, { label: string; color: string }> = {
@@ -55,6 +55,46 @@ interface WTB {
   maxPriceHKD: number | null; minCondition: string | null;
   notes: string | null; isActive: number; createdAt: string;
   photoUrls: string[];
+}
+
+function RemoveActionSheet({ title, info, softLabel, onSoft, onHardDelete, onClose }: {
+  title: string; info: string; softLabel: string;
+  onSoft: () => void; onHardDelete: () => void; onClose: () => void;
+}) {
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "rgba(0,0,0,0.45)" }} onClick={onClose}>
+      <div className="flex-1" />
+      <div
+        className="w-full max-w-lg mx-auto rounded-t-3xl"
+        style={{ background: "#fff", borderTop: "1px solid #e5e7eb" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-4 pt-4 pb-2 flex justify-center">
+          <div className="w-10 h-1 rounded-full" style={{ background: "#d1d5db" }} />
+        </div>
+        <div className="px-4 pb-2">
+          <p className="text-sm font-black" style={{ color: "#111827" }}>{title}</p>
+          <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>{info}</p>
+        </div>
+        <div className="px-4 pb-8 flex flex-col gap-2.5 mt-2">
+          <button
+            onClick={() => { onClose(); onSoft(); }}
+            className="w-full py-3 rounded-2xl text-sm font-bold"
+            style={{ background: "#f3f4f6", color: "#374151", border: "1px solid #e5e7eb" }}
+          >{softLabel}</button>
+          <button
+            onClick={() => { onClose(); onHardDelete(); }}
+            className="w-full py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2"
+            style={{ background: "rgba(220,38,38,0.06)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)" }}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            永久拆除（不可復原）
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClose: () => void; onSaved: () => void }) {
@@ -334,7 +374,9 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   const confirm = useConfirm();
   const [editOpen, setEditOpen] = useState(false);
   const [lbIdx, setLbIdx] = useState<number | null>(null);
+  const [showRemoveSheet, setShowRemoveSheet] = useState(false);
   const removeMut = trpc.cardTrading.removeListing.useMutation();
+  const permDeleteMut = trpc.cardTrading.permanentDeleteListing.useMutation();
   const markSoldMut = trpc.cardTrading.markSold.useMutation();
   const relistMut = trpc.cardTrading.relistListing.useMutation();
   const cond = CONDITION_LABELS[listing.condition] ?? { label: listing.condition, color: "#7c3aed" };
@@ -351,6 +393,16 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
       toast.success("已下架");
       onRefresh();
     } catch { toast.error("下架失敗"); }
+  }
+
+  async function handlePermanentDelete() {
+    const ok = await confirm({ title: "永久拆除？", description: `${cardInfo}\n\n此操作不可復原，記錄將被永久刪除。`, confirmText: "永久拆除" });
+    if (!ok) return;
+    try {
+      await permDeleteMut.mutateAsync({ id: listing.id });
+      toast.success("已永久拆除");
+      onRefresh();
+    } catch { toast.error("操作失敗"); }
   }
 
   async function handleMarkSold() {
@@ -385,6 +437,16 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
           caption={{ name: listing.cardName, price: `HKD $${listing.priceHKD.toLocaleString()}` }}
         />,
         document.body
+      )}
+      {showRemoveSheet && (
+        <RemoveActionSheet
+          title="拆除上架記錄"
+          info={cardInfo}
+          softLabel="下架（可重新上架）"
+          onSoft={handleRemove}
+          onHardDelete={handlePermanentDelete}
+          onClose={() => setShowRemoveSheet(false)}
+        />
       )}
       <div className="relative flex items-center gap-3 p-3 rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
         {/* Status badge — top-right corner */}
@@ -440,7 +502,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
             <button onClick={handleMarkSold} className="p-1.5 rounded-lg" style={{ background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)" }}>
               <Check className="w-3.5 h-3.5" style={{ color: "#16a34a" }} />
             </button>
-            <button onClick={handleRemove} className="p-1.5 rounded-lg" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
+            <button onClick={() => setShowRemoveSheet(true)} className="p-1.5 rounded-lg" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
               <Trash2 className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
             </button>
           </div>
@@ -676,15 +738,29 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   const confirm = useConfirm();
   const deactivateMut = trpc.cardTrading.deactivateWTB.useMutation();
   const reactivateMut = trpc.cardTrading.reactivateWTB.useMutation();
+  const permDeleteWTBMut = trpc.cardTrading.permanentDeleteWTB.useMutation();
   const [lbOpen, setLbOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [showRemoveSheet, setShowRemoveSheet] = useState(false);
+
+  const wtbInfo = `${wtb.cardName}｜${(wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 HKD $${wtb.maxPriceHKD}` : "HKD 價格面議"}`;
 
   async function handleDeactivate() {
-    const ok = await confirm({ title: "關閉此求購記錄？", description: "關閉後不會再收到相關通知，可隨時重開。", confirmText: "確認關閉" });
+    const ok = await confirm({ title: "關閉此求購記錄？", description: `${wtbInfo}\n\n關閉後不會再收到相關通知，可隨時重開。`, confirmText: "確認關閉" });
     if (!ok) return;
     try {
       await deactivateMut.mutateAsync({ id: wtb.id });
       toast.success("已關閉求購記錄");
+      onRefresh();
+    } catch { toast.error("操作失敗"); }
+  }
+
+  async function handlePermanentDeleteWTB() {
+    const ok = await confirm({ title: "永久拆除求購記錄？", description: `${wtbInfo}\n\n此操作不可復原，記錄將被永久刪除。`, confirmText: "永久拆除" });
+    if (!ok) return;
+    try {
+      await permDeleteWTBMut.mutateAsync({ id: wtb.id });
+      toast.success("已永久拆除");
       onRefresh();
     } catch { toast.error("操作失敗"); }
   }
@@ -700,6 +776,16 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   return (
     <>
       {editOpen && <EditWTBSheet wtb={wtb} onClose={() => setEditOpen(false)} onSaved={onRefresh} />}
+      {showRemoveSheet && (
+        <RemoveActionSheet
+          title="拆除求購記錄"
+          info={wtbInfo}
+          softLabel="關閉（可重新開啟）"
+          onSoft={handleDeactivate}
+          onHardDelete={handlePermanentDeleteWTB}
+          onClose={() => setShowRemoveSheet(false)}
+        />
+      )}
       <div className="relative flex items-center gap-3 p-3 rounded-2xl overflow-hidden" style={{ background: wtb.isActive ? "#fff" : "#fafafa", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
         {/* Status badge — top-right corner */}
         {!wtb.isActive && (
@@ -771,8 +857,8 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
             <button onClick={() => setEditOpen(true)} className="p-1.5 rounded-lg" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)" }}>
               <Edit2 className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
             </button>
-            <button onClick={handleDeactivate} disabled={deactivateMut.isPending} className="p-1.5 rounded-lg" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
-              <X className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
+            <button onClick={() => setShowRemoveSheet(true)} className="p-1.5 rounded-lg" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
+              <Trash2 className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
             </button>
           </div>
         )}

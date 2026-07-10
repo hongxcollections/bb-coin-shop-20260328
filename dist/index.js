@@ -25315,6 +25315,12 @@ EXAMPLE OUTPUT (exact format):
         await updateCardListing2(input.id, ctx.user.id, { status: "removed" });
         return { ok: true };
       }),
+      permanentDeleteListing: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        await pool.execute("DELETE FROM cardListings WHERE id = ? AND userId = ?", [input.id, ctx.user.id]);
+        return { ok: true };
+      }),
       markSold: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
         const { markCardListingSold: markCardListingSold2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         return markCardListingSold2(input.id, ctx.user.id);
@@ -25418,6 +25424,12 @@ EXAMPLE OUTPUT (exact format):
       deactivateWTB: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
         const { deactivateCardWTB: deactivateCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await deactivateCardWTB2(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+      permanentDeleteWTB: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        await pool.execute("DELETE FROM cardWantToBuy WHERE id = ? AND userId = ?", [input.id, ctx.user.id]);
         return { ok: true };
       }),
       reactivateWTB: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
