@@ -85,6 +85,7 @@ import CoinAnalysis from "./pages/CoinAnalysis";
 import CardZzz from "./pages/PokeLover";
 import PokeCollection from "./pages/PokeCollection";
 import CardMarket from "./pages/CardMarket";
+import CardMarketBrowse from "./pages/CardMarketBrowse";
 import CardMarketSell from "./pages/CardMarketSell";
 import CardMarketMy from "./pages/CardMarketMy";
 import Messages from "./pages/Messages";
@@ -253,6 +254,7 @@ function Router() {
       <Route path={"/cardzx"} component={CardZzz} />
       <Route path={"/cardzx/collection"} component={PokeCollection} />
       <Route path={"/cardzx/market"} component={CardMarket} />
+      <Route path={"/cardzx/market/browse"} component={CardMarketBrowse} />
       <Route path={"/cardzx/market/sell"} component={CardMarketSell} />
       <Route path={"/cardzx/market/wtb"} component={CardMarketSell} />
       <Route path={"/cardzx/market/my"} component={CardMarketMy} />

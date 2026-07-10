@@ -981,7 +981,7 @@ export default function CardMarket() {
           {/* CTA buttons */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate("/cardzx/market/sell")}
+              onClick={() => navigate("/cardzx/market/browse")}
               className="text-sm font-black px-4 py-2 rounded-full"
               style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
             >

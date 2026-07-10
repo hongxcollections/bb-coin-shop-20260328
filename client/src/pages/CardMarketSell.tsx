@@ -8,23 +8,23 @@ import { toast } from "sonner";
 import { Search, Upload, X, ChevronLeft, ChevronDown, Loader2, Check, Plus, ShoppingBag, Grid3x3, ChevronRight, Share2, Heart } from "lucide-react";
 
 const GAMES = [
-  { id: "pokemon",       label: "Pokémon" },
-  { id: "onepiece",      label: "航海王" },
-  { id: "yugioh",        label: "遊戲王" },
-  { id: "mtg",           label: "MTG" },
-  { id: "dragonball",    label: "龍珠" },
-  { id: "digimon",       label: "數碼暴龍" },
-  { id: "vanguard",      label: "Vanguard" },
-  { id: "weiss",         label: "Weiss Schwarz" },
+  { id: "pokemon",       label: "Pokémon 寶可夢" },
+  { id: "onepiece",      label: "航海王 One Piece" },
+  { id: "yugioh",        label: "遊戲王 Yu-Gi-Oh!" },
+  { id: "mtg",           label: "MTG 萬智牌" },
+  { id: "dragonball",    label: "龍珠 Dragon Ball" },
+  { id: "digimon",       label: "數碼暴龍 Digimon" },
+  { id: "vanguard",      label: "先鋒 Vanguard" },
+  { id: "weiss",         label: "魏斯 Weiss Schwarz" },
   { id: "unionarena",    label: "Union Arena" },
-  { id: "shadowverse",   label: "Shadowverse" },
-  { id: "flesh_blood",   label: "Flesh & Blood" },
-  { id: "lorcana",       label: "Lorcana" },
+  { id: "shadowverse",   label: "暗影詩章 Shadowverse" },
+  { id: "flesh_blood",   label: "Flesh and Blood" },
+  { id: "lorcana",       label: "Disney Lorcana" },
   { id: "grand_archive", label: "Grand Archive" },
-  { id: "battle_spirits",label: "Battle Spirits" },
-  { id: "naruto",        label: "NARUTO" },
-  { id: "gundam",        label: "GUNDAM" },
-  { id: "other",         label: "其他" },
+  { id: "battle_spirits",label: "對戰靈魂 Battle Spirits" },
+  { id: "naruto",        label: "火影忍者 NARUTO" },
+  { id: "gundam",        label: "鋼彈 GUNDAM" },
+  { id: "other",         label: "其他 Other" },
 ] as const;
 
 type GameId = typeof GAMES[number]["id"];
