@@ -8,13 +8,23 @@ import { toast } from "sonner";
 import { Search, Upload, X, ChevronLeft, Loader2, Check, Plus, ShoppingBag, Grid3x3, ChevronRight, Share2, Heart } from "lucide-react";
 
 const GAMES = [
-  { id: "pokemon", label: "Pokémon", emoji: "⚡" },
-  { id: "yugioh", label: "遊戲王", emoji: "👁" },
-  { id: "mtg", label: "MTG", emoji: "🌊" },
-  { id: "onepiece", label: "航海王", emoji: "⚓" },
-  { id: "dragonball", label: "龍珠", emoji: "🐉" },
-  { id: "digimon", label: "數碼暴龍", emoji: "💾" },
-  { id: "other", label: "手動填寫", emoji: "🃏" },
+  { id: "pokemon",       label: "Pokémon" },
+  { id: "onepiece",      label: "航海王 One Piece" },
+  { id: "yugioh",        label: "遊戲王 Yu-Gi-Oh!" },
+  { id: "mtg",           label: "Magic: The Gathering" },
+  { id: "dragonball",    label: "龍珠 Dragon Ball" },
+  { id: "digimon",       label: "數碼暴龍 Digimon" },
+  { id: "vanguard",      label: "Cardfight!! Vanguard" },
+  { id: "weiss",         label: "Weiss Schwarz" },
+  { id: "unionarena",    label: "Union Arena" },
+  { id: "shadowverse",   label: "Shadowverse Evolve" },
+  { id: "flesh_blood",   label: "Flesh and Blood" },
+  { id: "lorcana",       label: "Disney Lorcana" },
+  { id: "grand_archive", label: "Grand Archive" },
+  { id: "battle_spirits",label: "Battle Spirits Saga" },
+  { id: "naruto",        label: "NARUTO CARD GAME" },
+  { id: "gundam",        label: "GUNDAM CARD GAME" },
+  { id: "other",         label: "其他" },
 ] as const;
 
 type GameId = typeof GAMES[number]["id"];
@@ -72,7 +82,7 @@ export default function CardMarketSell() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<Mode>(location.includes("/wtb") ? "wtb" : "sell");
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2>(2);
   const [game, setGame] = useState<GameId | "">("");
 
   const [step2Tab, setStep2Tab] = useState<Step2Tab>("browse");
@@ -281,6 +291,7 @@ export default function CardMarketSell() {
   }
 
   async function handleSubmitSell() {
+    if (!game) { toast.error("請選擇遊戲類別"); return; }
     const price = parseInt(priceStr, 10);
     if (!price || price < 1) { toast.error("請填寫有效售價"); return; }
     if (photos.length === 0) { toast.error("請至少上載一張實物相片"); return; }
@@ -317,6 +328,7 @@ export default function CardMarketSell() {
   }
 
   async function handleSubmitWTB() {
+    if (!game) { toast.error("請選擇遊戲類別"); return; }
     const cardName = selectedCard?.cardName ?? manualName.trim();
     if (!cardName) { toast.error("請填寫卡牌名稱"); return; }
     const maxPrice = maxPriceStr ? parseInt(maxPriceStr, 10) : undefined;
@@ -397,23 +409,10 @@ export default function CardMarketSell() {
           </button>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-6">
-          {[1, 2].map(s => (
-            <div key={s} className="flex items-center gap-2 flex-1">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                style={step >= s ? { background: "linear-gradient(90deg, #FFDE00, #FFB800)", color: "#111827" } : { background: "#f3f4f6", color: "#d1d5db", border: "1px solid #e5e7eb" }}>
-                {step > s ? <Check className="w-3 h-3" /> : s}
-              </div>
-              {s < 2 && <div className="flex-1 h-px" style={{ background: step > s ? "rgba(255,222,0,0.5)" : "#e5e7eb" }} />}
-            </div>
-          ))}
-        </div>
 
-        {/* ── Step 1: Choose game + Find card ──────────────────────────── */}
+        {/* ── REMOVED Step 1 placeholder ── */}
         {step === 1 && (
           <div>
-            {/* 手動填寫 + 選擇遊戲 header row */}
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-bold" style={{ color: "#9ca3af" }}>選擇以下遊戲 或</span>
               <button
@@ -754,53 +753,60 @@ export default function CardMarketSell() {
           </div>
         )}
 
-        {/* ── Step 2: Details ──────────────────────────────── */}
+        {/* ── Form ── */}
         {step === 2 && (
           <div>
-            {/* Card preview */}
-            <div className="flex gap-4 mb-5 p-4 rounded-2xl items-center" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-              {/* Card image */}
-              <div className="flex-shrink-0">
-                {cardImg ? (
-                  <img
-                    src={cardImg} alt=""
-                    className="rounded-xl object-cover cursor-pointer"
-                    style={{ width: 88, height: 122, display: "block" }}
-                    onClick={() => { lbZoom.current=1; lbPanX.current=0; lbPanY.current=0; setLbSingleImg(cardImg); }}
+            {/* Game + Card info */}
+            <div className="p-4 rounded-2xl mb-4" style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>遊戲類別 *</label>
+                  <div className="relative">
+                    <select
+                      value={game}
+                      onChange={e => setGame(e.target.value as GameId)}
+                      className="w-full px-3 py-2.5 text-sm appearance-none"
+                      style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: game ? "#111827" : "#9ca3af", outline: "none" }}
+                    >
+                      <option value="" disabled>選擇遊戲類別...</option>
+                      {GAMES.map(g => (
+                        <option key={g.id} value={g.id}>{g.label}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9ca3af" }}>▾</div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>卡牌名稱 *</label>
+                  <input
+                    value={manualName}
+                    onChange={e => setManualName(e.target.value)}
+                    placeholder="例：Charizard / 噴火龍"
+                    className="w-full px-3 py-2 text-sm"
+                    style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
                   />
-                ) : (
-                  <div className="rounded-xl flex items-center justify-center" style={{ width: 88, height: 122, background: "#f3f4f6" }}>
-                    <span style={{ fontSize: 36 }}>🃏</span>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>系列名稱</label>
+                    <input
+                      value={manualSet}
+                      onChange={e => setManualSet(e.target.value)}
+                      placeholder="例：Base Set"
+                      className="w-full px-3 py-2 text-sm"
+                      style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                    />
                   </div>
-                )}
-              </div>
-              {/* Card info */}
-              <div className="flex-1 min-w-0">
-                {/* Rarity + set number */}
-                {(selectedCard?.rarity || selectedCard?.setNumber) && (
-                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                    {getRarityShort(selectedCard?.rarity) && (
-                      <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}>
-                        {getRarityShort(selectedCard?.rarity)}
-                      </span>
-                    )}
-                    {selectedCard?.setNumber && (
-                      <span className="text-[11px] font-bold" style={{ color: "#9ca3af" }}>{selectedCard.setNumber}</span>
-                    )}
+                  <div style={{ width: 100 }}>
+                    <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>卡號</label>
+                    <input
+                      value={manualSetNo}
+                      onChange={e => setManualSetNo(e.target.value)}
+                      placeholder="4/102"
+                      className="w-full px-3 py-2 text-sm"
+                      style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                    />
                   </div>
-                )}
-                {/* Card name */}
-                <p className="text-base font-black leading-tight mb-1" style={{ color: "#111827" }}>{cardName || "（未填卡名）"}</p>
-                {/* Set name + game */}
-                {cardSet && <p className="text-[11px] mb-1.5 line-clamp-1" style={{ color: "#9ca3af" }}>{cardSet}</p>}
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full inline-block" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
-                  {GAMES.find(g => g.id === game)?.label}
-                </span>
-                {/* Change button */}
-                <div className="mt-2">
-                  <button onClick={() => setStep(1)} className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-                    更換卡牌
-                  </button>
                 </div>
               </div>
             </div>
@@ -975,9 +981,6 @@ export default function CardMarketSell() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(1)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-                    上一步
-                  </button>
                   <button
                     onClick={handleSubmitSell}
                     disabled={submitting}
@@ -1104,9 +1107,6 @@ export default function CardMarketSell() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(1)} className="py-3 px-5 rounded-2xl text-sm font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-                    上一步
-                  </button>
                   <button
                     onClick={handleSubmitWTB}
                     disabled={submitting}
