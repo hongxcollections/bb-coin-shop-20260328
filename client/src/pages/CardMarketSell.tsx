@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Upload, X, ChevronLeft, Loader2, Check, Plus, ShoppingBag, Grid3x3, ChevronRight, Share2, Heart } from "lucide-react";
+import { Search, Upload, X, ChevronLeft, ChevronDown, Loader2, Check, Plus, ShoppingBag, Grid3x3, ChevronRight, Share2, Heart } from "lucide-react";
 
 const GAMES = [
   { id: "pokemon",       label: "Pokémon" },
