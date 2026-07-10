@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
-import { ChevronLeft, Loader2, Search, X, Upload, ShoppingBag, Share2, Copy, Check } from "lucide-react";
+import { ChevronLeft, Loader2, Search, X, Upload, ShoppingBag, Share2, Copy, Check, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 
@@ -61,18 +61,54 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
-/* ── Card share dropdown ─────────────────────────────────── */
+const ThreadsIcon = () => (
+  <svg viewBox="0 0 192 192" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
+    <path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.73-8.695 14.724-10.548 21.348-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 7.047 4.652 16.124 6.927 25.557 6.412 12.458-.683 22.231-5.436 29.049-14.127 5.178-6.6 8.453-15.153 9.899-25.93 5.937 3.583 10.337 8.298 12.767 13.966 4.132 9.635 4.373 25.468-8.546 38.376-11.319 11.308-24.925 16.2-45.488 16.351-22.809-.169-40.06-7.484-51.275-21.742C91.346 146.194 85 128.922 85 107.5c0-21.422 6.346-38.694 18.87-51.319 11.315-11.419 28.566-18.734 51.273-21.742"/><path d="M96 64.748c1.617 0 3.212.088 4.783.26-.406-6.696-1.697-12.28-3.885-16.582-2.624-5.144-6.611-8.695-12.11-10.784-8.26-3.115-18.57-1.69-27.84 3.92l-7.087-12.376c12.29-7.04 26.512-9.6 39.568-6.984 12.21 2.45 21.824 9.346 27.805 19.787 5.074 8.93 7.578 20.554 7.455 34.546l-.051 1.04c-.162 5.017-.3 12.32-.156 19.972.082 4.287.303 8.46.67 12.312 1.05 11.024.086 19.72-2.888 27.286-3.367 8.586-9.003 15.037-17.23 19.716-8.69 4.94-18.83 7.278-29.96 6.972-13.02-.363-24.49-4.573-33.17-12.19C33.086 144.116 27.5 133.444 27.5 120.5c0-15.29 8.167-27.853 22.955-35.44 10.073-5.18 22.28-7.627 36.304-7.306-.14 2.828-.217 5.693-.217 8.594 0 2.6.064 5.16.184 7.668-11.14-.325-20.085 1.596-26.582 5.698-6.988 4.424-10.644 10.69-10.644 18.286 0 8.126 4.03 14.453 11.664 18.304 7.053 3.558 15.64 4.357 24.316 2.26 10.576-2.558 17.824-8.54 21.546-17.783 2.25-5.587 3.017-12.306 2.353-20.46a193.36 193.36 0 0 1-.437-10.007c-.084-5.018.043-10.186.178-14.99A55.06 55.06 0 0 0 96 64.748z"/>
+  </svg>
+);
+
+const MENU_WIDTH = 176;
+const MENU_HEIGHT = 260;
+
+/* ── Card share dropdown — 照足 ProductShareMenu ─────────── */
 function CardShareDropdown({ card, shareUrl }: { card: CardResult; shareUrl: string }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const shareText = [card.cardName, card.setName, card.setNumber].filter(Boolean).join(" · ") + `\n${shareUrl}`;
 
+  const calcPosition = useCallback(() => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top = rect.bottom + 4;
+    let left = rect.right - MENU_WIDTH;
+    if (left + MENU_WIDTH > vw - 8) left = vw - MENU_WIDTH - 8;
+    if (left < 8) left = 8;
+    if (top + MENU_HEIGHT > vh - 8) top = rect.top - MENU_HEIGHT - 4;
+    if (top < 8) top = 8;
+    setMenuPos({ top, left });
+  }, []);
+
+  function handleOpen(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    calcPosition(); setOpen(true);
+  }
+
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    function handleClose() { setOpen(false); }
+    document.addEventListener("mousedown", handleClose);
+    window.addEventListener("scroll", handleClose, true);
+    window.addEventListener("resize", handleClose);
+    return () => {
+      document.removeEventListener("mousedown", handleClose);
+      window.removeEventListener("scroll", handleClose, true);
+      window.removeEventListener("resize", handleClose);
+    };
   }, [open]);
 
   async function handleMoreShare() {
@@ -81,29 +117,30 @@ function CardShareDropdown({ card, shareUrl }: { card: CardResult; shareUrl: str
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
         await navigator.share({ title: card.cardName, text: shareText.replace("\n" + shareUrl, "").trim(), url: shareUrl });
-        toast.success("已開啟系統分享選單，可選擇 Messenger / FB / WhatsApp 等");
+        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
-          await navigator.clipboard.writeText(shareText).catch(() => {});
-          toast.success("已複製廣告文字", { description: shareText });
+          try { await navigator.clipboard.writeText(shareText); } catch {}
+          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
         }
       }
     } else {
-      await navigator.clipboard.writeText(shareText).catch(() => {});
-      toast.success("已複製廣告文字", { description: shareText });
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
     }
   }
 
   async function handleMessenger() {
     setOpen(false);
     const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-    await navigator.clipboard.writeText(shareText).catch(() => {});
     if (isMobile) {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
       window.location.href = `fb-messenger://share?link=${encodeURIComponent(shareUrl)}`;
-      toast.success("已複製文案，Messenger 開啟後可貼上");
+      toast.success("已複製文案，Messenger 開啟後可貼上", { description: shareText, duration: 6000 });
     } else {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
       window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
-      toast.success("已複製連結，請喺 Messenger 對話框貼上");
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { description: shareText, duration: 6000 });
     }
   }
 
@@ -112,54 +149,78 @@ function CardShareDropdown({ card, shareUrl }: { card: CardResult; shareUrl: str
     setOpen(false);
   }
 
-  async function handleCopy() {
+  function handleThreads() {
+    window.open(`https://www.threads.net/intent/post?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer,width=600,height=600");
+    setOpen(false);
+  }
+
+  async function handleCopyText() {
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      toast.success("已複製連結", { description: shareUrl });
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(shareText);
+      toast.success("已複製廣告文字！", { description: shareText, duration: 5000 });
     } catch { toast.error("複製失敗"); }
     setOpen(false);
   }
 
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success("已複製連結", { description: shareUrl, duration: 5000 });
+      setTimeout(() => setCopied(false), 2000);
+    } catch { toast.error("複製失敗，請手動複製連結"); }
+    setOpen(false);
+  }
+
   return (
-    <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
+    <>
       <button
         ref={btnRef}
         type="button"
-        onClick={() => setOpen(v => !v)}
-        className="py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5"
-        style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
+        onClick={handleOpen}
+        title="分享"
+        className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
       >
-        <Share2 className="w-4 h-4" />
+        <Share2 className="w-3 h-3" />
         分享
       </button>
-      {open && createPortal(
+
+      {open && menuPos && createPortal(
         <div
-          className="fixed z-[10001] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
-          style={{ bottom: 90, right: 16, minWidth: 176 }}
-          onClick={e => e.stopPropagation()}
+          className="fixed z-[9999] w-44 bg-white rounded-xl shadow-xl border border-amber-100 py-1"
+          style={{ top: menuPos.top, left: menuPos.left }}
+          onMouseDown={e => e.stopPropagation()}
         >
-          <button onClick={handleMoreShare} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-            <Share2 className="w-4 h-4 text-gray-500" /> 分享到...
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-amber-50">
+            <span className="text-[0.65rem] font-semibold text-amber-700 uppercase tracking-wide">分享至</span>
+            <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-0.5">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
+            <MoreHorizontal className="w-4 h-4 shrink-0" />更多… ( FB,TG,微信.. )
           </button>
-          <div className="h-px bg-gray-100" />
-          <button onClick={handleMessenger} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold hover:bg-blue-50" style={{ color: "#0084ff" }}>
-            <MessengerIcon /> Messenger
+          <button type="button" onClick={handleMessenger} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
+            <MessengerIcon />Facebook Messenger
           </button>
-          <div className="h-px bg-gray-100" />
-          <button onClick={handleWhatsApp} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold hover:bg-green-50" style={{ color: "#25D366" }}>
-            <WhatsAppIcon /> WhatsApp
+          <button type="button" onClick={handleWhatsApp} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#25D366]/10 hover:text-[#25D366]">
+            <WhatsAppIcon />WhatsApp
           </button>
-          <div className="h-px bg-gray-100" />
-          <button onClick={handleCopy} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-500" />}
-            複製連結
+          <button type="button" onClick={handleThreads} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black">
+            <ThreadsIcon />Threads
+          </button>
+          <div className="my-1 border-t border-amber-50" />
+          <button type="button" onClick={handleCopyText} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-amber-50/80 hover:text-amber-700 transition-colors">
+            <Copy className="w-4 h-4 shrink-0" />複製廣告文字
+          </button>
+          <button type="button" onClick={handleCopy} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-amber-50/80 hover:text-amber-700 transition-colors">
+            {copied ? <Check className="w-4 h-4 text-green-500 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
+            {copied ? "已複製！" : "複製連結"}
           </button>
         </div>,
         document.body
       )}
-    </div>
+    </>
   );
 }
 
