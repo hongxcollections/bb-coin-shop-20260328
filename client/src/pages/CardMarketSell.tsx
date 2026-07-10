@@ -77,6 +77,50 @@ function getRarityShort(rarity: string | null | undefined): string | null {
 
 const BROWSABLE_GAMES: GameId[] = ["pokemon", "yugioh", "mtg", "digimon"];
 
+function GameDropdown({ game, onSelect }: { game: GameId | ""; onSelect: (g: GameId) => void }) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = game ? GAMES.find(g => g.id === game)?.label : null;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="inline-flex items-center justify-between w-full px-3.5 py-2.5 text-sm font-semibold transition-colors"
+        style={{
+          background: game ? "linear-gradient(90deg,#FFDE00,#FFB800)" : "#f3f4f6",
+          color: game ? "#111827" : "#9ca3af",
+          border: game ? "1px solid #FFB800" : "1px solid #e5e7eb",
+          borderRadius: 12,
+        }}
+      >
+        <span>{selectedLabel ?? "選擇遊戲類別..."}</span>
+        <ChevronDown className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden" style={{ maxHeight: 280, overflowY: "auto" }}>
+            {GAMES.map((g, i) => (
+              <div key={g.id}>
+                {i > 0 && <div className="h-px bg-gray-100" />}
+                <button
+                  type="button"
+                  onClick={() => { onSelect(g.id as GameId); setOpen(false); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold text-left transition-colors hover:bg-amber-50 whitespace-nowrap"
+                  style={{ color: game === g.id ? "#CC0000" : "#374151" }}
+                >
+                  {game === g.id && <span className="text-[10px]">✓</span>}
+                  {g.label}
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function CardMarketSell() {
   const [location, navigate] = useLocation();
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -761,22 +805,7 @@ export default function CardMarketSell() {
               <div className="flex flex-col gap-3">
                 <div>
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>遊戲類別 *</label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {GAMES.map(g => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => setGame(g.id as GameId)}
-                        className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
-                        style={game === g.id
-                          ? { background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "1px solid transparent" }
-                          : { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }
-                        }
-                      >
-                        {g.label}
-                      </button>
-                    ))}
-                  </div>
+                  <GameDropdown game={game} onSelect={g => setGame(g)} />
                 </div>
                 <div>
                   <label className="text-xs mb-1 block" style={{ color: "#6b7280" }}>卡牌名稱 *</label>
