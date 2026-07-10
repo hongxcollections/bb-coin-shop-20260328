@@ -127,7 +127,15 @@ export default function CardMarketSell() {
   const [mode, setMode] = useState<Mode>(location.includes("/wtb") ? "wtb" : "sell");
 
   const [step, setStep] = useState<1 | 2>(2);
-  const [game, setGame] = useState<GameId | "">("");
+
+  // Read URL params from /browse page (cardName, setName, setNumber, game)
+  const urlParams = new URLSearchParams(window.location.search);
+  const initGame = (urlParams.get("game") ?? "") as GameId | "";
+  const initCardName = urlParams.get("cardName") ?? "";
+  const initSetName = urlParams.get("setName") ?? "";
+  const initSetNo = urlParams.get("setNumber") ?? "";
+
+  const [game, setGame] = useState<GameId | "">(initGame);
 
   const [step2Tab, setStep2Tab] = useState<Step2Tab>("browse");
   const [selectedSet, setSelectedSet] = useState<SetResult | null>(null);
@@ -137,9 +145,9 @@ export default function CardMarketSell() {
   const [searchResults, setSearchResults] = useState<CardResult[]>([]);
 
   const [selectedCard, setSelectedCard] = useState<CardResult | null>(null);
-  const [manualName, setManualName] = useState("");
-  const [manualSet, setManualSet] = useState("");
-  const [manualSetNo, setManualSetNo] = useState("");
+  const [manualName, setManualName] = useState(initCardName);
+  const [manualSet, setManualSet] = useState(initSetName);
+  const [manualSetNo, setManualSetNo] = useState(initSetNo);
 
   const [condition, setCondition] = useState<"NM" | "LP" | "MP" | "HP" | "DMG">("NM");
   const [isGraded, setIsGraded] = useState(false);

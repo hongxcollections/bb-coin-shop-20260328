@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
-import { ChevronLeft, Loader2, Search, X, Upload, ShoppingBag, Share2 } from "lucide-react";
+import { ChevronLeft, Loader2, Search, X, Upload, ShoppingBag, Share2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+import { SHARE_ORIGIN } from "@/lib/shareUrl";
 
 const BROWSE_GAMES = [
   { id: "pokemon",  label: "Pokémon 寶可夢" },
@@ -48,9 +49,124 @@ function getRarityShort(rarity: string | null | undefined): string | null {
   return null;
 }
 
+const MessengerIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
+    <path d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.44 3.14 7.17.16.14.26.34.27.55l.05 1.78a.8.8 0 0 0 1.12.71l1.99-.88c.16-.07.34-.08.5-.04.91.25 1.88.39 2.93.39 5.64 0 10-4.13 10-9.7C22 6.13 17.64 2 12 2zm6 7.46-2.94 4.66a1.5 1.5 0 0 1-2.16.4l-2.34-1.75a.6.6 0 0 0-.72 0l-3.16 2.4c-.42.32-.97-.18-.69-.62l2.94-4.66a1.5 1.5 0 0 1 2.16-.4l2.34 1.75a.6.6 0 0 0 .72 0l3.16-2.4c.42-.32.97.18.69.62z"/>
+  </svg>
+);
+
+const WhatsAppIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+  </svg>
+);
+
+/* ── Card share dropdown ─────────────────────────────────── */
+function CardShareDropdown({ card, shareUrl }: { card: CardResult; shareUrl: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const shareText = [card.cardName, card.setName, card.setNumber].filter(Boolean).join(" · ") + `\n${shareUrl}`;
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  async function handleMoreShare() {
+    setOpen(false);
+    if (navigator.share) {
+      try {
+        await navigator.clipboard.writeText(shareText).catch(() => {});
+        await navigator.share({ title: card.cardName, text: shareText.replace("\n" + shareUrl, "").trim(), url: shareUrl });
+        toast.success("已開啟系統分享選單，可選擇 Messenger / FB / WhatsApp 等");
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          await navigator.clipboard.writeText(shareText).catch(() => {});
+          toast.success("已複製廣告文字", { description: shareText });
+        }
+      }
+    } else {
+      await navigator.clipboard.writeText(shareText).catch(() => {});
+      toast.success("已複製廣告文字", { description: shareText });
+    }
+  }
+
+  async function handleMessenger() {
+    setOpen(false);
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    await navigator.clipboard.writeText(shareText).catch(() => {});
+    if (isMobile) {
+      window.location.href = `fb-messenger://share?link=${encodeURIComponent(shareUrl)}`;
+      toast.success("已複製文案，Messenger 開啟後可貼上");
+    } else {
+      window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
+      toast.success("已複製連結，請喺 Messenger 對話框貼上");
+    }
+  }
+
+  function handleWhatsApp() {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer,width=600,height=500");
+    setOpen(false);
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success("已複製連結", { description: shareUrl });
+      setTimeout(() => setCopied(false), 2000);
+    } catch { toast.error("複製失敗"); }
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5"
+        style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
+      >
+        <Share2 className="w-4 h-4" />
+        分享
+      </button>
+      {open && createPortal(
+        <div
+          className="fixed z-[10001] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
+          style={{ bottom: 90, right: 16, minWidth: 176 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button onClick={handleMoreShare} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            <Share2 className="w-4 h-4 text-gray-500" /> 分享到...
+          </button>
+          <div className="h-px bg-gray-100" />
+          <button onClick={handleMessenger} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold hover:bg-blue-50" style={{ color: "#0084ff" }}>
+            <MessengerIcon /> Messenger
+          </button>
+          <div className="h-px bg-gray-100" />
+          <button onClick={handleWhatsApp} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold hover:bg-green-50" style={{ color: "#25D366" }}>
+            <WhatsAppIcon /> WhatsApp
+          </button>
+          <div className="h-px bg-gray-100" />
+          <button onClick={handleCopy} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-500" />}
+            複製連結
+          </button>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 /* ── Pinch-zoom lightbox ─────────────────────────────────── */
-function CardLightbox({ card, onClose, onSell, onWTB }: {
+function CardLightbox({ card, game, onClose, onSell, onWTB }: {
   card: CardResult;
+  game: string;
   onClose: () => void;
   onSell: (card: CardResult) => void;
   onWTB: (card: CardResult) => void;
@@ -59,20 +175,19 @@ function CardLightbox({ card, onClose, onSell, onWTB }: {
   const lastDist = useRef<number | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
+  const browseUrl = `${SHARE_ORIGIN}/cardzx/market/browse`;
+
   const getDistance = (touches: React.TouchList) =>
     Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      lastDist.current = getDistance(e.touches);
-    }
+    if (e.touches.length === 2) lastDist.current = getDistance(e.touches);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && lastDist.current !== null && imgRef.current) {
       const dist = getDistance(e.touches);
-      const delta = dist / lastDist.current;
-      scale.current = Math.min(Math.max(scale.current * delta, 0.8), 4);
+      scale.current = Math.min(Math.max(scale.current * (dist / lastDist.current), 0.8), 4);
       imgRef.current.style.transform = `scale(${scale.current})`;
       lastDist.current = dist;
     }
@@ -80,24 +195,11 @@ function CardLightbox({ card, onClose, onSell, onWTB }: {
 
   const onTouchEnd = () => { lastDist.current = null; };
 
-  const handleShare = () => {
-    const text = [card.cardName, card.setName, card.setNumber].filter(Boolean).join(" · ");
-    if (navigator.share) {
-      navigator.share({ title: card.cardName, text }).catch(() => {});
-    } else {
-      navigator.clipboard?.writeText(text).then(() => toast.success("已複製卡牌資訊"));
-    }
-  };
-
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "rgba(0,0,0,0.93)" }}>
       {/* Close */}
       <div className="flex justify-end p-4 flex-shrink-0">
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full"
-          style={{ background: "rgba(255,255,255,0.15)" }}
-        >
+        <button onClick={onClose} className="p-2 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
           <X className="w-5 h-5 text-white" />
         </button>
       </div>
@@ -138,7 +240,6 @@ function CardLightbox({ card, onClose, onSell, onWTB }: {
 
       {/* Bottom actions */}
       <div className="flex-shrink-0 px-4 pb-8 pt-3 flex gap-2">
-        {/* 上架出售 */}
         <button
           onClick={() => { onClose(); onSell(card); }}
           className="flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-1.5"
@@ -148,7 +249,6 @@ function CardLightbox({ card, onClose, onSell, onWTB }: {
           上架出售
         </button>
 
-        {/* 求購 WTB */}
         <button
           onClick={() => { onClose(); onWTB(card); }}
           className="flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-1.5"
@@ -158,15 +258,7 @@ function CardLightbox({ card, onClose, onSell, onWTB }: {
           求購 WTB
         </button>
 
-        {/* 分享 */}
-        <button
-          onClick={handleShare}
-          className="py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 flex-shrink-0"
-          style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
-        >
-          <Share2 className="w-4 h-4" />
-          分享
-        </button>
+        <CardShareDropdown card={card} shareUrl={browseUrl} />
       </div>
     </div>,
     document.body
@@ -328,7 +420,6 @@ export default function CardMarketBrowse() {
       </div>
 
       <div className="max-w-lg mx-auto px-[5px] pt-4">
-
         {/* Game chips */}
         <div className="flex flex-wrap gap-2 mb-4">
           {BROWSE_GAMES.map(g => (
@@ -354,7 +445,6 @@ export default function CardMarketBrowse() {
 
         {game && !selectedSet && (
           <>
-            {/* Browse / Search tabs */}
             <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
               <button
                 onClick={() => { setTab("browse"); setSearchResults([]); }}
@@ -373,7 +463,6 @@ export default function CardMarketBrowse() {
               </button>
             </div>
 
-            {/* Browse: sets grid */}
             {tab === "browse" && (
               <>
                 <p className="text-xs mb-3" style={{ color: "#9ca3af" }}>選擇系列，瀏覽高清卡牌圖鑑</p>
@@ -407,7 +496,6 @@ export default function CardMarketBrowse() {
               </>
             )}
 
-            {/* Search mode */}
             {tab === "search" && (
               <div>
                 <div className="flex gap-2 mb-3">
@@ -430,9 +518,7 @@ export default function CardMarketBrowse() {
                 </div>
                 {searchResults.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {searchResults.map((r, i) => (
-                      <CardThumb key={i} card={r} onClick={() => setLbCard(r)} />
-                    ))}
+                    {searchResults.map((r, i) => <CardThumb key={i} card={r} onClick={() => setLbCard(r)} />)}
                   </div>
                 )}
                 {searchResults.length === 0 && !isSearching && searchQuery && (
@@ -443,7 +529,6 @@ export default function CardMarketBrowse() {
           </>
         )}
 
-        {/* Cards grid after selecting a set */}
         {game && selectedSet && (
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -456,9 +541,7 @@ export default function CardMarketBrowse() {
                 返回
               </button>
               <p className="text-xs font-bold flex-1 min-w-0 line-clamp-1" style={{ color: "#CC0000" }}>{selectedSet.name}</p>
-              {selectedSet.total && (
-                <span className="text-[10px] flex-shrink-0" style={{ color: "#9ca3af" }}>{selectedSet.total} 張</span>
-              )}
+              {selectedSet.total && <span className="text-[10px] flex-shrink-0" style={{ color: "#9ca3af" }}>{selectedSet.total} 張</span>}
             </div>
 
             {setCardsQuery.isLoading && accCards.length === 0 ? (
@@ -469,9 +552,7 @@ export default function CardMarketBrowse() {
             ) : (
               <div>
                 <div className="grid grid-cols-3 gap-2 mb-3">
-                  {accCards.map(card => (
-                    <CardThumb key={card.cardApiId} card={card} onClick={() => setLbCard(card)} />
-                  ))}
+                  {accCards.map(card => <CardThumb key={card.cardApiId} card={card} onClick={() => setLbCard(card)} />)}
                 </div>
                 {(setCardsQuery.data as any)?.hasMore && (
                   <button
@@ -491,14 +572,13 @@ export default function CardMarketBrowse() {
             )}
           </div>
         )}
-
       </div>
     </div>
 
-    {/* Lightbox */}
     {lbCard && (
       <CardLightbox
         card={lbCard}
+        game={game}
         onClose={() => setLbCard(null)}
         onSell={handleSell}
         onWTB={handleWTB}
