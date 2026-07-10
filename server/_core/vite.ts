@@ -756,7 +756,8 @@ function injectCardMarketBrowseOgMeta(html: string, reqPath: string, reqQuery: R
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   const gameIdMap: Record<string, string> = {
-    pokemon: "Pokémon 寶可夢", yugioh: "遊戲王 Yu-Gi-Oh!", mtg: "MTG 萬智牌", digimon: "數碼暴龍 Digimon",
+    pokemon: "Pokémon 寶可夢", yugioh: "遊戲王 Yu-Gi-Oh!", mtg: "MTG 萬智牌",
+    digimon: "數碼暴龍 Digimon", lorcana: "Disney Lorcana",
   };
   const gameId = typeof reqQuery.game === "string" ? reqQuery.game.trim() : "";
   const gameLabel = gameIdMap[gameId] ?? "TCG 卡牌";

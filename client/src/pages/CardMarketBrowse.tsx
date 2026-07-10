@@ -12,6 +12,7 @@ const BROWSE_GAMES = [
   { id: "yugioh",   label: "遊戲王 Yu-Gi-Oh!" },
   { id: "mtg",      label: "MTG 萬智牌" },
   { id: "digimon",  label: "數碼暴龍 Digimon" },
+  { id: "lorcana",  label: "Disney Lorcana" },
 ] as const;
 
 type BrowsableGame = typeof BROWSE_GAMES[number]["id"];
@@ -72,6 +73,7 @@ const GAME_LABELS: Record<string, string> = {
   yugioh: "遊戲王 Yu-Gi-Oh!",
   mtg: "MTG 萬智牌",
   digimon: "數碼暴龍 Digimon",
+  lorcana: "Disney Lorcana",
 };
 
 const MENU_WIDTH = 176;

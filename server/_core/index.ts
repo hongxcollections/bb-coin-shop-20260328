@@ -1998,6 +1998,7 @@ Output ONLY the JSON, nothing else.`;
         'scrydex.com', 'images.scrydex.com',
         'tcgplayer.com', 'product-images.tcgplayer.com',
         'cardmarket.com', 'static.cardmarket.com',
+        'lorcana-api.com', 'lorcania.com',
       ];
       const host = target.hostname.toLowerCase();
       const isAllowed = allowedHosts.some(h => host === h || host.endsWith(`.${h}`));

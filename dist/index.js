@@ -24909,7 +24909,7 @@ EXAMPLE OUTPUT (exact format):
     return router({
       // ── 外部卡牌 API 搜尋 ───────────────────────────────────────────────────
       searchCards: protectedProcedure.input(z2.object({
-        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "onepiece", "dragonball", "other"]),
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "lorcana", "onepiece", "dragonball", "other"]),
         query: z2.string().min(1).max(100)
       })).query(async ({ input }) => {
         const q = encodeURIComponent(input.query.trim());
@@ -24962,6 +24962,18 @@ EXAMPLE OUTPUT (exact format):
               officialImageUrl: c.image_url
             }));
           }
+          if (input.game === "lorcana") {
+            const res = await fetch(`https://api.lorcana-api.com/cards/fetch/byName?name=${q}&pageSize=20`);
+            const json = await res.json();
+            return (Array.isArray(json) ? json : []).slice(0, 20).map((c) => ({
+              cardApiId: c.Unique_ID ?? `lorcana-${c.Name}-${c.Card_Num}`,
+              cardName: c.Name,
+              setName: c.Set_Name,
+              setNumber: c.Unique_ID,
+              rarity: c.Rarity,
+              officialImageUrl: c.Image
+            }));
+          }
           return [];
         } catch {
           return [];
@@ -24969,7 +24981,7 @@ EXAMPLE OUTPUT (exact format):
       }),
       // ── 系列列表（供瀏覽選卡用）──────────────────────────────────────────────
       getSets: publicProcedure.input(z2.object({
-        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon"])
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "lorcana"])
       })).query(async ({ input }) => {
         const cacheKey = `sets:${input.game}`;
         const cached = _getCached(cacheKey);
@@ -25037,6 +25049,17 @@ EXAMPLE OUTPUT (exact format):
               { setId: "EX4", name: "EX-04 \u7570\u5F62\u5B58\u5728", series: "Extra", releaseDate: "2023-03-31", total: 61 }
             ];
             result = sets.sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? ""));
+          } else if (input.game === "lorcana") {
+            const res = await _fetchWithTimeout("https://api.lorcana-api.com/sets/all", 1e4);
+            const json = await res.json();
+            result = (Array.isArray(json) ? json : []).sort((a, b) => (b.Release_Date ?? "").localeCompare(a.Release_Date ?? "")).map((s) => ({
+              setId: s.Set_ID,
+              name: s.Name,
+              releaseDate: s.Release_Date,
+              total: s.Cards,
+              logoUrl: null,
+              symbolUrl: null
+            }));
           }
           if (result.length > 0) _setCache(cacheKey, result, 24 * 60 * 60 * 1e3);
           return result;
@@ -25046,7 +25069,7 @@ EXAMPLE OUTPUT (exact format):
       }),
       // ── 系列內卡牌列表 ──────────────────────────────────────────────────────
       getSetCards: publicProcedure.input(z2.object({
-        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon"]),
+        game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "lorcana"]),
         setId: z2.string().min(1).max(200),
         page: z2.number().int().min(1).max(30).default(1)
       })).query(async ({ input }) => {
@@ -25120,6 +25143,34 @@ EXAMPLE OUTPUT (exact format):
               officialImageUrl: c.image_url
             }));
             result = { cards, hasMore: cards.length === 50, total: cards.length };
+          } else if (input.game === "lorcana") {
+            const allCacheKey = "lorcanaAllCards";
+            let allCards = _getCached(allCacheKey);
+            if (!allCards) {
+              const res = await _fetchWithTimeout("https://api.lorcana-api.com/cards/all", 15e3);
+              const json = await res.json();
+              allCards = (Array.isArray(json) ? json : []).map((c) => ({
+                cardApiId: c.Unique_ID ?? `lorcana-${c.Name}-${c.Card_Num}`,
+                cardName: c.Name,
+                setName: c.Set_Name,
+                setNumber: c.Unique_ID,
+                rarity: c.Rarity,
+                officialImageUrl: c.Image
+              }));
+              _setCache(allCacheKey, allCards, 24 * 60 * 60 * 1e3);
+            }
+            const filtered = allCards.filter((c) => c.setName === input.setId || c.setNumber && c.setNumber.startsWith(input.setId + "-"));
+            filtered.sort((a, b) => {
+              const na = parseInt(a.setNumber?.split("-")[1] ?? "0", 10);
+              const nb = parseInt(b.setNumber?.split("-")[1] ?? "0", 10);
+              return na - nb;
+            });
+            const offset = (input.page - 1) * pageSize;
+            result = {
+              cards: filtered.slice(offset, offset + pageSize),
+              hasMore: offset + pageSize < filtered.length,
+              total: filtered.length
+            };
           }
           if (result.cards.length > 0) _setCache(cacheKey, result, 60 * 60 * 1e3);
           return result;
@@ -26799,7 +26850,8 @@ function injectCardMarketBrowseOgMeta(html, reqPath, reqQuery, protocol, host) {
     pokemon: "Pok\xE9mon \u5BF6\u53EF\u5922",
     yugioh: "\u904A\u6232\u738B Yu-Gi-Oh!",
     mtg: "MTG \u842C\u667A\u724C",
-    digimon: "\u6578\u78BC\u66B4\u9F8D Digimon"
+    digimon: "\u6578\u78BC\u66B4\u9F8D Digimon",
+    lorcana: "Disney Lorcana"
   };
   const gameId = typeof reqQuery.game === "string" ? reqQuery.game.trim() : "";
   const gameLabel = gameIdMap[gameId] ?? "TCG \u5361\u724C";
@@ -28921,7 +28973,9 @@ Output ONLY the JSON, nothing else.`;
         "tcgplayer.com",
         "product-images.tcgplayer.com",
         "cardmarket.com",
-        "static.cardmarket.com"
+        "static.cardmarket.com",
+        "lorcana-api.com",
+        "lorcania.com"
       ];
       const host = target.hostname.toLowerCase();
       const isAllowed = allowedHosts.some((h) => host === h || host.endsWith(`.${h}`));
