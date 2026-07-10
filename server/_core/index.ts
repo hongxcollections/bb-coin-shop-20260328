@@ -1991,10 +1991,13 @@ Output ONLY the JSON, nothing else.`;
       if (target.protocol !== 'https:') { res.status(400).send('Invalid scheme'); return; }
       // Allow card image CDNs only
       const allowedHosts = [
-        'images.pokemontcg.io', 'assets.pokemon.com',
+        'images.pokemontcg.io', 'assets.pokemon.com', 'pokemon.com',
         'static.yugipedia.com', 'images.ygoprodeck.com', 'ygoprodeck.com',
-        'cards.scryfall.io', 'c1.scryfall.com', 'img.scryfall.com',
+        'cards.scryfall.io', 'c1.scryfall.com', 'img.scryfall.com', 'scryfall.com',
         'digimoncard.io', 'digimoncard.com', 'images.digimoncard.io',
+        'scrydex.com', 'images.scrydex.com',
+        'tcgplayer.com', 'product-images.tcgplayer.com',
+        'cardmarket.com', 'static.cardmarket.com',
       ];
       const host = target.hostname.toLowerCase();
       const isAllowed = allowedHosts.some(h => host === h || host.endsWith(`.${h}`));
