@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
-import { ChevronLeft, Loader2, Search, X } from "lucide-react";
+import { ChevronLeft, Loader2, Search, X, Upload, ShoppingBag, Share2 } from "lucide-react";
+import { toast } from "sonner";
 
 const BROWSE_GAMES = [
   { id: "pokemon",  label: "Pokémon 寶可夢" },
@@ -47,6 +48,167 @@ function getRarityShort(rarity: string | null | undefined): string | null {
   return null;
 }
 
+/* ── Pinch-zoom lightbox ─────────────────────────────────── */
+function CardLightbox({ card, onClose, onSell, onWTB }: {
+  card: CardResult;
+  onClose: () => void;
+  onSell: (card: CardResult) => void;
+  onWTB: (card: CardResult) => void;
+}) {
+  const scale = useRef(1);
+  const lastDist = useRef<number | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  const getDistance = (touches: React.TouchList) =>
+    Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      lastDist.current = getDistance(e.touches);
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastDist.current !== null && imgRef.current) {
+      const dist = getDistance(e.touches);
+      const delta = dist / lastDist.current;
+      scale.current = Math.min(Math.max(scale.current * delta, 0.8), 4);
+      imgRef.current.style.transform = `scale(${scale.current})`;
+      lastDist.current = dist;
+    }
+  };
+
+  const onTouchEnd = () => { lastDist.current = null; };
+
+  const handleShare = () => {
+    const text = [card.cardName, card.setName, card.setNumber].filter(Boolean).join(" · ");
+    if (navigator.share) {
+      navigator.share({ title: card.cardName, text }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(text).then(() => toast.success("已複製卡牌資訊"));
+    }
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "rgba(0,0,0,0.93)" }}>
+      {/* Close */}
+      <div className="flex justify-end p-4 flex-shrink-0">
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+        >
+          <X className="w-5 h-5 text-white" />
+        </button>
+      </div>
+
+      {/* Card image — pinch zoom */}
+      <div
+        className="flex-1 flex items-center justify-center overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={onClose}
+      >
+        {card.officialImageUrl ? (
+          <img
+            ref={imgRef}
+            src={card.officialImageUrl}
+            alt={card.cardName}
+            onClick={e => e.stopPropagation()}
+            className="rounded-2xl"
+            style={{ maxWidth: "88vw", maxHeight: "60vh", objectFit: "contain", transformOrigin: "center center", touchAction: "none", transition: "transform 0.05s linear" }}
+          />
+        ) : (
+          <div className="rounded-2xl flex items-center justify-center" style={{ width: 200, height: 280, background: "#1f2937" }}>
+            <span style={{ fontSize: 48 }}>🃏</span>
+          </div>
+        )}
+      </div>
+
+      {/* Card name + set */}
+      <div className="px-4 py-2 text-center flex-shrink-0">
+        <p className="text-white font-black text-base leading-tight">{card.cardName}</p>
+        {(card.setName || card.setNumber) && (
+          <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+            {[card.setName, card.setNumber].filter(Boolean).join(" · ")}
+          </p>
+        )}
+      </div>
+
+      {/* Bottom actions */}
+      <div className="flex-shrink-0 px-4 pb-8 pt-3 flex gap-2">
+        {/* 上架出售 */}
+        <button
+          onClick={() => { onClose(); onSell(card); }}
+          className="flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-1.5"
+          style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
+        >
+          <Upload className="w-4 h-4" />
+          上架出售
+        </button>
+
+        {/* 求購 WTB */}
+        <button
+          onClick={() => { onClose(); onWTB(card); }}
+          className="flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-1.5"
+          style={{ background: "rgba(249,115,22,0.15)", color: "#F97316", border: "1px solid rgba(249,115,22,0.3)" }}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          求購 WTB
+        </button>
+
+        {/* 分享 */}
+        <button
+          onClick={handleShare}
+          className="py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 flex-shrink-0"
+          style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}
+        >
+          <Share2 className="w-4 h-4" />
+          分享
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ── Card thumb ─────────────────────────────────────────── */
+function CardThumb({ card, onClick }: { card: CardResult; onClick: () => void }) {
+  const rBadge = getRarityShort(card.rarity);
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col rounded-xl overflow-hidden text-left transition-all"
+      style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+    >
+      <div className="relative w-full" style={{ paddingBottom: "140%" }}>
+        {card.officialImageUrl ? (
+          <img src={card.officialImageUrl} alt={card.cardName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#f8f9fa" }}>
+            <span style={{ fontSize: 24 }}>🃏</span>
+          </div>
+        )}
+        {rBadge && (
+          <div className="absolute top-1 right-1">
+            <span className="text-[8px] font-black px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.75)", color: "#F97316" }}>{rBadge}</span>
+          </div>
+        )}
+        {card.setNumber && (
+          <div className="absolute bottom-1 left-1">
+            <span className="text-[8px] px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.55)", color: "rgba(255,255,255,0.85)" }}>{card.setNumber}</span>
+          </div>
+        )}
+      </div>
+      <div className="px-1.5 py-1.5">
+        <p className="text-[10px] font-bold leading-tight line-clamp-2" style={{ color: "#111827" }}>{card.cardName}</p>
+      </div>
+    </button>
+  );
+}
+
+/* ── Main page ───────────────────────────────────────────── */
 export default function CardMarketBrowse() {
   const [, navigate] = useLocation();
   const [game, setGame] = useState<BrowsableGame | "">("");
@@ -54,7 +216,7 @@ export default function CardMarketBrowse() {
   const [setCardPage, setSetCardPage] = useState(1);
   const [accCards, setAccCards] = useState<CardResult[]>([]);
   const prevSetRef = useRef<string | null>(null);
-  const [lbImg, setLbImg] = useState<string | null>(null);
+  const [lbCard, setLbCard] = useState<CardResult | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CardResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -125,6 +287,24 @@ export default function CardMarketBrowse() {
     }
   }
 
+  function handleSell(card: CardResult) {
+    const params = new URLSearchParams();
+    if (card.cardName) params.set("cardName", card.cardName);
+    if (card.setName) params.set("setName", card.setName);
+    if (card.setNumber) params.set("setNumber", card.setNumber);
+    if (game) params.set("game", game);
+    navigate(`/cardzx/market/sell?${params.toString()}`);
+  }
+
+  function handleWTB(card: CardResult) {
+    const params = new URLSearchParams();
+    if (card.cardName) params.set("cardName", card.cardName);
+    if (card.setName) params.set("setName", card.setName);
+    if (card.setNumber) params.set("setNumber", card.setNumber);
+    if (game) params.set("game", game);
+    navigate(`/cardzx/market/wtb?${params.toString()}`);
+  }
+
   return (
     <>
     <div className="min-h-screen pb-20" style={{ background: "#f8f9fa", color: "#111827" }}>
@@ -179,32 +359,26 @@ export default function CardMarketBrowse() {
               <button
                 onClick={() => { setTab("browse"); setSearchResults([]); }}
                 className="flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                style={tab === "browse"
-                  ? { background: "rgba(249,115,22,0.1)", color: "#F97316" }
-                  : { color: "#9ca3af" }}
+                style={tab === "browse" ? { background: "rgba(249,115,22,0.1)", color: "#F97316" } : { color: "#9ca3af" }}
               >
                 按系列瀏覽
               </button>
               <button
-                onClick={() => { setTab("search"); }}
+                onClick={() => setTab("search")}
                 className="flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                style={tab === "search"
-                  ? { background: "rgba(255,222,0,0.15)", color: "#111827" }
-                  : { color: "#9ca3af" }}
+                style={tab === "search" ? { background: "rgba(255,222,0,0.15)", color: "#111827" } : { color: "#9ca3af" }}
               >
                 <Search className="w-3.5 h-3.5" />
                 搜尋卡牌
               </button>
             </div>
 
-            {/* Browse mode: sets grid */}
+            {/* Browse: sets grid */}
             {tab === "browse" && (
               <>
-                <p className="text-xs mb-3" style={{ color: "#9ca3af" }}>選擇系列，瀏覽所有高清卡牌圖鑑</p>
+                <p className="text-xs mb-3" style={{ color: "#9ca3af" }}>選擇系列，瀏覽高清卡牌圖鑑</p>
                 {setsQuery.isLoading ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#CC0000" }} />
-                  </div>
+                  <div className="flex justify-center py-12"><Loader2 className="w-7 h-7 animate-spin" style={{ color: "#CC0000" }} /></div>
                 ) : setsQuery.error ? (
                   <div className="text-center py-8 text-sm" style={{ color: "#9ca3af" }}>無法載入系列資料</div>
                 ) : (
@@ -217,12 +391,8 @@ export default function CardMarketBrowse() {
                         style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
                       >
                         {s.logoUrl ? (
-                          <img
-                            src={s.logoUrl} alt={s.name}
-                            className="object-contain mb-1.5"
-                            style={{ width: "100%", height: 36 }}
-                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                          />
+                          <img src={s.logoUrl} alt={s.name} className="object-contain mb-1.5" style={{ width: "100%", height: 36 }}
+                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                         ) : (
                           <div className="flex items-center justify-center mb-1.5 rounded-lg w-full" style={{ height: 36, background: "#f3f4f6" }}>
                             <span style={{ fontSize: 18 }}>🃏</span>
@@ -260,40 +430,9 @@ export default function CardMarketBrowse() {
                 </div>
                 {searchResults.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {searchResults.map((r, i) => {
-                      const rBadge = getRarityShort(r.rarity);
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => setLbImg(r.officialImageUrl ?? null)}
-                          className="flex flex-col rounded-xl overflow-hidden text-left"
-                          style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-                        >
-                          <div className="relative w-full" style={{ paddingBottom: "140%" }}>
-                            {r.officialImageUrl ? (
-                              <img src={r.officialImageUrl} alt={r.cardName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#f8f9fa" }}>
-                                <span style={{ fontSize: 24 }}>🃏</span>
-                              </div>
-                            )}
-                            {rBadge && (
-                              <div className="absolute top-1 right-1">
-                                <span className="text-[8px] font-black px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.75)", color: "#F97316" }}>{rBadge}</span>
-                              </div>
-                            )}
-                            {r.setNumber && (
-                              <div className="absolute bottom-1 left-1">
-                                <span className="text-[8px] px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.55)", color: "rgba(255,255,255,0.85)" }}>{r.setNumber}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="px-1.5 py-1.5">
-                            <p className="text-[10px] font-bold leading-tight line-clamp-2" style={{ color: "#111827" }}>{r.cardName}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {searchResults.map((r, i) => (
+                      <CardThumb key={i} card={r} onClick={() => setLbCard(r)} />
+                    ))}
                   </div>
                 )}
                 {searchResults.length === 0 && !isSearching && searchQuery && (
@@ -304,7 +443,7 @@ export default function CardMarketBrowse() {
           </>
         )}
 
-        {/* Cards grid (after selecting a set) */}
+        {/* Cards grid after selecting a set */}
         {game && selectedSet && (
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -330,44 +469,9 @@ export default function CardMarketBrowse() {
             ) : (
               <div>
                 <div className="grid grid-cols-3 gap-2 mb-3">
-                  {accCards.map(card => {
-                    const rBadge = getRarityShort(card.rarity);
-                    return (
-                      <button
-                        key={card.cardApiId}
-                        onClick={() => card.officialImageUrl && setLbImg(card.officialImageUrl)}
-                        className="flex flex-col rounded-xl overflow-hidden text-left transition-all"
-                        style={{ background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-                      >
-                        <div className="relative w-full" style={{ paddingBottom: "140%" }}>
-                          {card.officialImageUrl ? (
-                            <img
-                              src={card.officialImageUrl} alt={card.cardName}
-                              className="absolute inset-0 w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "#f8f9fa" }}>
-                              <span style={{ fontSize: 24 }}>🃏</span>
-                            </div>
-                          )}
-                          {rBadge && (
-                            <div className="absolute top-1 right-1">
-                              <span className="text-[8px] font-black px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.75)", color: "#F97316" }}>{rBadge}</span>
-                            </div>
-                          )}
-                          {card.setNumber && (
-                            <div className="absolute bottom-1 left-1">
-                              <span className="text-[8px] px-1 py-px rounded" style={{ background: "rgba(0,0,0,0.55)", color: "rgba(255,255,255,0.85)" }}>{card.setNumber}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="px-1.5 py-1.5">
-                          <p className="text-[10px] font-bold leading-tight line-clamp-2" style={{ color: "#111827" }}>{card.cardName}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {accCards.map(card => (
+                    <CardThumb key={card.cardApiId} card={card} onClick={() => setLbCard(card)} />
+                  ))}
                 </div>
                 {(setCardsQuery.data as any)?.hasMore && (
                   <button
@@ -392,28 +496,13 @@ export default function CardMarketBrowse() {
     </div>
 
     {/* Lightbox */}
-    {lbImg && createPortal(
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center"
-        style={{ background: "rgba(0,0,0,0.92)" }}
-        onClick={() => setLbImg(null)}
-      >
-        <button
-          onClick={() => setLbImg(null)}
-          className="absolute top-4 right-4 p-2 rounded-full"
-          style={{ background: "rgba(255,255,255,0.15)", zIndex: 10000 }}
-        >
-          <X className="w-5 h-5 text-white" />
-        </button>
-        <img
-          src={lbImg}
-          alt=""
-          className="rounded-2xl"
-          style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain" }}
-          onClick={e => e.stopPropagation()}
-        />
-      </div>,
-      document.body
+    {lbCard && (
+      <CardLightbox
+        card={lbCard}
+        onClose={() => setLbCard(null)}
+        onSell={handleSell}
+        onWTB={handleWTB}
+      />
     )}
     </>
   );
