@@ -809,10 +809,11 @@ function WTBShareDropdown({ wtb }: { wtb: WTB }) {
         ref={btnRef}
         type="button"
         onClick={handleOpen}
-        className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-        style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}
+        title="分享"
+        className="flex items-center justify-center rounded-lg"
+        style={{ width: 28, height: 28, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
       >
-        分享
+        <Share2 className="w-3.5 h-3.5" style={{ color: "#fff" }} />
       </button>
 
       {open && menuPos && createPortal(
