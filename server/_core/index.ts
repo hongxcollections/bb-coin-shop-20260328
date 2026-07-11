@@ -2017,6 +2017,69 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // OG image proxy for CardZx listing — tries S3 photo first, falls back to official CDN
+  app.get('/api/og-image-card-listing/:listingId', async (req, res) => {
+    try {
+      const listingId = parseInt(req.params.listingId, 10);
+      if (isNaN(listingId) || listingId <= 0) { res.status(400).send('Invalid listing ID'); return; }
+      const { getRawPool } = await import('../db') as any;
+      const pool = await getRawPool();
+      const [rows]: any = await pool.execute(
+        'SELECT photoUrls, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1',
+        [listingId]
+      );
+      const row = (rows as any[])[0];
+      if (!row) { res.status(404).send('Listing not found'); return; }
+
+      const photoUrls: string[] = (() => {
+        try {
+          const v = row.photoUrls;
+          if (!v) return [];
+          if (Array.isArray(v)) return v;
+          return JSON.parse(v);
+        } catch { return []; }
+      })();
+
+      const imageUrl = (photoUrls.length > 0 && photoUrls[0]) ? photoUrls[0] : (row.officialImageUrl ?? '');
+      if (!imageUrl) { res.status(404).send('No image'); return; }
+
+      // Try S3 (fetchAllowlistedImage handles S3 domain)
+      const s3Result = await fetchAllowlistedImage(imageUrl);
+      if (s3Result.ok) {
+        const cropped = await cropToOgSize(s3Result.buf);
+        sendImageResponse(res, 'image/jpeg', cropped);
+        return;
+      }
+
+      // Fallback: official card CDN (same allowlist as og-image-card-browse)
+      let target: URL;
+      try { target = new URL(imageUrl); } catch { res.status(400).send('Invalid URL'); return; }
+      if (target.protocol !== 'https:') { res.status(400).send('Invalid scheme'); return; }
+      const allowedHosts = [
+        'images.pokemontcg.io', 'assets.pokemon.com', 'pokemon.com',
+        'static.yugipedia.com', 'images.ygoprodeck.com', 'ygoprodeck.com',
+        'cards.scryfall.io', 'c1.scryfall.com', 'img.scryfall.com', 'scryfall.com',
+        'digimoncard.io', 'digimoncard.com', 'images.digimoncard.io',
+        'scrydex.com', 'images.scrydex.com', 'tcgplayer.com', 'product-images.tcgplayer.com',
+        'cardmarket.com', 'static.cardmarket.com', 'lorcana-api.com', 'lorcania.com',
+      ];
+      const cdnHost = target.hostname.toLowerCase();
+      const isAllowed = allowedHosts.some(h => cdnHost === h || cdnHost.endsWith(`.${h}`));
+      if (!isAllowed) { res.status(403).send('Host not allowed'); return; }
+      const r = await fetch(target.toString(), {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HongxCollections/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) { res.status(r.status).send('Upstream error'); return; }
+      const buf = Buffer.from(await r.arrayBuffer());
+      const cropped = await cropToOgSize(buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Card Listing Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   app.get('/api/og-image-community/:postId', async (req, res) => {
     try {
       const postId = parseInt(req.params.postId, 10);

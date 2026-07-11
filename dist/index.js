@@ -26905,6 +26905,90 @@ function injectCardMarketBrowseOgMeta(html, reqPath, reqQuery, protocol, host) {
   console.log(`[OG Meta] Injected for CardZx market browse: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
   return result;
 }
+async function injectCardMarketListingOgMeta(html, reqPath, reqQuery, protocol, host) {
+  if (reqPath !== "/cardzx/market") return null;
+  const listingIdStr = typeof reqQuery.listing === "string" ? reqQuery.listing.trim() : "";
+  if (!listingIdStr) return null;
+  const listingId = parseInt(listingIdStr, 10);
+  if (isNaN(listingId) || listingId <= 0) return null;
+  try {
+    const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const pool = await getRawPool2();
+    const [rows] = await pool.execute(
+      "SELECT cardName, game, rarity, setName, setNumber, `condition`, priceHKD, photoUrls, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1",
+      [listingId]
+    );
+    const row = rows[0];
+    if (!row) return null;
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const gameIdMap = {
+      pokemon: "Pok\xE9mon \u5BF6\u53EF\u5922",
+      yugioh: "\u904A\u6232\u738B Yu-Gi-Oh!",
+      mtg: "MTG \u842C\u667A\u724C",
+      onepiece: "\u822A\u6D77\u738B",
+      dragonball: "\u9F8D\u73E0",
+      digimon: "\u6578\u78BC\u66B4\u9F8D Digimon",
+      other: "\u5176\u4ED6"
+    };
+    const gameLabel = gameIdMap[row.game] ?? "TCG \u5361\u724C";
+    const cardName = row.cardName ?? "";
+    const titleName = cardName.length > 25 ? cardName.slice(0, 25) + "\u2026" : cardName;
+    const price = Number(row.priceHKD).toLocaleString();
+    const rarity = row.rarity ?? "";
+    const setName = row.setName ?? "";
+    const condition = row.condition ?? "";
+    const ogTitle = `${titleName} | HKD $${price} | ${gameLabel} | CardZx | hongxcollections.com`;
+    const descParts = [cardName, rarity, setName, `HKD $${price}`, condition, gameLabel].filter(Boolean);
+    const ogDesc = `${descParts.join(" \xB7 ")} | CardZx \u5361\u724C\u5E02\u5834 hongxcollections`;
+    const photoUrlsParsed = (() => {
+      try {
+        const v = row.photoUrls;
+        if (!v) return [];
+        if (Array.isArray(v)) return v;
+        return JSON.parse(v);
+      } catch {
+        return [];
+      }
+    })();
+    let ogImageUrl = "";
+    if (photoUrlsParsed.length > 0 && photoUrlsParsed[0]) {
+      ogImageUrl = `${protocol}://${host}/api/og-image-card-listing/${listingId}`;
+    } else if (row.officialImageUrl) {
+      ogImageUrl = `${protocol}://${host}/api/og-image-card-browse?url=${encodeURIComponent(row.officialImageUrl)}`;
+    }
+    const fullUrl = `${protocol}://${host}/cardzx/market?listing=${listingId}`;
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="image/jpeg" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<meta name="description" content="${esc(ogDesc)}" />`,
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`
+    ].filter(Boolean).join("\n    ");
+    let result = html.replace(/<title>[^<]*<\/title>/gi, "").replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "").replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "").replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "").replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result) ? result.replace(viewportRe, (m) => `${m}
+    ${ogMeta}`) : result.replace("</head>", () => `    ${ogMeta}
+  </head>`);
+    console.log(`[OG Meta] Injected for CardZx listing ${listingId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Error generating CardZx listing OG tags:", err);
+    return null;
+  }
+}
 async function injectGalleryOgMeta(html, reqPath, reqQuery, protocol, host) {
   const galleryMatch = reqPath.match(/^\/gallery\/(\d+)$/);
   if (!galleryMatch) return null;
@@ -27028,7 +27112,7 @@ async function setupVite(app, server) {
       const host = req.get("host") || "";
       const base = `${protocol}://${host}`;
       const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
-      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
+      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectCardMarketListingOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         const ua = req.headers["user-agent"] ?? "";
         const isBot = /facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Slackbot|ia_archiver|msnbot|googlebot|bingbot/i.test(ua);
@@ -27159,7 +27243,7 @@ function serveStatic(app) {
     const base = `${protocol}://${host}`;
     const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
     let html = await fs2.promises.readFile(indexPath, "utf-8");
-    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
+    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectCardMarketListingOgMeta(html, cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
       return;
@@ -29008,6 +29092,101 @@ Output ONLY the JSON, nothing else.`;
       sendImageResponse(res, "image/jpeg", cropped);
     } catch (err) {
       console.error("[OG Image Card Browse Proxy] Error:", err);
+      res.status(500).send("Error");
+    }
+  });
+  app.get("/api/og-image-card-listing/:listingId", async (req, res) => {
+    try {
+      const listingId = parseInt(req.params.listingId, 10);
+      if (isNaN(listingId) || listingId <= 0) {
+        res.status(400).send("Invalid listing ID");
+        return;
+      }
+      const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const pool = await getRawPool2();
+      const [rows] = await pool.execute(
+        "SELECT photoUrls, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1",
+        [listingId]
+      );
+      const row = rows[0];
+      if (!row) {
+        res.status(404).send("Listing not found");
+        return;
+      }
+      const photoUrls = (() => {
+        try {
+          const v = row.photoUrls;
+          if (!v) return [];
+          if (Array.isArray(v)) return v;
+          return JSON.parse(v);
+        } catch {
+          return [];
+        }
+      })();
+      const imageUrl = photoUrls.length > 0 && photoUrls[0] ? photoUrls[0] : row.officialImageUrl ?? "";
+      if (!imageUrl) {
+        res.status(404).send("No image");
+        return;
+      }
+      const s3Result = await fetchAllowlistedImage(imageUrl);
+      if (s3Result.ok) {
+        const cropped2 = await cropToOgSize(s3Result.buf);
+        sendImageResponse(res, "image/jpeg", cropped2);
+        return;
+      }
+      let target;
+      try {
+        target = new URL(imageUrl);
+      } catch {
+        res.status(400).send("Invalid URL");
+        return;
+      }
+      if (target.protocol !== "https:") {
+        res.status(400).send("Invalid scheme");
+        return;
+      }
+      const allowedHosts = [
+        "images.pokemontcg.io",
+        "assets.pokemon.com",
+        "pokemon.com",
+        "static.yugipedia.com",
+        "images.ygoprodeck.com",
+        "ygoprodeck.com",
+        "cards.scryfall.io",
+        "c1.scryfall.com",
+        "img.scryfall.com",
+        "scryfall.com",
+        "digimoncard.io",
+        "digimoncard.com",
+        "images.digimoncard.io",
+        "scrydex.com",
+        "images.scrydex.com",
+        "tcgplayer.com",
+        "product-images.tcgplayer.com",
+        "cardmarket.com",
+        "static.cardmarket.com",
+        "lorcana-api.com",
+        "lorcania.com"
+      ];
+      const cdnHost = target.hostname.toLowerCase();
+      const isAllowed = allowedHosts.some((h) => cdnHost === h || cdnHost.endsWith(`.${h}`));
+      if (!isAllowed) {
+        res.status(403).send("Host not allowed");
+        return;
+      }
+      const r = await fetch(target.toString(), {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; HongxCollections/1.0)" },
+        signal: AbortSignal.timeout(8e3)
+      });
+      if (!r.ok) {
+        res.status(r.status).send("Upstream error");
+        return;
+      }
+      const buf = Buffer.from(await r.arrayBuffer());
+      const cropped = await cropToOgSize(buf);
+      sendImageResponse(res, "image/jpeg", cropped);
+    } catch (err) {
+      console.error("[OG Image Card Listing Proxy] Error:", err);
       res.status(500).send("Error");
     }
   });
