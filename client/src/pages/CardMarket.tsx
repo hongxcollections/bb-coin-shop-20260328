@@ -5,7 +5,9 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 
 const GAMES = [
@@ -1183,6 +1185,7 @@ export default function CardMarket() {
   const [showWTB, setShowWTB] = useState(false);
   const [wtbLightbox, setWtbLightbox] = useState<WTB | null>(null);
   const [riskOpen, setRiskOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
@@ -1549,6 +1552,23 @@ export default function CardMarket() {
             >
               立即刊登商品
             </button>
+            <div className="flex items-center mt-1.5" style={{ gap: 5 }}>
+              <button
+                onClick={() => setQrOpen(true)}
+                className="flex items-center px-2 py-0.5 text-[10px] font-black"
+                style={{ background: "#38bdf8", borderRadius: 5 }}
+              >
+                <span style={{ color: "#fff" }}>Card</span><span style={{ color: "#FFDE00" }}>Zx</span>
+              </button>
+              <button
+                onClick={() => setQrOpen(true)}
+                className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold"
+                style={{ background: "rgba(56,189,248,0.12)", color: "#0ea5e9", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 5 }}
+              >
+                <QrCode className="w-3 h-3" />
+                QR code二維碼
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1562,6 +1582,93 @@ export default function CardMarket() {
         <Plus className="w-4 h-4" />
         上架
       </button>
+
+      {/* CardZx QR Code Dialog */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center text-sm">CardZx 卡牌交易市場</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-3 py-2">
+            <div id="cardzx-qr-svg-wrap" className="bg-white p-3 rounded-lg border border-gray-200">
+              <QRCodeSVG value="https://hongxcollections.com/cardzx/market" size={200} level="M" fgColor="#38bdf8" />
+            </div>
+            <p className="text-[11px] text-gray-500 text-center break-all px-2">hongxcollections.com/cardzx/market</p>
+            <p className="text-xs text-gray-600 text-center">掃描 QR Code 即可進入 CardZx 卡牌交易市場</p>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText("https://hongxcollections.com/cardzx/market");
+                  toast.success("已複製連結", { description: "https://hongxcollections.com/cardzx/market", duration: 4000 });
+                } catch { toast.error("複製失敗"); }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all"
+              style={{ background: "rgba(56,189,248,0.1)", color: "#0ea5e9", border: "1px solid rgba(56,189,248,0.3)" }}
+            >
+              <Copy className="w-4 h-4" />
+              複製連結
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const wrap = document.getElementById("cardzx-qr-svg-wrap");
+                const svg = wrap?.querySelector("svg");
+                if (!svg) return;
+                const xml = new XMLSerializer().serializeToString(svg);
+                const svg64 = btoa(unescape(encodeURIComponent(xml)));
+                const dataUrl = `data:image/svg+xml;base64,${svg64}`;
+                const img = new Image();
+                img.onload = () => {
+                  const scale = 3;
+                  const size = 200 * scale;
+                  const pad = 24 * scale;
+                  const nameH = 22 * scale;
+                  const poweredH = 8 * scale;
+                  const gapAfterQR = 8 * scale;
+                  const gapBetween = 3 * scale;
+                  const canvas = document.createElement("canvas");
+                  canvas.width = size + pad * 2;
+                  canvas.height = pad + size + gapAfterQR + nameH + gapBetween + poweredH + pad;
+                  const ctx = canvas.getContext("2d");
+                  if (!ctx) return;
+                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(img, pad, pad, size, size);
+                  const rightX = pad + size;
+                  const nameY = pad + size + gapAfterQR + nameH / 2;
+                  const poweredY = pad + size + gapAfterQR + nameH + gapBetween + poweredH / 2;
+                  ctx.textAlign = "right";
+                  ctx.textBaseline = "middle";
+                  ctx.font = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif`;
+                  ctx.fillStyle = "#38bdf8";
+                  ctx.fillText("CardZx", rightX, nameY);
+                  ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                  ctx.fillStyle = "#94a3b8";
+                  ctx.fillText("Powered by hongxcollections.com", rightX, poweredY);
+                  canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "cardzx-market-qr.png";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  }, "image/png");
+                };
+                img.src = dataUrl;
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all"
+              style={{ background: "linear-gradient(135deg,#38bdf8,#0ea5e9)", color: "#fff" }}
+            >
+              <QrCode className="w-4 h-4" />
+              下載 QR 圖片
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
