@@ -905,6 +905,100 @@ async function injectCardMarketListingOgMeta(
   }
 }
 
+async function injectCardMarketWTBOgMeta(
+  html: string, reqPath: string, reqQuery: Record<string, string | string[] | undefined>,
+  protocol: string, host: string
+): Promise<string | null> {
+  if (reqPath !== "/cardzx/market") return null;
+  const wtbIdStr = typeof reqQuery.wtb === "string" ? reqQuery.wtb.trim() : "";
+  if (!wtbIdStr) return null;
+  const wtbId = parseInt(wtbIdStr, 10);
+  if (isNaN(wtbId) || wtbId <= 0) return null;
+
+  try {
+    const { getRawPool } = await import('../db') as any;
+    const pool = await getRawPool();
+    const [rows]: any = await pool.execute(
+      'SELECT w.cardName, w.game, w.setName, w.maxPriceHKD, w.minCondition, w.officialImageUrl, w.photoUrlsJson, u.name as buyerName FROM cardWantToBuy w LEFT JOIN users u ON u.id = w.userId WHERE w.id = ? LIMIT 1',
+      [wtbId]
+    );
+    const row = (rows as any[])[0];
+    if (!row) return null;
+
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const gameIdMap: Record<string, string> = {
+      pokemon: "Pokémon 寶可夢", yugioh: "遊戲王 Yu-Gi-Oh!", mtg: "MTG 萬智牌",
+      onepiece: "航海王", dragonball: "龍珠", digimon: "數碼暴龍 Digimon", other: "其他",
+    };
+    const gameLabel = gameIdMap[row.game] ?? "TCG 卡牌";
+    const cardName: string = row.cardName ?? "";
+    const titleName = cardName.length > 25 ? cardName.slice(0, 25) + "…" : cardName;
+    const price = (row.maxPriceHKD && Number(row.maxPriceHKD) > 0)
+      ? `上限 HKD $${Number(row.maxPriceHKD).toLocaleString()}`
+      : "HKD 價格面議";
+
+    const ogTitle = `[求購] ${titleName} | ${price} | ${gameLabel} | CardZx | hongxcollections.com`;
+    const descParts = [cardName, row.setName, price, row.minCondition ? `最低 ${row.minCondition}` : null, gameLabel].filter(Boolean);
+    const ogDesc = `${descParts.join(" · ")} | CardZx 求購清單 hongxcollections`;
+
+    const photoUrlsParsed: string[] = (() => {
+      try {
+        const v = row.photoUrlsJson;
+        if (!v) return [];
+        if (Array.isArray(v)) return v;
+        return JSON.parse(v);
+      } catch { return []; }
+    })();
+
+    let ogImageUrl = "";
+    if (photoUrlsParsed.length > 0 && photoUrlsParsed[0]) {
+      ogImageUrl = `${protocol}://${host}/api/og-image-card-wtb/${wtbId}`;
+    } else if (row.officialImageUrl) {
+      ogImageUrl = `${protocol}://${host}/api/og-image-card-browse?url=${encodeURIComponent(row.officialImageUrl)}`;
+    }
+
+    const fullUrl = `${protocol}://${host}/cardzx/market?wtb=${wtbId}`;
+
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="image/jpeg" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<meta name="description" content="${esc(ogDesc)}" />`,
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+      .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, (m) => `${m}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for CardZx WTB ${wtbId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Error generating CardZx WTB OG tags:", err);
+    return null;
+  }
+}
+
 async function injectGalleryOgMeta(html: string, reqPath: string, reqQuery: Record<string, string | string[] | undefined>, protocol: string, host: string): Promise<string | null> {
   const galleryMatch = reqPath.match(/^\/gallery\/(\d+)$/);
   if (!galleryMatch) return null;
@@ -1064,6 +1158,7 @@ export async function setupVite(app: Express, server: Server) {
         ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? await injectGalleryOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? await injectCardMarketListingOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
+        ?? await injectCardMarketWTBOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
@@ -1238,6 +1333,7 @@ export function serveStatic(app: Express) {
       ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? await injectGalleryOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? await injectCardMarketListingOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
+      ?? await injectCardMarketWTBOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
