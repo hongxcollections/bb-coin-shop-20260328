@@ -1552,24 +1552,24 @@ export default function CardMarket() {
             >
               立即刊登商品
             </button>
-            <div className="flex items-center mt-1.5" style={{ gap: 5 }}>
-              <button
-                onClick={() => setQrOpen(true)}
-                className="flex items-center px-2 py-0.5 text-[10px] font-black"
-                style={{ background: "#38bdf8", borderRadius: 5 }}
-              >
-                <span style={{ color: "#fff" }}>Card</span><span style={{ color: "#FFDE00" }}>Zx</span>
-              </button>
-              <button
-                onClick={() => setQrOpen(true)}
-                className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold"
-                style={{ background: "rgba(56,189,248,0.12)", color: "#0ea5e9", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 5 }}
-              >
-                <QrCode className="w-3 h-3" />
-                QR code二維碼
-              </button>
-            </div>
           </div>
+        </div>
+        <div className="flex items-center" style={{ gap: 5, marginTop: 5 }}>
+          <button
+            onClick={() => setQrOpen(true)}
+            className="flex items-center px-2 py-0.5 text-[10px] font-black"
+            style={{ background: "#38bdf8", borderRadius: 5 }}
+          >
+            <span style={{ color: "#fff" }}>Card</span><span style={{ color: "#FFDE00" }}>Zx</span>
+          </button>
+          <button
+            onClick={() => setQrOpen(true)}
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold"
+            style={{ background: "rgba(56,189,248,0.12)", color: "#0ea5e9", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 5 }}
+          >
+            <QrCode className="w-3 h-3" />
+            QR code二維碼
+          </button>
         </div>
       </div>
 
@@ -1638,11 +1638,17 @@ export default function CardMarket() {
                   const rightX = pad + size;
                   const nameY = pad + size + gapAfterQR + nameH / 2;
                   const poweredY = pad + size + gapAfterQR + nameH + gapBetween + poweredH / 2;
-                  ctx.textAlign = "right";
+                  ctx.textAlign = "left";
                   ctx.textBaseline = "middle";
                   ctx.font = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif`;
+                  const cardW = ctx.measureText("Card").width;
+                  const zxW = ctx.measureText("Zx").width;
+                  const nameStartX = rightX - cardW - zxW;
                   ctx.fillStyle = "#38bdf8";
-                  ctx.fillText("CardZx", rightX, nameY);
+                  ctx.fillText("Card", nameStartX, nameY);
+                  ctx.fillStyle = "#FFDE00";
+                  ctx.fillText("Zx", nameStartX + cardW, nameY);
+                  ctx.textAlign = "right";
                   ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
                   ctx.fillStyle = "#94a3b8";
                   ctx.fillText("Powered by hongxcollections.com", rightX, poweredY);
