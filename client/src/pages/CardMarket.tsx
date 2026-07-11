@@ -724,10 +724,11 @@ interface WTB {
 }
 
 const WTB_SHARE_MENU_WIDTH = 176;
-const WTB_SHARE_MENU_HEIGHT = 170;
+const WTB_SHARE_MENU_HEIGHT = 228;
 
 function WTBShareDropdown({ wtb }: { wtb: WTB }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -775,16 +776,31 @@ function WTBShareDropdown({ wtb }: { wtb: WTB }) {
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
-        await navigator.share({ title: wtb.cardName, text: shareParts.join("\n"), url: shareUrl });
+        await navigator.share({ title: wtb.cardName, text: shareText.replace("\n" + shareUrl, "").trim(), url: shareUrl });
+        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
           try { await navigator.clipboard.writeText(shareText); } catch {}
-          toast.success("已複製連結及廣告文字", { description: shareText, duration: 6000 });
+          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
         }
       }
     } else {
       try { await navigator.clipboard.writeText(shareText); } catch {}
-      toast.success("已複製連結及廣告文字", { description: shareText, duration: 6000 });
+      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
+    }
+  }
+
+  async function handleMessenger() {
+    setOpen(false);
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isMobile) {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      window.location.href = `fb-messenger://share?link=${encodeURIComponent(shareUrl)}`;
+      toast.success("已複製文案，Messenger 開啟後可貼上", { description: shareText, duration: 6000 });
+    } else {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { description: shareText, duration: 6000 });
     }
   }
 
@@ -798,10 +814,20 @@ function WTBShareDropdown({ wtb }: { wtb: WTB }) {
     setOpen(false);
   }
 
+  async function handleCopyText() {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success("已複製廣告文字！", { description: shareText, duration: 5000 });
+    } catch { toast.error("複製失敗"); }
+    setOpen(false);
+  }
+
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
       toast.success("已複製連結", { description: shareUrl, duration: 5000 });
+      setTimeout(() => setCopied(false), 2000);
     } catch { toast.error("複製失敗，請手動複製連結"); }
     setOpen(false);
   }
@@ -824,18 +850,31 @@ function WTBShareDropdown({ wtb }: { wtb: WTB }) {
           style={{ top: menuPos.top, left: menuPos.left }}
           onMouseDown={e => e.stopPropagation()}
         >
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-amber-50">
+            <span className="text-[0.65rem] font-semibold text-amber-700 uppercase tracking-wide">分享至</span>
+            <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-0.5">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
           <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
-            <Share2 className="w-3.5 h-3.5" /> 更多分享
+            <MoreHorizontal className="w-4 h-4 shrink-0" />更多… ( FB,TG,微信.. )
           </button>
-          <button type="button" onClick={handleWhatsApp} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
-            <span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-black" style={{ color: "#25D366" }}>W</span> WhatsApp
+          <button type="button" onClick={handleMessenger} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
+            <MessengerIcon />Facebook Messenger
           </button>
-          <button type="button" onClick={handleThreads} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
-            <span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-black" style={{ color: "#000" }}>T</span> Threads
+          <button type="button" onClick={handleWhatsApp} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#25D366]/10 hover:text-[#25D366]">
+            <WhatsAppIcon />WhatsApp
+          </button>
+          <button type="button" onClick={handleThreads} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black">
+            <ThreadsIcon />Threads
           </button>
           <div className="my-1 border-t border-amber-50" />
-          <button type="button" onClick={handleCopy} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
-            <Copy className="w-3.5 h-3.5" /> 複製連結
+          <button type="button" onClick={handleCopyText} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-amber-50/80 hover:text-amber-700 transition-colors">
+            <Copy className="w-4 h-4 shrink-0" />複製廣告文字
+          </button>
+          <button type="button" onClick={handleCopy} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-amber-50/80 hover:text-amber-700 transition-colors">
+            {copied ? <Check className="w-4 h-4 text-green-500 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
+            {copied ? "已複製！" : "複製連結"}
           </button>
         </div>,
         document.body
