@@ -375,6 +375,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
   const [editOpen, setEditOpen] = useState(false);
   const [lbIdx, setLbIdx] = useState<number | null>(null);
   const [showRemoveSheet, setShowRemoveSheet] = useState(false);
+  const utils = trpc.useUtils();
   const removeMut = trpc.cardTrading.removeListing.useMutation();
   const permDeleteMut = trpc.cardTrading.permanentDeleteListing.useMutation();
   const markSoldMut = trpc.cardTrading.markSold.useMutation();
@@ -398,6 +399,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
       await permDeleteMut.mutateAsync({ id: listing.id });
       toast.success("已永久拆除");
       onRefresh();
+      utils.cardTrading.getListings.invalidate();
     } catch { toast.error("操作失敗"); }
   }
 
@@ -732,6 +734,7 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
 
 function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   const confirm = useConfirm();
+  const wtbUtils = trpc.useUtils();
   const deactivateMut = trpc.cardTrading.deactivateWTB.useMutation();
   const reactivateMut = trpc.cardTrading.reactivateWTB.useMutation();
   const permDeleteWTBMut = trpc.cardTrading.permanentDeleteWTB.useMutation();
@@ -754,6 +757,7 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
       await permDeleteWTBMut.mutateAsync({ id: wtb.id });
       toast.success("已永久拆除");
       onRefresh();
+      wtbUtils.cardTrading.getWTBs.invalidate();
     } catch { toast.error("操作失敗"); }
   }
 

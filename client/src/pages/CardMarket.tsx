@@ -723,6 +723,124 @@ interface WTB {
   photoUrls: string[];
 }
 
+function WTBShareDropdown({ wtb }: { wtb: WTB }) {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const gameLabel = GAMES.find(g => g.id === wtb.game)?.label ?? wtb.game;
+  const shareUrl = `${SHARE_ORIGIN}/cardzx/market#wtb-${wtb.id}`;
+  const pricePart = (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 HKD $${wtb.maxPriceHKD.toLocaleString()}` : "HKD 價格面議";
+  const shareParts = [`[求購] ${gameLabel} · ${wtb.cardName}`, wtb.setName, pricePart].filter(Boolean);
+  const shareText = shareParts.join("\n") + `\n${shareUrl}`;
+
+  const calcPosition = useCallback(() => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top = rect.bottom + 4;
+    let left = rect.right - LISTING_MENU_WIDTH;
+    if (left + LISTING_MENU_WIDTH > vw - 8) left = vw - LISTING_MENU_WIDTH - 8;
+    if (left < 8) left = 8;
+    if (top + LISTING_MENU_HEIGHT > vh - 8) top = rect.top - LISTING_MENU_HEIGHT - 4;
+    if (top < 8) top = 8;
+    setMenuPos({ top, left });
+  }, []);
+
+  function handleOpen(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    calcPosition(); setOpen(true);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClose() { setOpen(false); }
+    document.addEventListener("mousedown", handleClose);
+    window.addEventListener("scroll", handleClose, true);
+    window.addEventListener("resize", handleClose);
+    return () => {
+      document.removeEventListener("mousedown", handleClose);
+      window.removeEventListener("scroll", handleClose, true);
+      window.removeEventListener("resize", handleClose);
+    };
+  }, [open]);
+
+  async function handleMoreShare() {
+    setOpen(false);
+    if (navigator.share) {
+      try {
+        await navigator.clipboard.writeText(shareText).catch(() => {});
+        await navigator.share({ title: wtb.cardName, text: shareParts.join("\n"), url: shareUrl });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          try { await navigator.clipboard.writeText(shareText); } catch {}
+          toast.success("已複製連結及廣告文字", { description: shareText, duration: 6000 });
+        }
+      }
+    } else {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      toast.success("已複製連結及廣告文字", { description: shareText, duration: 6000 });
+    }
+  }
+
+  function handleWhatsApp() {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer,width=600,height=500");
+    setOpen(false);
+  }
+
+  function handleThreads() {
+    window.open(`https://www.threads.net/intent/post?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer,width=600,height=600");
+    setOpen(false);
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("已複製連結", { description: shareUrl, duration: 5000 });
+    } catch { toast.error("複製失敗，請手動複製連結"); }
+    setOpen(false);
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={handleOpen}
+        className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+        style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}
+      >
+        分享
+      </button>
+
+      {open && menuPos && createPortal(
+        <div
+          className="fixed z-[9999] w-44 bg-white rounded-xl shadow-xl border border-amber-100 py-1"
+          style={{ top: menuPos.top, left: menuPos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
+            <Share2 className="w-3.5 h-3.5" /> 更多分享
+          </button>
+          <button type="button" onClick={handleWhatsApp} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
+            <span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-black" style={{ color: "#25D366" }}>W</span> WhatsApp
+          </button>
+          <button type="button" onClick={handleThreads} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
+            <span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-black" style={{ color: "#000" }}>T</span> Threads
+          </button>
+          <div className="my-1 border-t border-amber-50" />
+          <button type="button" onClick={handleCopy} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
+            <Copy className="w-3.5 h-3.5" /> 複製連結
+          </button>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 function WTBCard({ wtb, onContact, onImageClick }: { wtb: WTB; onContact?: () => void; onImageClick?: () => void }) {
   const gameStyle = GAME_BADGE_STYLE[wtb.game] ?? { background: "#f3f4f6", color: "#6b7280" };
   const gameLabel = GAMES.find(g => g.id === wtb.game)?.label ?? wtb.game;
@@ -755,15 +873,18 @@ function WTBCard({ wtb, onContact, onImageClick }: { wtb: WTB; onContact?: () =>
       </div>
       <div className="flex flex-col items-end gap-1 flex-shrink-0">
         <span className="text-[10px]" style={{ color: "#9ca3af" }}>{wtb.buyerName ?? "用戶"}</span>
-        {onContact && (
-          <button
-            onClick={onContact}
-            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
-          >
-            私訊
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {onContact && (
+            <button
+              onClick={onContact}
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
+            >
+              私訊
+            </button>
+          )}
+          <WTBShareDropdown wtb={wtb} />
+        </div>
       </div>
     </div>
   );
