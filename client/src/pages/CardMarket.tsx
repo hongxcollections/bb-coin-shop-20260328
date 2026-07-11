@@ -723,6 +723,9 @@ interface WTB {
   photoUrls: string[];
 }
 
+const WTB_SHARE_MENU_WIDTH = 176;
+const WTB_SHARE_MENU_HEIGHT = 170;
+
 function WTBShareDropdown({ wtb }: { wtb: WTB }) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -740,10 +743,10 @@ function WTBShareDropdown({ wtb }: { wtb: WTB }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     let top = rect.bottom + 4;
-    let left = rect.right - LISTING_MENU_WIDTH;
-    if (left + LISTING_MENU_WIDTH > vw - 8) left = vw - LISTING_MENU_WIDTH - 8;
+    let left = rect.right - WTB_SHARE_MENU_WIDTH;
+    if (left + WTB_SHARE_MENU_WIDTH > vw - 8) left = vw - WTB_SHARE_MENU_WIDTH - 8;
     if (left < 8) left = 8;
-    if (top + LISTING_MENU_HEIGHT > vh - 8) top = rect.top - LISTING_MENU_HEIGHT - 4;
+    if (top + WTB_SHARE_MENU_HEIGHT > vh - 8) top = rect.top - WTB_SHARE_MENU_HEIGHT - 4;
     if (top < 8) top = 8;
     setMenuPos({ top, left });
   }, []);
@@ -809,11 +812,10 @@ function WTBShareDropdown({ wtb }: { wtb: WTB }) {
         ref={btnRef}
         type="button"
         onClick={handleOpen}
-        title="分享"
-        className="flex items-center justify-center rounded-lg"
-        style={{ width: 28, height: 28, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+        className="text-[10px] font-bold px-2 py-0.5"
+        style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)", borderRadius: 5 }}
       >
-        <Share2 className="w-3.5 h-3.5" style={{ color: "#fff" }} />
+        分享
       </button>
 
       {open && menuPos && createPortal(
@@ -878,8 +880,8 @@ function WTBCard({ wtb, onContact, onImageClick }: { wtb: WTB; onContact?: () =>
           {onContact && (
             <button
               onClick={onContact}
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
+              className="text-[10px] font-bold px-2 py-0.5"
+              style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)", borderRadius: 5 }}
             >
               私訊
             </button>
