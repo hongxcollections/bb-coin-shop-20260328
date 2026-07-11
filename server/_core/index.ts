@@ -2025,7 +2025,7 @@ Output ONLY the JSON, nothing else.`;
       const { getRawPool } = await import('../db') as any;
       const pool = await getRawPool();
       const [rows]: any = await pool.execute(
-        'SELECT photoUrls, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1',
+        'SELECT photoUrlsJson, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1',
         [listingId]
       );
       const row = (rows as any[])[0];
@@ -2033,7 +2033,7 @@ Output ONLY the JSON, nothing else.`;
 
       const photoUrls: string[] = (() => {
         try {
-          const v = row.photoUrls;
+          const v = row.photoUrlsJson;
           if (!v) return [];
           if (Array.isArray(v)) return v;
           return JSON.parse(v);

@@ -26915,7 +26915,7 @@ async function injectCardMarketListingOgMeta(html, reqPath, reqQuery, protocol, 
     const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
     const pool = await getRawPool2();
     const [rows] = await pool.execute(
-      "SELECT cardName, game, rarity, setName, setNumber, `condition`, priceHKD, photoUrls, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1",
+      "SELECT cardName, game, rarity, setName, setNumber, `condition`, priceHKD, photoUrlsJson, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1",
       [listingId]
     );
     const row = rows[0];
@@ -26942,7 +26942,7 @@ async function injectCardMarketListingOgMeta(html, reqPath, reqQuery, protocol, 
     const ogDesc = `${descParts.join(" \xB7 ")} | CardZx \u5361\u724C\u5E02\u5834 hongxcollections`;
     const photoUrlsParsed = (() => {
       try {
-        const v = row.photoUrls;
+        const v = row.photoUrlsJson;
         if (!v) return [];
         if (Array.isArray(v)) return v;
         return JSON.parse(v);
@@ -29105,7 +29105,7 @@ Output ONLY the JSON, nothing else.`;
       const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const pool = await getRawPool2();
       const [rows] = await pool.execute(
-        "SELECT photoUrls, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1",
+        "SELECT photoUrlsJson, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1",
         [listingId]
       );
       const row = rows[0];
@@ -29115,7 +29115,7 @@ Output ONLY the JSON, nothing else.`;
       }
       const photoUrls = (() => {
         try {
-          const v = row.photoUrls;
+          const v = row.photoUrlsJson;
           if (!v) return [];
           if (Array.isArray(v)) return v;
           return JSON.parse(v);

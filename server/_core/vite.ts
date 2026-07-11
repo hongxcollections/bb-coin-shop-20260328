@@ -824,7 +824,7 @@ async function injectCardMarketListingOgMeta(
     const { getRawPool } = await import('../db') as any;
     const pool = await getRawPool();
     const [rows]: any = await pool.execute(
-      'SELECT cardName, game, rarity, setName, setNumber, `condition`, priceHKD, photoUrls, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1',
+      'SELECT cardName, game, rarity, setName, setNumber, `condition`, priceHKD, photoUrlsJson, officialImageUrl FROM cardListings WHERE id = ? LIMIT 1',
       [listingId]
     );
     const row = (rows as any[])[0];
@@ -850,7 +850,7 @@ async function injectCardMarketListingOgMeta(
 
     const photoUrlsParsed: string[] = (() => {
       try {
-        const v = row.photoUrls;
+        const v = row.photoUrlsJson;
         if (!v) return [];
         if (Array.isArray(v)) return v;
         return JSON.parse(v);
