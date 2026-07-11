@@ -391,6 +391,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
       await removeMut.mutateAsync({ id: listing.id });
       toast.success("已下架");
       onRefresh();
+      utils.cardTrading.getListings.invalidate();
     } catch { toast.error("下架失敗"); }
   }
 
@@ -410,6 +411,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
       await markSoldMut.mutateAsync({ id: listing.id });
       toast.success("已標記為售出");
       onRefresh();
+      utils.cardTrading.getListings.invalidate();
     } catch { toast.error("操作失敗"); }
   }
 
@@ -420,12 +422,13 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
       await relistMut.mutateAsync({ id: listing.id });
       toast.success("已重新上架");
       onRefresh();
+      utils.cardTrading.getListings.invalidate();
     } catch { toast.error("操作失敗"); }
   }
 
   return (
     <>
-      {editOpen && <EditPriceSheet listing={listing} onClose={() => setEditOpen(false)} onSaved={onRefresh} />}
+      {editOpen && <EditPriceSheet listing={listing} onClose={() => setEditOpen(false)} onSaved={() => { onRefresh(); utils.cardTrading.getListings.invalidate(); }} />}
       {lbIdx !== null && createPortal(
         <ImageLightbox
           images={photos}
@@ -749,6 +752,7 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
       await deactivateMut.mutateAsync({ id: wtb.id });
       toast.success("已關閉求購記錄");
       onRefresh();
+      wtbUtils.cardTrading.getWTBs.invalidate();
     } catch { toast.error("操作失敗"); }
   }
 
@@ -766,12 +770,13 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
       await reactivateMut.mutateAsync({ id: wtb.id });
       toast.success("已重開求購記錄");
       onRefresh();
+      wtbUtils.cardTrading.getWTBs.invalidate();
     } catch { toast.error("操作失敗"); }
   }
 
   return (
     <>
-      {editOpen && <EditWTBSheet wtb={wtb} onClose={() => setEditOpen(false)} onSaved={onRefresh} />}
+      {editOpen && <EditWTBSheet wtb={wtb} onClose={() => setEditOpen(false)} onSaved={() => { onRefresh(); wtbUtils.cardTrading.getWTBs.invalidate(); }} />}
       {showRemoveSheet && (
         <RemoveActionSheet
           title="拆除求購記錄"
