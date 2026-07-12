@@ -1554,7 +1554,7 @@ export default function CardMarket() {
             </button>
           </div>
         </div>
-        <div className="flex items-center" style={{ gap: 5, marginTop: 5 }}>
+        <div className="flex items-center" style={{ gap: 5, marginTop: -10 }}>
           <button
             onClick={() => setQrOpen(true)}
             className="flex items-center px-2 py-0.5 text-[10px] font-black"
