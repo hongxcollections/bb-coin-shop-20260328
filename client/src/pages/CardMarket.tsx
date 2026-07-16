@@ -1030,9 +1030,10 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
           </div>
         )}
 
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+        <div className="mb-3 p-3 rounded-xl" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
+          {/* 第1行：卡牌種類（左）｜拍咗邊 + 出售價錢（右） */}
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {listing.game && (
                 <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,222,0,0.15)", color: "#111827", border: "1px solid rgba(255,222,0,0.35)" }}>
                   {GAMES.find(g => g.id === listing.game)?.label ?? listing.game}
@@ -1044,29 +1045,26 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
                 </span>
               )}
             </div>
-            <h3 className="text-xl font-black leading-tight" style={{ color: "#111827" }}>{listing.cardName}</h3>
-            {listing.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{listing.cardNameJa}</p>}
-            {listing.setName && <p className="text-xs mt-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg" style={{ background: cond.color, color: "#fff" }}>
+                {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
+              </span>
+              <p className="text-xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+            </div>
           </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-2xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-3">
-          <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: cond.color, color: "#fff" }}>
-            {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
-          </span>
+          {/* 第2行：卡牌名稱 */}
+          <h3 className="text-xl font-black leading-tight" style={{ color: "#111827" }}>{listing.cardName}</h3>
+          {listing.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{listing.cardNameJa}</p>}
+          {listing.setName && <p className="text-xs mt-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
           {listing.deliveryMethod && (
-            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(14,165,233,0.08)", color: "#0284c7", border: "1px solid rgba(14,165,233,0.2)" }}>
+            <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-lg mt-2" style={{ background: "rgba(14,165,233,0.08)", color: "#0284c7", border: "1px solid rgba(14,165,233,0.2)" }}>
               {listing.deliveryMethod}
             </span>
           )}
+          {listing.description && (
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: "#374151" }}>{listing.description}</p>
+          )}
         </div>
-
-        {listing.description && (
-          <p className="text-sm mb-3 leading-relaxed" style={{ color: "#374151" }}>{listing.description}</p>
-        )}
 
         <div className="flex items-center gap-2 mb-4 p-3 rounded-xl" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: "rgba(255,222,0,0.18)", color: "#111827" }}>
