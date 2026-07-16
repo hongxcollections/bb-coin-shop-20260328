@@ -7655,6 +7655,18 @@ async function bootstrapCardTradingTables() {
       soldAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardListingComments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      listingId INT NOT NULL,
+      userId INT NOT NULL,
+      content TEXT,
+      imageUrlsJson TEXT,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_clc_listingId (listingId)
+    )
+  `);
 }
 async function getCardListings(opts) {
   await bootstrapCardTradingTables();
@@ -25497,6 +25509,95 @@ EXAMPLE OUTPUT (exact format):
         const result = await getOrCreateChatRoom2(-sellerId, ctx.user.id, sellerId);
         if (!result) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "\u5EFA\u7ACB\u5C0D\u8A71\u5931\u6557" });
         return { roomId: result.room.id };
+      }),
+      // ── Listing Comments ──────────────────────────────────────────────────────
+      getListingComments: publicProcedure.input(z2.object({ listingId: z2.number().int() })).query(async ({ input }) => {
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        const [rows] = await pool.query(
+          `SELECT c.id, c.listingId, c.userId, u.name as userName, u.photoUrl as userPhoto,
+           c.content, c.imageUrlsJson, c.createdAt, c.updatedAt
+           FROM cardListingComments c
+           LEFT JOIN users u ON u.id = c.userId
+           WHERE c.listingId = ?
+           ORDER BY c.createdAt ASC`,
+          [input.listingId]
+        );
+        const list = Array.isArray(rows) ? rows : rows[0] ?? [];
+        return list.map((r) => ({
+          id: Number(r.id),
+          listingId: Number(r.listingId),
+          userId: Number(r.userId),
+          userName: r.userName,
+          userPhoto: r.userPhoto,
+          content: r.content,
+          imageUrls: (() => {
+            try {
+              return JSON.parse(r.imageUrlsJson || "[]");
+            } catch {
+              return [];
+            }
+          })(),
+          createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+          updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt)
+        }));
+      }),
+      addListingComment: protectedProcedure.input(z2.object({
+        listingId: z2.number().int(),
+        content: z2.string().max(2e3).optional(),
+        imageUrls: z2.array(z2.string()).max(4).default([])
+      })).mutation(async ({ input, ctx }) => {
+        if (!input.content?.trim() && input.imageUrls.length === 0) {
+          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u7559\u8A00\u4E0D\u80FD\u70BA\u7A7A" });
+        }
+        const { getRawPool: getRawPool2, bootstrapCardTradingTables: bootstrapCardTradingTables2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await bootstrapCardTradingTables2();
+        const pool = await getRawPool2();
+        const [result] = await pool.execute(
+          `INSERT INTO cardListingComments (listingId, userId, content, imageUrlsJson) VALUES (?, ?, ?, ?)`,
+          [input.listingId, ctx.user.id, input.content?.trim() ?? null, JSON.stringify(input.imageUrls)]
+        );
+        return { id: result.insertId };
+      }),
+      editListingComment: protectedProcedure.input(z2.object({
+        commentId: z2.number().int(),
+        content: z2.string().max(2e3).optional(),
+        imageUrls: z2.array(z2.string()).max(4).default([])
+      })).mutation(async ({ input, ctx }) => {
+        if (!input.content?.trim() && input.imageUrls.length === 0) {
+          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u7559\u8A00\u4E0D\u80FD\u70BA\u7A7A" });
+        }
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        const [rows] = await pool.query(`SELECT userId FROM cardListingComments WHERE id = ? LIMIT 1`, [input.commentId]);
+        const row = Array.isArray(rows) ? rows[0] : rows[0]?.[0] ?? null;
+        if (!row) throw new TRPCError3({ code: "NOT_FOUND", message: "\u7559\u8A00\u4E0D\u5B58\u5728" });
+        if (Number(row.userId) !== ctx.user.id) throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u53EF\u7DE8\u8F2F\u81EA\u5DF1\u7684\u7559\u8A00" });
+        await pool.execute(
+          `UPDATE cardListingComments SET content = ?, imageUrlsJson = ? WHERE id = ?`,
+          [input.content?.trim() ?? null, JSON.stringify(input.imageUrls), input.commentId]
+        );
+        return { ok: true };
+      }),
+      deleteListingComment: protectedProcedure.input(z2.object({ commentId: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        const [rows] = await pool.query(`SELECT userId FROM cardListingComments WHERE id = ? LIMIT 1`, [input.commentId]);
+        const row = Array.isArray(rows) ? rows[0] : rows[0]?.[0] ?? null;
+        if (!row) throw new TRPCError3({ code: "NOT_FOUND", message: "\u7559\u8A00\u4E0D\u5B58\u5728" });
+        if (Number(row.userId) !== ctx.user.id) throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u53EF\u62C6\u9664\u81EA\u5DF1\u7684\u7559\u8A00" });
+        await pool.execute(`DELETE FROM cardListingComments WHERE id = ?`, [input.commentId]);
+        return { ok: true };
+      }),
+      signCommentImageUpload: protectedProcedure.input(z2.object({ mimeType: z2.string().default("image/jpeg") })).mutation(async ({ input, ctx }) => {
+        const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        const mime = (input.mimeType || "image/jpeg").toLowerCase();
+        if (!allowed.includes(mime)) throw new TRPCError3({ code: "BAD_REQUEST", message: `\u4E0D\u652F\u63F4\u6B64\u683C\u5F0F\uFF08${mime}\uFF09` });
+        const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `card-comments/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 300);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl };
       })
     });
   })()

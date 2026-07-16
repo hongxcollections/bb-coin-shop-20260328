@@ -14611,10 +14611,107 @@ EXAMPLE OUTPUT (exact format):
         if (!listing) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到此上架記錄' });
         const sellerId: number = listing.userId;
         if (sellerId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '唔可以同自己對話' });
-        // sentinel: auctionId = -sellerId, 每個買家對每個賣家共用同一對話間
         const result = await getOrCreateChatRoom(-sellerId, ctx.user.id, sellerId);
         if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
         return { roomId: result.room.id };
+      }),
+
+    // ── Listing Comments ──────────────────────────────────────────────────────
+    getListingComments: publicProcedure
+      .input(z.object({ listingId: z.number().int() }))
+      .query(async ({ input }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        const [rows]: any = await pool.query(
+          `SELECT c.id, c.listingId, c.userId, u.name as userName, u.photoUrl as userPhoto,
+           c.content, c.imageUrlsJson, c.createdAt, c.updatedAt
+           FROM cardListingComments c
+           LEFT JOIN users u ON u.id = c.userId
+           WHERE c.listingId = ?
+           ORDER BY c.createdAt ASC`,
+          [input.listingId]
+        );
+        const list = Array.isArray(rows) ? rows : (rows[0] ?? []);
+        return list.map((r: any) => ({
+          id: Number(r.id),
+          listingId: Number(r.listingId),
+          userId: Number(r.userId),
+          userName: r.userName as string | null,
+          userPhoto: r.userPhoto as string | null,
+          content: r.content as string | null,
+          imageUrls: (() => { try { return JSON.parse(r.imageUrlsJson || '[]'); } catch { return []; } })() as string[],
+          createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+          updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt),
+        }));
+      }),
+
+    addListingComment: protectedProcedure
+      .input(z.object({
+        listingId: z.number().int(),
+        content: z.string().max(2000).optional(),
+        imageUrls: z.array(z.string()).max(4).default([]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!input.content?.trim() && input.imageUrls.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '留言不能為空' });
+        }
+        const { getRawPool, bootstrapCardTradingTables } = await import('./db') as any;
+        await bootstrapCardTradingTables();
+        const pool = await getRawPool();
+        const [result]: any = await pool.execute(
+          `INSERT INTO cardListingComments (listingId, userId, content, imageUrlsJson) VALUES (?, ?, ?, ?)`,
+          [input.listingId, ctx.user.id, input.content?.trim() ?? null, JSON.stringify(input.imageUrls)]
+        );
+        return { id: result.insertId as number };
+      }),
+
+    editListingComment: protectedProcedure
+      .input(z.object({
+        commentId: z.number().int(),
+        content: z.string().max(2000).optional(),
+        imageUrls: z.array(z.string()).max(4).default([]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!input.content?.trim() && input.imageUrls.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '留言不能為空' });
+        }
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        const [rows]: any = await pool.query(`SELECT userId FROM cardListingComments WHERE id = ? LIMIT 1`, [input.commentId]);
+        const row = Array.isArray(rows) ? rows[0] : (rows[0]?.[0] ?? null);
+        if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: '留言不存在' });
+        if (Number(row.userId) !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '只可編輯自己的留言' });
+        await pool.execute(
+          `UPDATE cardListingComments SET content = ?, imageUrlsJson = ? WHERE id = ?`,
+          [input.content?.trim() ?? null, JSON.stringify(input.imageUrls), input.commentId]
+        );
+        return { ok: true };
+      }),
+
+    deleteListingComment: protectedProcedure
+      .input(z.object({ commentId: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        const [rows]: any = await pool.query(`SELECT userId FROM cardListingComments WHERE id = ? LIMIT 1`, [input.commentId]);
+        const row = Array.isArray(rows) ? rows[0] : (rows[0]?.[0] ?? null);
+        if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: '留言不存在' });
+        if (Number(row.userId) !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '只可拆除自己的留言' });
+        await pool.execute(`DELETE FROM cardListingComments WHERE id = ?`, [input.commentId]);
+        return { ok: true };
+      }),
+
+    signCommentImageUpload: protectedProcedure
+      .input(z.object({ mimeType: z.string().default('image/jpeg') }))
+      .mutation(async ({ input, ctx }) => {
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const mime = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowed.includes(mime)) throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此格式（${mime}）` });
+        const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `card-comments/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 300);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl };
       }),
   }); })(),
 });

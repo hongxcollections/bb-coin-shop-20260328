@@ -8145,6 +8145,18 @@ export async function bootstrapCardTradingTables() {
       soldAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardListingComments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      listingId INT NOT NULL,
+      userId INT NOT NULL,
+      content TEXT,
+      imageUrlsJson TEXT,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_clc_listingId (listingId)
+    )
+  `);
 }
 
 export async function getCardListings(opts: {

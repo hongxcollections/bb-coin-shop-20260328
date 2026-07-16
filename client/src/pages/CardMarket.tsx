@@ -5,7 +5,7 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal, QrCode } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal, QrCode, MessageSquare, Pencil, Trash2, Send, ImagePlus } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
@@ -940,6 +940,254 @@ interface ListingDetailSheetProps {
   onSelectListing?: (l: Listing) => void;
 }
 
+function timeAgoComment(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return "剛剛";
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分鐘前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小時前`;
+  return `${Math.floor(diff / 86400)} 日前`;
+}
+
+function ListingCommentSection({ listingId }: { listingId: number }) {
+  const { isAuthenticated, user } = useAuth();
+  const [, navigate] = useLocation();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [pendingImgs, setPendingImgs] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editImgs, setEditImgs] = useState<string[]>([]);
+  const [editUploading, setEditUploading] = useState(false);
+  const [imgLb, setImgLb] = useState<string | null>(null);
+  const utils = trpc.useUtils();
+  const { data: comments = [], isLoading } = trpc.cardTrading.getListingComments.useQuery(
+    { listingId },
+    { enabled: open, staleTime: 30000 }
+  );
+  const addMut = trpc.cardTrading.addListingComment.useMutation({
+    onSuccess: () => { utils.cardTrading.getListingComments.invalidate({ listingId }); setText(""); setPendingImgs([]); },
+    onError: (e) => toast.error(e.message),
+  });
+  const editMut = trpc.cardTrading.editListingComment.useMutation({
+    onSuccess: () => { utils.cardTrading.getListingComments.invalidate({ listingId }); setEditId(null); },
+    onError: (e) => toast.error(e.message),
+  });
+  const delMut = trpc.cardTrading.deleteListingComment.useMutation({
+    onSuccess: () => utils.cardTrading.getListingComments.invalidate({ listingId }),
+    onError: (e) => toast.error(e.message),
+  });
+  const signMut = trpc.cardTrading.signCommentImageUpload.useMutation();
+
+  async function uploadImg(file: File, onDone: (url: string) => void) {
+    try {
+      const { uploadUrl, finalUrl } = await signMut.mutateAsync({ mimeType: file.type });
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      onDone(finalUrl);
+    } catch { toast.error("圖片上載失敗"); }
+  }
+
+  async function handleImgPick(e: React.ChangeEvent<HTMLInputElement>, isEdit = false) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    isEdit ? setEditUploading(true) : setUploading(true);
+    for (const f of files.slice(0, 4)) {
+      await uploadImg(f, (url) => isEdit ? setEditImgs(p => [...p, url].slice(0, 4)) : setPendingImgs(p => [...p, url].slice(0, 4)));
+    }
+    isEdit ? setEditUploading(false) : setUploading(false);
+  }
+
+  function handleSubmit() {
+    if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
+    if (!text.trim() && pendingImgs.length === 0) { toast.error("請輸入留言內容"); return; }
+    addMut.mutate({ listingId, content: text.trim() || undefined, imageUrls: pendingImgs });
+  }
+
+  function startEdit(c: { id: number; content: string | null; imageUrls: string[] }) {
+    setEditId(c.id);
+    setEditText(c.content ?? "");
+    setEditImgs(c.imageUrls);
+  }
+
+  function handleEditSave() {
+    if (!editText.trim() && editImgs.length === 0) { toast.error("留言不能為空"); return; }
+    editMut.mutate({ commentId: editId!, content: editText.trim() || undefined, imageUrls: editImgs });
+  }
+
+  const count = comments.length;
+
+  return (
+    <div className="mb-3">
+      {/* Toggle button */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 rounded-xl"
+        style={{ background: open ? "#f0f9ff" : "#f8f9fa", border: `1px solid ${open ? "#bae6fd" : "#e5e7eb"}` }}
+      >
+        <div className="flex items-center gap-2">
+          <MessageSquare className="w-4 h-4" style={{ color: "#0ea5e9" }} />
+          <span className="text-sm font-bold" style={{ color: "#111827" }}>
+            用戶留言{count > 0 ? `（${count}）` : ""}
+          </span>
+        </div>
+        <ChevronDown className="w-4 h-4" style={{ color: "#9ca3af", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+      </button>
+
+      {open && (
+        <div className="mt-2 rounded-xl overflow-hidden" style={{ border: "1px solid #e5e7eb" }}>
+          {/* Comment list */}
+          {isLoading ? (
+            <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin" style={{ color: "#9ca3af" }} /></div>
+          ) : count === 0 ? (
+            <p className="text-xs text-center py-4" style={{ color: "#9ca3af" }}>暫時未有留言，成為第一個留言者！</p>
+          ) : (
+            <div className="divide-y" style={{ borderColor: "#f3f4f6" }}>
+              {comments.map((c) => (
+                <div key={c.id} className="px-3 py-2.5">
+                  <div className="flex gap-2">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black overflow-hidden" style={{ background: "rgba(255,222,0,0.18)", color: "#111827" }}>
+                      {c.userPhoto
+                        ? <img src={c.userPhoto} alt="" className="w-full h-full object-cover" />
+                        : (c.userName ?? "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {/* Name row */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold" style={{ color: "#111827" }}>{c.userName ?? "用戶"}</span>
+                        <span className="text-[10px]" style={{ color: "#9ca3af" }}>{timeAgoComment(c.createdAt)}</span>
+                        {c.updatedAt !== c.createdAt && <span className="text-[10px]" style={{ color: "#c4b5fd" }}>（已編輯）</span>}
+                      </div>
+                      {/* Edit mode */}
+                      {editId === c.id ? (
+                        <div className="mt-1">
+                          <textarea
+                            className="w-full text-sm px-2 py-1.5 resize-none outline-none"
+                            style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, minHeight: 64, color: "#111827" }}
+                            value={editText}
+                            onChange={e => setEditText(e.target.value)}
+                            maxLength={2000}
+                          />
+                          {editImgs.length > 0 && (
+                            <div className="flex gap-1.5 flex-wrap mt-1">
+                              {editImgs.map((url, i) => (
+                                <div key={i} className="relative">
+                                  <img src={url} alt="" className="rounded object-cover" style={{ width: 60, height: 60 }} onClick={() => setImgLb(url)} />
+                                  <button onClick={() => setEditImgs(p => p.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#ef4444" }}>
+                                    <X className="w-2.5 h-2.5 text-white" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <label className="cursor-pointer flex items-center gap-1 text-[11px] px-2 py-0.5 rounded" style={{ background: "#f3f4f6", color: "#6b7280" }}>
+                              {editUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
+                              加圖片
+                              <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleImgPick(e, true)} disabled={editUploading} />
+                            </label>
+                            <button onClick={handleEditSave} disabled={editMut.isPending} className="text-[11px] px-3 py-0.5 rounded font-bold" style={{ background: "#0ea5e9", color: "#fff" }}>
+                              {editMut.isPending ? "儲存中…" : "儲存"}
+                            </button>
+                            <button onClick={() => setEditId(null)} className="text-[11px] px-2 py-0.5 rounded" style={{ background: "#f3f4f6", color: "#6b7280" }}>取消</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {c.content && <p className="text-sm mt-0.5 leading-relaxed whitespace-pre-wrap" style={{ color: "#374151" }}>{c.content}</p>}
+                          {c.imageUrls.length > 0 && (
+                            <div className="flex gap-1.5 flex-wrap mt-1.5">
+                              {c.imageUrls.map((url, i) => (
+                                <img key={i} src={url} alt="" className="rounded-lg object-cover cursor-pointer" style={{ width: 80, height: 80 }} onClick={() => setImgLb(url)} />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {/* Own comment actions */}
+                    {isAuthenticated && user?.id === c.userId && editId !== c.id && (
+                      <div className="flex-shrink-0 flex items-start gap-1 ml-1">
+                        <button onClick={() => startEdit(c)} className="p-1 rounded" style={{ background: "#f3f4f6" }}>
+                          <Pencil className="w-3 h-3" style={{ color: "#6b7280" }} />
+                        </button>
+                        <button onClick={() => delMut.mutate({ commentId: c.id })} disabled={delMut.isPending} className="p-1 rounded" style={{ background: "#fee2e2" }}>
+                          <Trash2 className="w-3 h-3" style={{ color: "#ef4444" }} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input bar */}
+          <div className="px-3 py-2.5" style={{ background: "#f8f9fa", borderTop: "1px solid #e5e7eb" }}>
+            {!isAuthenticated ? (
+              <button
+                onClick={() => navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
+                className="w-full text-center text-xs py-2 rounded-lg font-semibold"
+                style={{ background: "rgba(14,165,233,0.1)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.25)" }}
+              >
+                登入後留言
+              </button>
+            ) : (
+              <>
+                {pendingImgs.length > 0 && (
+                  <div className="flex gap-1.5 flex-wrap mb-2">
+                    {pendingImgs.map((url, i) => (
+                      <div key={i} className="relative">
+                        <img src={url} alt="" className="rounded object-cover" style={{ width: 60, height: 60 }} />
+                        <button onClick={() => setPendingImgs(p => p.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#ef4444" }}>
+                          <X className="w-2.5 h-2.5 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-end gap-2">
+                  <textarea
+                    className="flex-1 text-sm px-2.5 py-2 resize-none outline-none"
+                    style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, minHeight: 38, maxHeight: 120, color: "#111827" }}
+                    placeholder="寫下你的留言…"
+                    value={text}
+                    onChange={e => setText(e.target.value)}
+                    maxLength={2000}
+                    rows={2}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+                  />
+                  <label className="flex-shrink-0 cursor-pointer p-2 rounded-full" style={{ background: "#f3f4f6" }}>
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#9ca3af" }} /> : <ImagePlus className="w-4 h-4" style={{ color: "#6b7280" }} />}
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleImgPick(e)} disabled={uploading || pendingImgs.length >= 4} />
+                  </label>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={addMut.isPending || (!text.trim() && pendingImgs.length === 0)}
+                    className="flex-shrink-0 p-2 rounded-full"
+                    style={{ background: "#0ea5e9" }}
+                  >
+                    {addMut.isPending ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Send className="w-4 h-4 text-white" />}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Image lightbox */}
+      {imgLb && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.92)" }} onClick={() => setImgLb(null)}>
+          <img src={imgLb} alt="" className="max-w-full max-h-full object-contain" style={{ maxHeight: "90vh" }} />
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetailSheetProps) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
@@ -1067,6 +1315,8 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "#374151" }}>{listing.description}</p>
           )}
         </div>
+
+        <ListingCommentSection listingId={listing.id} />
 
         <div className="flex items-center gap-2 mb-4 p-3 rounded-xl" style={{ background: "#f8f9fa", border: "1px solid #e5e7eb" }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: "rgba(255,222,0,0.18)", color: "#111827" }}>
