@@ -14618,28 +14618,34 @@ EXAMPLE OUTPUT (exact format):
 
     // ── Listing Comments ──────────────────────────────────────────────────────
     getListingComments: publicProcedure
-      .input(z.object({ listingId: z.number().int() }))
+      .input(z.object({ listingId: z.number().int(), currentUserId: z.number().int().optional() }))
       .query(async ({ input }) => {
         const { getRawPool } = await import('./db') as any;
         const pool = await getRawPool();
+        const uid = input.currentUserId ?? 0;
         const [rows]: any = await pool.query(
-          `SELECT c.id, c.listingId, c.userId, u.name as userName, u.photoUrl as userPhoto,
-           c.content, c.imageUrlsJson, c.createdAt, c.updatedAt
+          `SELECT c.id, c.listingId, c.userId, c.parentId, u.name as userName, u.photoUrl as userPhoto,
+           c.content, c.imageUrlsJson, c.createdAt, c.updatedAt,
+           (SELECT COUNT(*) FROM cardListingCommentLikes WHERE commentId = c.id) as likeCount,
+           (SELECT COUNT(*) FROM cardListingCommentLikes WHERE commentId = c.id AND userId = ?) as userLiked
            FROM cardListingComments c
            LEFT JOIN users u ON u.id = c.userId
            WHERE c.listingId = ?
            ORDER BY c.createdAt ASC`,
-          [input.listingId]
+          [uid, input.listingId]
         );
         const list = Array.isArray(rows) ? rows : (rows[0] ?? []);
         return list.map((r: any) => ({
           id: Number(r.id),
           listingId: Number(r.listingId),
           userId: Number(r.userId),
+          parentId: r.parentId != null ? Number(r.parentId) : null,
           userName: r.userName as string | null,
           userPhoto: r.userPhoto as string | null,
           content: r.content as string | null,
           imageUrls: (() => { try { return JSON.parse(r.imageUrlsJson || '[]'); } catch { return []; } })() as string[],
+          likeCount: Number(r.likeCount ?? 0),
+          userLiked: Number(r.userLiked ?? 0) > 0,
           createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
           updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt),
         }));
@@ -14650,6 +14656,7 @@ EXAMPLE OUTPUT (exact format):
         listingId: z.number().int(),
         content: z.string().max(2000).optional(),
         imageUrls: z.array(z.string()).max(4).default([]),
+        parentId: z.number().int().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (!input.content?.trim() && input.imageUrls.length === 0) {
@@ -14659,10 +14666,29 @@ EXAMPLE OUTPUT (exact format):
         await bootstrapCardTradingTables();
         const pool = await getRawPool();
         const [result]: any = await pool.execute(
-          `INSERT INTO cardListingComments (listingId, userId, content, imageUrlsJson) VALUES (?, ?, ?, ?)`,
-          [input.listingId, ctx.user.id, input.content?.trim() ?? null, JSON.stringify(input.imageUrls)]
+          `INSERT INTO cardListingComments (listingId, userId, parentId, content, imageUrlsJson) VALUES (?, ?, ?, ?, ?)`,
+          [input.listingId, ctx.user.id, input.parentId ?? null, input.content?.trim() ?? null, JSON.stringify(input.imageUrls)]
         );
         return { id: result.insertId as number };
+      }),
+
+    toggleCommentLike: protectedProcedure
+      .input(z.object({ commentId: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        const [existing]: any = await pool.query(
+          `SELECT id FROM cardListingCommentLikes WHERE commentId = ? AND userId = ? LIMIT 1`,
+          [input.commentId, ctx.user.id]
+        );
+        const row = Array.isArray(existing) ? existing[0] : (existing[0]?.[0] ?? null);
+        if (row) {
+          await pool.execute(`DELETE FROM cardListingCommentLikes WHERE commentId = ? AND userId = ?`, [input.commentId, ctx.user.id]);
+          return { liked: false };
+        } else {
+          await pool.execute(`INSERT INTO cardListingCommentLikes (commentId, userId) VALUES (?, ?)`, [input.commentId, ctx.user.id]);
+          return { liked: true };
+        }
       }),
 
     editListingComment: protectedProcedure

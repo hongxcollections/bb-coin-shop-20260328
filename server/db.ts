@@ -8150,11 +8150,23 @@ export async function bootstrapCardTradingTables() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       listingId INT NOT NULL,
       userId INT NOT NULL,
+      parentId INT NULL,
       content TEXT,
       imageUrlsJson TEXT,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_clc_listingId (listingId)
+    )
+  `);
+  try { await pool.execute(`ALTER TABLE cardListingComments ADD COLUMN parentId INT NULL`); } catch {}
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardListingCommentLikes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      commentId INT NOT NULL,
+      userId INT NOT NULL,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_clcl (commentId, userId),
+      INDEX idx_clcl_commentId (commentId)
     )
   `);
 }

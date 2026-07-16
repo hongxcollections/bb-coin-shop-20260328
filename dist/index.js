@@ -7660,11 +7660,26 @@ async function bootstrapCardTradingTables() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       listingId INT NOT NULL,
       userId INT NOT NULL,
+      parentId INT NULL,
       content TEXT,
       imageUrlsJson TEXT,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_clc_listingId (listingId)
+    )
+  `);
+  try {
+    await pool.execute(`ALTER TABLE cardListingComments ADD COLUMN parentId INT NULL`);
+  } catch {
+  }
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardListingCommentLikes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      commentId INT NOT NULL,
+      userId INT NOT NULL,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_clcl (commentId, userId),
+      INDEX idx_clcl_commentId (commentId)
     )
   `);
 }
@@ -25511,23 +25526,27 @@ EXAMPLE OUTPUT (exact format):
         return { roomId: result.room.id };
       }),
       // ── Listing Comments ──────────────────────────────────────────────────────
-      getListingComments: publicProcedure.input(z2.object({ listingId: z2.number().int() })).query(async ({ input }) => {
+      getListingComments: publicProcedure.input(z2.object({ listingId: z2.number().int(), currentUserId: z2.number().int().optional() })).query(async ({ input }) => {
         const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const pool = await getRawPool2();
+        const uid = input.currentUserId ?? 0;
         const [rows] = await pool.query(
-          `SELECT c.id, c.listingId, c.userId, u.name as userName, u.photoUrl as userPhoto,
-           c.content, c.imageUrlsJson, c.createdAt, c.updatedAt
+          `SELECT c.id, c.listingId, c.userId, c.parentId, u.name as userName, u.photoUrl as userPhoto,
+           c.content, c.imageUrlsJson, c.createdAt, c.updatedAt,
+           (SELECT COUNT(*) FROM cardListingCommentLikes WHERE commentId = c.id) as likeCount,
+           (SELECT COUNT(*) FROM cardListingCommentLikes WHERE commentId = c.id AND userId = ?) as userLiked
            FROM cardListingComments c
            LEFT JOIN users u ON u.id = c.userId
            WHERE c.listingId = ?
            ORDER BY c.createdAt ASC`,
-          [input.listingId]
+          [uid, input.listingId]
         );
         const list = Array.isArray(rows) ? rows : rows[0] ?? [];
         return list.map((r) => ({
           id: Number(r.id),
           listingId: Number(r.listingId),
           userId: Number(r.userId),
+          parentId: r.parentId != null ? Number(r.parentId) : null,
           userName: r.userName,
           userPhoto: r.userPhoto,
           content: r.content,
@@ -25538,6 +25557,8 @@ EXAMPLE OUTPUT (exact format):
               return [];
             }
           })(),
+          likeCount: Number(r.likeCount ?? 0),
+          userLiked: Number(r.userLiked ?? 0) > 0,
           createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
           updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt)
         }));
@@ -25545,7 +25566,8 @@ EXAMPLE OUTPUT (exact format):
       addListingComment: protectedProcedure.input(z2.object({
         listingId: z2.number().int(),
         content: z2.string().max(2e3).optional(),
-        imageUrls: z2.array(z2.string()).max(4).default([])
+        imageUrls: z2.array(z2.string()).max(4).default([]),
+        parentId: z2.number().int().optional()
       })).mutation(async ({ input, ctx }) => {
         if (!input.content?.trim() && input.imageUrls.length === 0) {
           throw new TRPCError3({ code: "BAD_REQUEST", message: "\u7559\u8A00\u4E0D\u80FD\u70BA\u7A7A" });
@@ -25554,10 +25576,26 @@ EXAMPLE OUTPUT (exact format):
         await bootstrapCardTradingTables2();
         const pool = await getRawPool2();
         const [result] = await pool.execute(
-          `INSERT INTO cardListingComments (listingId, userId, content, imageUrlsJson) VALUES (?, ?, ?, ?)`,
-          [input.listingId, ctx.user.id, input.content?.trim() ?? null, JSON.stringify(input.imageUrls)]
+          `INSERT INTO cardListingComments (listingId, userId, parentId, content, imageUrlsJson) VALUES (?, ?, ?, ?, ?)`,
+          [input.listingId, ctx.user.id, input.parentId ?? null, input.content?.trim() ?? null, JSON.stringify(input.imageUrls)]
         );
         return { id: result.insertId };
+      }),
+      toggleCommentLike: protectedProcedure.input(z2.object({ commentId: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const pool = await getRawPool2();
+        const [existing] = await pool.query(
+          `SELECT id FROM cardListingCommentLikes WHERE commentId = ? AND userId = ? LIMIT 1`,
+          [input.commentId, ctx.user.id]
+        );
+        const row = Array.isArray(existing) ? existing[0] : existing[0]?.[0] ?? null;
+        if (row) {
+          await pool.execute(`DELETE FROM cardListingCommentLikes WHERE commentId = ? AND userId = ?`, [input.commentId, ctx.user.id]);
+          return { liked: false };
+        } else {
+          await pool.execute(`INSERT INTO cardListingCommentLikes (commentId, userId) VALUES (?, ?)`, [input.commentId, ctx.user.id]);
+          return { liked: true };
+        }
       }),
       editListingComment: protectedProcedure.input(z2.object({
         commentId: z2.number().int(),
