@@ -1046,9 +1046,6 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg" style={{ background: cond.color, color: "#fff" }}>
-                {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
-              </span>
               <p className="text-xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
             </div>
           </div>
@@ -1056,11 +1053,16 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
           <h3 className="text-xl font-black leading-tight" style={{ color: "#111827" }}>{listing.cardName}</h3>
           {listing.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{listing.cardNameJa}</p>}
           {listing.setName && <p className="text-xs mt-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
-          {listing.deliveryMethod && (
-            <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-lg mt-2" style={{ background: "rgba(14,165,233,0.08)", color: "#0284c7", border: "1px solid rgba(14,165,233,0.2)" }}>
-              {listing.deliveryMethod}
+          <div className="flex flex-wrap gap-2 mt-2">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: cond.color, color: "#fff" }}>
+              {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.full}
             </span>
-          )}
+            {listing.deliveryMethod && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: "rgba(14,165,233,0.08)", color: "#0284c7", border: "1px solid rgba(14,165,233,0.2)" }}>
+                {listing.deliveryMethod}
+              </span>
+            )}
+          </div>
           {listing.description && (
             <p className="text-sm mt-2 leading-relaxed" style={{ color: "#374151" }}>{listing.description}</p>
           )}
