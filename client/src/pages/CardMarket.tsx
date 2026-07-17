@@ -1014,7 +1014,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
   const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).get("comment") === "1");
-  const inputAreaRef = React.useRef<HTMLDivElement>(null);
+  const inputAreaRef = useRef<HTMLDivElement>(null);
   // Main input
   const [text, setText] = useState("");
   const [pendingImgs, setPendingImgs] = useState<string[]>([]);
@@ -1035,7 +1035,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   const [imgLb, setImgLb] = useState<string | null>(null);
 
   // Auto-scroll to input when redirected back from login with comment=1
-  React.useEffect(() => {
+  useEffect(() => {
     if (new URLSearchParams(window.location.search).get("comment") !== "1") return;
     const timer = setTimeout(() => {
       inputAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
