@@ -1034,13 +1034,22 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   // Image lightbox
   const [imgLb, setImgLb] = useState<string | null>(null);
 
-  // Auto-scroll to input when redirected back from login with comment=1
+  // Auto-open + scroll when redirected back from login with comment=1 (and optional replyTo)
+  const initReplyTo = new URLSearchParams(window.location.search).get("replyTo");
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("comment") !== "1") return;
+    if (initReplyTo) {
+      setReplyingTo(Number(initReplyTo));
+      const timer = setTimeout(() => {
+        document.querySelector(`[data-reply-input="${initReplyTo}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 600);
+      return () => clearTimeout(timer);
+    }
     const timer = setTimeout(() => {
       inputAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 500);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const utils = trpc.useUtils();
@@ -1188,7 +1197,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
                   {/* Reply (top-level only) */}
                   {!isReply && (
                     <button
-                      onClick={() => { if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}&comment=1`)}`); return; } setReplyingTo(replyingTo === c.id ? null : c.id); setReplyText(""); setReplyImgs([]); setEditId(null); }}
+                      onClick={() => { if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}&comment=1&replyTo=${c.id}`)}`); return; } setReplyingTo(replyingTo === c.id ? null : c.id); setReplyText(""); setReplyImgs([]); setEditId(null); }}
                       className="flex items-center gap-1 text-[11px] font-semibold"
                       style={{ color: replyingTo === c.id ? "#0ea5e9" : "#9ca3af" }}
                     >
@@ -1209,7 +1218,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
         </div>
         {/* Reply input */}
         {replyingTo === c.id && (
-          <div className="pl-11 pr-3 pb-2.5">
+          <div data-reply-input={c.id} className="pl-11 pr-3 pb-2.5">
             <CommentInputBar
               placeholder={`回覆 ${c.userName ?? "用戶"}…`}
               value={replyText} onChange={setReplyText}
