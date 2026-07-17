@@ -1013,7 +1013,8 @@ function CommentInputBar({
 function ListingCommentSection({ listingId }: { listingId: number }) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).get("comment") === "1");
+  const inputAreaRef = React.useRef<HTMLDivElement>(null);
   // Main input
   const [text, setText] = useState("");
   const [pendingImgs, setPendingImgs] = useState<string[]>([]);
@@ -1032,6 +1033,15 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   const [flyingLikes, setFlyingLikes] = useState<{ id: string; commentId: number }[]>([]);
   // Image lightbox
   const [imgLb, setImgLb] = useState<string | null>(null);
+
+  // Auto-scroll to input when redirected back from login with comment=1
+  React.useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("comment") !== "1") return;
+    const timer = setTimeout(() => {
+      inputAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const utils = trpc.useUtils();
   const { data: comments = [], isLoading } = trpc.cardTrading.getListingComments.useQuery(
@@ -1080,7 +1090,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   }
 
   function handleLike(commentId: number) {
-    if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}`)}`); return; }
+    if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}&comment=1`)}`); return; }
     const flyId = `${commentId}-${Date.now()}`;
     setFlyingLikes(p => [...p, { id: flyId, commentId }]);
     setTimeout(() => setFlyingLikes(p => p.filter(f => f.id !== flyId)), 900);
@@ -1088,7 +1098,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   }
 
   function handleSubmit() {
-    if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}`)}`); return; }
+    if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}&comment=1`)}`); return; }
     if (!text.trim() && pendingImgs.length === 0) { toast.error("請輸入留言內容"); return; }
     addMut.mutate({ listingId, content: text.trim() || undefined, imageUrls: pendingImgs });
   }
@@ -1178,7 +1188,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
                   {/* Reply (top-level only) */}
                   {!isReply && (
                     <button
-                      onClick={() => { if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}`)}`); return; } setReplyingTo(replyingTo === c.id ? null : c.id); setReplyText(""); setReplyImgs([]); setEditId(null); }}
+                      onClick={() => { if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}&comment=1`)}`); return; } setReplyingTo(replyingTo === c.id ? null : c.id); setReplyText(""); setReplyImgs([]); setEditId(null); }}
                       className="flex items-center gap-1 text-[11px] font-semibold"
                       style={{ color: replyingTo === c.id ? "#0ea5e9" : "#9ca3af" }}
                     >
@@ -1247,9 +1257,9 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
             </div>
           )}
 
-          <div className="px-3 py-2.5" style={{ background: "#f8f9fa", borderTop: "1px solid #e5e7eb" }}>
+          <div ref={inputAreaRef} className="px-3 py-2.5" style={{ background: "#f8f9fa", borderTop: "1px solid #e5e7eb" }}>
             {!isAuthenticated ? (
-              <button onClick={() => navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}`)}`)} className="w-full text-center text-xs py-2 rounded-lg font-semibold" style={{ background: "rgba(14,165,233,0.1)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.25)" }}>登入後留言</button>
+              <button onClick={() => navigate(`/login?from=${encodeURIComponent(window.location.pathname + `?listing=${listingId}&comment=1`)}`)} className="w-full text-center text-xs py-2 rounded-lg font-semibold" style={{ background: "rgba(14,165,233,0.1)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.25)" }}>登入後留言</button>
             ) : (
               <CommentInputBar
                 placeholder="寫下你的留言…"
