@@ -1036,7 +1036,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   const utils = trpc.useUtils();
   const { data: comments = [], isLoading } = trpc.cardTrading.getListingComments.useQuery(
     { listingId, currentUserId: user?.id },
-    { enabled: open, staleTime: 30000 }
+    { staleTime: 30000 }
   );
   const addMut = trpc.cardTrading.addListingComment.useMutation({
     onSuccess: () => { utils.cardTrading.getListingComments.invalidate({ listingId }); setText(""); setPendingImgs([]); },
