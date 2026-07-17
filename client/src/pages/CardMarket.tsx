@@ -1225,13 +1225,11 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
     <div className="mb-3">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-xl"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl"
         style={{ background: open ? "#f0f9ff" : "#f8f9fa", border: `1px solid ${open ? "#bae6fd" : "#e5e7eb"}` }}
       >
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4" style={{ color: "#0ea5e9" }} />
-          <span className="text-sm font-bold" style={{ color: "#111827" }}>用戶留言{count > 0 ? `（${count}）` : ""}</span>
-        </div>
+        <MessageSquare className="w-4 h-4" style={{ color: "#0ea5e9" }} />
+        <span className="text-sm font-bold" style={{ color: "#111827" }}>用戶留言{count > 0 ? `（${count}）` : ""}</span>
         <ChevronDown className="w-4 h-4" style={{ color: "#9ca3af", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
       </button>
 
