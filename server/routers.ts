@@ -8682,28 +8682,16 @@ ${kb}`;
         return r;
       }),
 
-    /** 公開：取大BB錢幣店（owner 商戶）的商品分類列表，供藏品社區發帖用 */
+    /** 公開：取藏品社區發帖用的分類列表（由站設定 communityCategoryMerchantId 指定商戶） */
     getOwnerCategories: publicProcedure.query(async () => {
       const DEFAULT_CATS = ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];
       try {
-        const { getUserByOpenId, getMerchantSettings, getRawPool } = await import('./db') as any;
-        const ownerOpenId = process.env.OWNER_OPEN_ID;
-        if (!ownerOpenId) { console.warn('[getOwnerCategories] OWNER_OPEN_ID not set, using defaults'); return DEFAULT_CATS; }
-        // 先試 Drizzle helper，fallback raw SQL
-        let ownerId: number | null = null;
-        try {
-          const owner = await getUserByOpenId(ownerOpenId);
-          ownerId = owner?.id ?? null;
-        } catch {}
-        if (!ownerId) {
-          const pool = await getRawPool();
-          const [rows]: any = await pool.query(`SELECT id FROM users WHERE openId = ? LIMIT 1`, [ownerOpenId]);
-          const row = Array.isArray(rows) ? rows[0] : (rows[0]?.[0] ?? null);
-          ownerId = row?.id ? Number(row.id) : null;
-        }
-        if (!ownerId) { console.warn('[getOwnerCategories] owner user not found for openId:', ownerOpenId); return DEFAULT_CATS; }
-        const settings = await getMerchantSettings(ownerId);
-        console.log('[getOwnerCategories] ownerId:', ownerId, 'productCategories:', settings?.productCategories);
+        const { getSiteSetting, getMerchantSettings } = await import('./db') as any;
+        const merchantIdStr: string | null = await getSiteSetting('communityCategoryMerchantId');
+        if (!merchantIdStr) return DEFAULT_CATS;
+        const merchantUserId = parseInt(merchantIdStr, 10);
+        if (!merchantUserId || isNaN(merchantUserId)) return DEFAULT_CATS;
+        const settings = await getMerchantSettings(merchantUserId);
         if (!settings?.productCategories) return DEFAULT_CATS;
         const parsed = JSON.parse(settings.productCategories);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed as string[];

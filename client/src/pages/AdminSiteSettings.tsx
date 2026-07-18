@@ -16,7 +16,7 @@ import {
   Settings, Bell, Clock, ChevronLeft, Save, AlertCircle,
   MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles,
   Download, Upload, Package2, Plus, Trash2, Shuffle, Shield,
-  ChevronUp, ChevronDown, FolderOpen, Pencil, Check, X as XIcon
+  ChevronUp, ChevronDown, FolderOpen, Pencil, Check, X as XIcon, Users
 } from "lucide-react";
 
 export default function AdminSiteSettings() {
@@ -109,6 +109,10 @@ export default function AdminSiteSettings() {
   const [otpIpMaxPerWindow, setOtpIpMaxPerWindow] = useState("10");
   const [otpIpWindowMins, setOtpIpWindowMins] = useState("15");
 
+  // 藏品社區貼的分類來源商戶
+  const [communityCategoryMerchantId, setCommunityCategoryMerchantId] = useState("");
+  const { data: approvedMerchants = [] } = trpc.users.listApprovedMerchants.useQuery();
+
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
   const exportPackagesMut = trpc.users.adminExportPackages.useMutation();
@@ -189,6 +193,7 @@ export default function AdminSiteSettings() {
     if (s.otpMaxPerHour) setOtpMaxPerHour(s.otpMaxPerHour);
     if (s.otpIpMaxPerWindow) setOtpIpMaxPerWindow(s.otpIpMaxPerWindow);
     if (s.otpIpWindowMins) setOtpIpWindowMins(s.otpIpWindowMins);
+    if (s.communityCategoryMerchantId !== undefined) setCommunityCategoryMerchantId(s.communityCategoryMerchantId);
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -1046,6 +1051,46 @@ export default function AdminSiteSettings() {
                   >
                     <Save className="w-4 h-4" />
                     {setSetting.isPending ? "儲存中..." : "儲存 OTP 限制設定"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 藏品社區貼的分類 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-amber-600" />
+                  <CardTitle className="text-lg">藏品社區貼的分類</CardTitle>
+                </div>
+                <CardDescription>選擇以哪個商戶的「商品拍賣分類」作為藏品社區發帖時的分類選項。</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">分類來源商戶</Label>
+                  <select
+                    value={communityCategoryMerchantId}
+                    onChange={(e) => setCommunityCategoryMerchantId(e.target.value)}
+                    style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                    className="w-full px-3 py-2 text-sm outline-none"
+                  >
+                    <option value="">（使用預設分類）</option>
+                    {approvedMerchants.map((m) => (
+                      <option key={m.userId} value={String(m.userId)}>{m.merchantName}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    選擇後，藏品社區發帖時的分類下拉選項會即時跟隨該商戶的商品拍賣分類設定。若未選擇，則顯示預設分類。
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => save('communityCategoryMerchantId', communityCategoryMerchantId)}
+                    disabled={setSetting.isPending}
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {setSetting.isPending ? "儲存中..." : "儲存"}
                   </Button>
                 </div>
               </CardContent>
