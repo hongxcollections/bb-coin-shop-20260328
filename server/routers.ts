@@ -8686,20 +8686,30 @@ ${kb}`;
     getOwnerCategories: publicProcedure.query(async () => {
       const DEFAULT_CATS = ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];
       try {
-        const { getRawPool } = await import('./db') as any;
-        const pool = await getRawPool();
+        const { getUserByOpenId, getMerchantSettings, getRawPool } = await import('./db') as any;
         const ownerOpenId = process.env.OWNER_OPEN_ID;
-        if (!ownerOpenId) return DEFAULT_CATS;
-        const [userRows]: any = await pool.query(`SELECT id FROM users WHERE openId = ? LIMIT 1`, [ownerOpenId]);
-        const userRow = Array.isArray(userRows) ? userRows[0] : (userRows[0]?.[0] ?? null);
-        if (!userRow) return DEFAULT_CATS;
-        const [settingsRows]: any = await pool.query(`SELECT productCategories FROM merchant_settings WHERE userId = ? LIMIT 1`, [userRow.id]);
-        const settingsRow = Array.isArray(settingsRows) ? settingsRows[0] : (settingsRows[0]?.[0] ?? null);
-        if (!settingsRow?.productCategories) return DEFAULT_CATS;
-        const parsed = JSON.parse(settingsRow.productCategories);
+        if (!ownerOpenId) { console.warn('[getOwnerCategories] OWNER_OPEN_ID not set, using defaults'); return DEFAULT_CATS; }
+        // 先試 Drizzle helper，fallback raw SQL
+        let ownerId: number | null = null;
+        try {
+          const owner = await getUserByOpenId(ownerOpenId);
+          ownerId = owner?.id ?? null;
+        } catch {}
+        if (!ownerId) {
+          const pool = await getRawPool();
+          const [rows]: any = await pool.query(`SELECT id FROM users WHERE openId = ? LIMIT 1`, [ownerOpenId]);
+          const row = Array.isArray(rows) ? rows[0] : (rows[0]?.[0] ?? null);
+          ownerId = row?.id ? Number(row.id) : null;
+        }
+        if (!ownerId) { console.warn('[getOwnerCategories] owner user not found for openId:', ownerOpenId); return DEFAULT_CATS; }
+        const settings = await getMerchantSettings(ownerId);
+        console.log('[getOwnerCategories] ownerId:', ownerId, 'productCategories:', settings?.productCategories);
+        if (!settings?.productCategories) return DEFAULT_CATS;
+        const parsed = JSON.parse(settings.productCategories);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed as string[];
         return DEFAULT_CATS;
-      } catch {
+      } catch (e) {
+        console.error('[getOwnerCategories] error:', e);
         return ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];
       }
     }),

@@ -20410,20 +20410,36 @@ ${kb}`;
     getOwnerCategories: publicProcedure.query(async () => {
       const DEFAULT_CATS = ["\u4EBA\u6C11\u5E63 1,2,3\u7248", "\u4EBA\u6C11\u5E63 4,5\u7248", "\u6E2F\u9214/\u6E2F\u5E63", "\u7D00\u5FF5\u9214/\u5E63", "\u91D1\u9280\u5E63/\u7AE0", "\u53E4\u9322/\u53E4\u5E63", "\u5916\u570B\u9214/\u5E63", "\u53E4\u8463/\u96DC\u4EF6", "\u932F\u9AD4\u9214/\u5E63", "\u5176\u5B83"];
       try {
-        const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-        const pool = await getRawPool2();
+        const { getUserByOpenId: getUserByOpenId2, getMerchantSettings: getMerchantSettings2, getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const ownerOpenId = process.env.OWNER_OPEN_ID;
-        if (!ownerOpenId) return DEFAULT_CATS;
-        const [userRows] = await pool.query(`SELECT id FROM users WHERE openId = ? LIMIT 1`, [ownerOpenId]);
-        const userRow = Array.isArray(userRows) ? userRows[0] : userRows[0]?.[0] ?? null;
-        if (!userRow) return DEFAULT_CATS;
-        const [settingsRows] = await pool.query(`SELECT productCategories FROM merchant_settings WHERE userId = ? LIMIT 1`, [userRow.id]);
-        const settingsRow = Array.isArray(settingsRows) ? settingsRows[0] : settingsRows[0]?.[0] ?? null;
-        if (!settingsRow?.productCategories) return DEFAULT_CATS;
-        const parsed = JSON.parse(settingsRow.productCategories);
+        if (!ownerOpenId) {
+          console.warn("[getOwnerCategories] OWNER_OPEN_ID not set, using defaults");
+          return DEFAULT_CATS;
+        }
+        let ownerId = null;
+        try {
+          const owner = await getUserByOpenId2(ownerOpenId);
+          ownerId = owner?.id ?? null;
+        } catch {
+        }
+        if (!ownerId) {
+          const pool = await getRawPool2();
+          const [rows] = await pool.query(`SELECT id FROM users WHERE openId = ? LIMIT 1`, [ownerOpenId]);
+          const row = Array.isArray(rows) ? rows[0] : rows[0]?.[0] ?? null;
+          ownerId = row?.id ? Number(row.id) : null;
+        }
+        if (!ownerId) {
+          console.warn("[getOwnerCategories] owner user not found for openId:", ownerOpenId);
+          return DEFAULT_CATS;
+        }
+        const settings = await getMerchantSettings2(ownerId);
+        console.log("[getOwnerCategories] ownerId:", ownerId, "productCategories:", settings?.productCategories);
+        if (!settings?.productCategories) return DEFAULT_CATS;
+        const parsed = JSON.parse(settings.productCategories);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         return DEFAULT_CATS;
-      } catch {
+      } catch (e) {
+        console.error("[getOwnerCategories] error:", e);
         return ["\u4EBA\u6C11\u5E63 1,2,3\u7248", "\u4EBA\u6C11\u5E63 4,5\u7248", "\u6E2F\u9214/\u6E2F\u5E63", "\u7D00\u5FF5\u9214/\u5E63", "\u91D1\u9280\u5E63/\u7AE0", "\u53E4\u9322/\u53E4\u5E63", "\u5916\u570B\u9214/\u5E63", "\u53E4\u8463/\u96DC\u4EF6", "\u932F\u9AD4\u9214/\u5E63", "\u5176\u5B83"];
       }
     })
