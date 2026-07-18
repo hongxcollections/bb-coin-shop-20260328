@@ -8685,12 +8685,10 @@ ${kb}`;
     /** Admin：列出所有可選商戶（供藏品社區分類來源選擇） */
     listMerchantsForCategorySelect: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
-      const { getDb } = await import('./db') as any;
-      const db = await getDb();
-      if (!db) return [];
-      // 優先用 merchantApplications (approved)，再補 merchant_settings 有設定分類的用戶
-      const { sql: drizzleSql } = await import('drizzle-orm');
-      const rows = await db.execute(drizzleSql`
+      const { getRawPool } = await import('./db') as any;
+      const pool = await getRawPool();
+      // 合併：approved merchantApplications + 任何有 merchant_settings 的用戶（兜底）
+      const [rows]: any = await pool.query(`
         SELECT ma.userId, ma.merchantName
         FROM merchantApplications ma
         WHERE ma.status = 'approved'
@@ -8698,12 +8696,16 @@ ${kb}`;
         SELECT ms.userId, u.name AS merchantName
         FROM merchant_settings ms
         JOIN users u ON u.id = ms.userId
-        WHERE ms.productCategories IS NOT NULL
-          AND ms.userId NOT IN (SELECT userId FROM merchantApplications WHERE status = 'approved')
+        WHERE ms.userId NOT IN (SELECT userId FROM merchantApplications WHERE status = 'approved')
+        UNION
+        SELECT u.id AS userId, u.name AS merchantName
+        FROM users u
+        WHERE u.role = 'admin'
+          AND u.id NOT IN (SELECT userId FROM merchantApplications WHERE status = 'approved')
         ORDER BY merchantName ASC
       `);
-      const raw = Array.isArray((rows as any)[0]) ? (rows as any)[0] : rows;
-      return (raw as Array<Record<string, unknown>>).map((r) => ({
+      const list = Array.isArray(rows) ? rows : [];
+      return list.map((r: any) => ({
         userId: Number(r.userId),
         merchantName: String(r.merchantName ?? ''),
       }));
