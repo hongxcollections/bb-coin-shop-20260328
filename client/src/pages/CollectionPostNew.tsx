@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/contexts/ToastContext";
 import { ChevronLeft, X, Loader2, AlertTriangle, Sparkles, Store } from "lucide-react";
-import { parseCategories } from "@/lib/categories";
 
 export default function CollectionPostNew() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -52,8 +51,7 @@ export default function CollectionPostNew() {
     } catch {}
   }, []);
 
-  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60_000 });
-  const allCategories = parseCategories(siteSettings as Record<string, string> | undefined);
+  const { data: allCategories = [] } = trpc.community.getOwnerCategories.useQuery(undefined, { staleTime: 5 * 60_000 });
 
   // 方案 B：商戶配額 + 自己嘅 active 商品 list（畀 selector 用）
   const { data: quotaInfo } = trpc.community.merchantPostQuota.useQuery(undefined, {

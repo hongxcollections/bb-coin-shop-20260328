@@ -8681,6 +8681,28 @@ ${kb}`;
         const r = checkForbidden(input.text);
         return r;
       }),
+
+    /** 公開：取大BB錢幣店（owner 商戶）的商品分類列表，供藏品社區發帖用 */
+    getOwnerCategories: publicProcedure.query(async () => {
+      const DEFAULT_CATS = ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];
+      try {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        const ownerOpenId = process.env.OWNER_OPEN_ID;
+        if (!ownerOpenId) return DEFAULT_CATS;
+        const [userRows]: any = await pool.query(`SELECT id FROM users WHERE openId = ? LIMIT 1`, [ownerOpenId]);
+        const userRow = Array.isArray(userRows) ? userRows[0] : (userRows[0]?.[0] ?? null);
+        if (!userRow) return DEFAULT_CATS;
+        const [settingsRows]: any = await pool.query(`SELECT productCategories FROM merchant_settings WHERE userId = ? LIMIT 1`, [userRow.id]);
+        const settingsRow = Array.isArray(settingsRows) ? settingsRows[0] : (settingsRows[0]?.[0] ?? null);
+        if (!settingsRow?.productCategories) return DEFAULT_CATS;
+        const parsed = JSON.parse(settingsRow.productCategories);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as string[];
+        return DEFAULT_CATS;
+      } catch {
+        return ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];
+      }
+    }),
   }),
 
   // ── 每日一幣挑戰（Daily Coin Challenge）— Phase 1 ───────────────────────
