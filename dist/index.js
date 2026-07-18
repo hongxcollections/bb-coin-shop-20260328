@@ -20406,6 +20406,31 @@ ${kb}`;
       const r = checkForbidden(input.text);
       return r;
     }),
+    /** Admin：列出所有可選商戶（供藏品社區分類來源選擇） */
+    listMerchantsForCategorySelect: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError3({ code: "FORBIDDEN", message: "Admin only" });
+      const { getDb: getDb2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const db = await getDb2();
+      if (!db) return [];
+      const { sql: drizzleSql } = await import("drizzle-orm");
+      const rows = await db.execute(drizzleSql`
+        SELECT ma.userId, ma.merchantName
+        FROM merchantApplications ma
+        WHERE ma.status = 'approved'
+        UNION
+        SELECT ms.userId, u.name AS merchantName
+        FROM merchant_settings ms
+        JOIN users u ON u.id = ms.userId
+        WHERE ms.productCategories IS NOT NULL
+          AND ms.userId NOT IN (SELECT userId FROM merchantApplications WHERE status = 'approved')
+        ORDER BY merchantName ASC
+      `);
+      const raw = Array.isArray(rows[0]) ? rows[0] : rows;
+      return raw.map((r) => ({
+        userId: Number(r.userId),
+        merchantName: String(r.merchantName ?? "")
+      }));
+    }),
     /** 公開：取藏品社區發帖用的分類列表（由站設定 communityCategoryMerchantId 指定商戶） */
     getOwnerCategories: publicProcedure.query(async () => {
       const DEFAULT_CATS = ["\u4EBA\u6C11\u5E63 1,2,3\u7248", "\u4EBA\u6C11\u5E63 4,5\u7248", "\u6E2F\u9214/\u6E2F\u5E63", "\u7D00\u5FF5\u9214/\u5E63", "\u91D1\u9280\u5E63/\u7AE0", "\u53E4\u9322/\u53E4\u5E63", "\u5916\u570B\u9214/\u5E63", "\u53E4\u8463/\u96DC\u4EF6", "\u932F\u9AD4\u9214/\u5E63", "\u5176\u5B83"];

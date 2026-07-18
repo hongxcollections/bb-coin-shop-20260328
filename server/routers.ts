@@ -8682,6 +8682,33 @@ ${kb}`;
         return r;
       }),
 
+    /** Admin：列出所有可選商戶（供藏品社區分類來源選擇） */
+    listMerchantsForCategorySelect: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+      const { getDb } = await import('./db') as any;
+      const db = await getDb();
+      if (!db) return [];
+      // 優先用 merchantApplications (approved)，再補 merchant_settings 有設定分類的用戶
+      const { sql: drizzleSql } = await import('drizzle-orm');
+      const rows = await db.execute(drizzleSql`
+        SELECT ma.userId, ma.merchantName
+        FROM merchantApplications ma
+        WHERE ma.status = 'approved'
+        UNION
+        SELECT ms.userId, u.name AS merchantName
+        FROM merchant_settings ms
+        JOIN users u ON u.id = ms.userId
+        WHERE ms.productCategories IS NOT NULL
+          AND ms.userId NOT IN (SELECT userId FROM merchantApplications WHERE status = 'approved')
+        ORDER BY merchantName ASC
+      `);
+      const raw = Array.isArray((rows as any)[0]) ? (rows as any)[0] : rows;
+      return (raw as Array<Record<string, unknown>>).map((r) => ({
+        userId: Number(r.userId),
+        merchantName: String(r.merchantName ?? ''),
+      }));
+    }),
+
     /** 公開：取藏品社區發帖用的分類列表（由站設定 communityCategoryMerchantId 指定商戶） */
     getOwnerCategories: publicProcedure.query(async () => {
       const DEFAULT_CATS = ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];

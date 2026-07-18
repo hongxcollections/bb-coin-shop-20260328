@@ -111,7 +111,7 @@ export default function AdminSiteSettings() {
 
   // 藏品社區貼的分類來源商戶
   const [communityCategoryMerchantId, setCommunityCategoryMerchantId] = useState("");
-  const { data: approvedMerchants = [] } = trpc.users.listApprovedMerchants.useQuery();
+  const { data: categoryMerchants = [] } = trpc.community.listMerchantsForCategorySelect.useQuery();
 
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
@@ -1075,7 +1075,7 @@ export default function AdminSiteSettings() {
                     className="w-full px-3 py-2 text-sm outline-none"
                   >
                     <option value="">（使用預設分類）</option>
-                    {approvedMerchants.map((m) => (
+                    {categoryMerchants.map((m) => (
                       <option key={m.userId} value={String(m.userId)}>{m.merchantName}</option>
                     ))}
                   </select>
