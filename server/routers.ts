@@ -14418,6 +14418,9 @@ EXAMPLE OUTPUT (exact format):
     updateListing: protectedProcedure
       .input(z.object({
         id: z.number().int(),
+        cardName: z.string().min(1).max(200).optional(),
+        setName: z.string().max(200).nullable().optional(),
+        setNumber: z.string().max(100).nullable().optional(),
         priceHKD: z.number().int().min(1).optional(),
         description: z.string().max(1000).optional(),
         photoUrls: z.array(z.string()).max(10).optional(),
@@ -14431,6 +14434,9 @@ EXAMPLE OUTPUT (exact format):
       .mutation(async ({ input, ctx }) => {
         const { updateCardListing } = await import('./db');
         await updateCardListing(input.id, ctx.user.id, {
+          cardName: input.cardName,
+          setName: input.setName,
+          setNumber: input.setNumber,
           priceHKD: input.priceHKD,
           description: input.description,
           photoUrls: input.photoUrls,
@@ -14621,6 +14627,8 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({
         id: z.number().int(),
         cardName: z.string().min(1).max(200).optional(),
+        setName: z.string().max(200).nullable().optional(),
+        setNumber: z.string().max(100).nullable().optional(),
         maxPriceHKD: z.number().int().positive().nullable().optional(),
         minCondition: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
@@ -14634,6 +14642,8 @@ EXAMPLE OUTPUT (exact format):
         const sets: string[] = ['maxPriceHKD = ?', 'minCondition = ?', 'notes = ?'];
         const vals: any[] = [input.maxPriceHKD ?? null, input.minCondition ?? null, input.notes ?? null];
         if (input.cardName) { sets.push('cardName = ?'); vals.push(input.cardName); }
+        if (input.setName !== undefined) { sets.push('setName = ?'); vals.push(input.setName ?? null); }
+        if (input.setNumber !== undefined) { sets.push('setNumber = ?'); vals.push(input.setNumber ?? null); }
         if (input.photoUrls !== undefined) { sets.push('photoUrlsJson = ?'); vals.push(JSON.stringify(input.photoUrls)); }
         if (input.officialImageUrl !== undefined) { sets.push('officialImageUrl = ?'); vals.push(input.officialImageUrl ?? null); }
         if (input.privateNote !== undefined) { sets.push('privateNote = ?'); vals.push(input.privateNote ?? null); }

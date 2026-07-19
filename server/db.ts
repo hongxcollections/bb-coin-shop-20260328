@@ -8258,11 +8258,15 @@ export async function updateCardListing(id: number, userId: number, updates: {
   priceHKD?: number; description?: string | null; status?: string; photoUrls?: string[];
   condition?: string; isGraded?: boolean; gradingOrg?: string | null; gradeScore?: string | null;
   deliveryMethod?: string | null; privateNote?: string | null;
+  cardName?: string; setName?: string | null; setNumber?: string | null;
 }) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   const sets: string[] = [];
   const params: any[] = [];
+  if (updates.cardName !== undefined) { sets.push('cardName = ?'); params.push(updates.cardName); }
+  if (updates.setName !== undefined) { sets.push('setName = ?'); params.push(updates.setName); }
+  if (updates.setNumber !== undefined) { sets.push('setNumber = ?'); params.push(updates.setNumber); }
   if (updates.priceHKD !== undefined) { sets.push('priceHKD = ?'); params.push(updates.priceHKD); }
   if (updates.description !== undefined) { sets.push('description = ?'); params.push(updates.description); }
   if (updates.status !== undefined) { sets.push('status = ?'); params.push(updates.status); }

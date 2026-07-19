@@ -7801,6 +7801,18 @@ async function updateCardListing(id, userId, updates) {
   const pool = await getRawPool();
   const sets = [];
   const params = [];
+  if (updates.cardName !== void 0) {
+    sets.push("cardName = ?");
+    params.push(updates.cardName);
+  }
+  if (updates.setName !== void 0) {
+    sets.push("setName = ?");
+    params.push(updates.setName);
+  }
+  if (updates.setNumber !== void 0) {
+    sets.push("setNumber = ?");
+    params.push(updates.setNumber);
+  }
   if (updates.priceHKD !== void 0) {
     sets.push("priceHKD = ?");
     params.push(updates.priceHKD);
@@ -25378,6 +25390,9 @@ EXAMPLE OUTPUT (exact format):
       }),
       updateListing: protectedProcedure.input(z2.object({
         id: z2.number().int(),
+        cardName: z2.string().min(1).max(200).optional(),
+        setName: z2.string().max(200).nullable().optional(),
+        setNumber: z2.string().max(100).nullable().optional(),
         priceHKD: z2.number().int().min(1).optional(),
         description: z2.string().max(1e3).optional(),
         photoUrls: z2.array(z2.string()).max(10).optional(),
@@ -25390,6 +25405,9 @@ EXAMPLE OUTPUT (exact format):
       })).mutation(async ({ input, ctx }) => {
         const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await updateCardListing2(input.id, ctx.user.id, {
+          cardName: input.cardName,
+          setName: input.setName,
+          setNumber: input.setNumber,
           priceHKD: input.priceHKD,
           description: input.description,
           photoUrls: input.photoUrls,
@@ -25540,6 +25558,8 @@ EXAMPLE OUTPUT (exact format):
       updateWTB: protectedProcedure.input(z2.object({
         id: z2.number().int(),
         cardName: z2.string().min(1).max(200).optional(),
+        setName: z2.string().max(200).nullable().optional(),
+        setNumber: z2.string().max(100).nullable().optional(),
         maxPriceHKD: z2.number().int().positive().nullable().optional(),
         minCondition: z2.string().nullable().optional(),
         notes: z2.string().nullable().optional(),
@@ -25554,6 +25574,14 @@ EXAMPLE OUTPUT (exact format):
         if (input.cardName) {
           sets.push("cardName = ?");
           vals.push(input.cardName);
+        }
+        if (input.setName !== void 0) {
+          sets.push("setName = ?");
+          vals.push(input.setName ?? null);
+        }
+        if (input.setNumber !== void 0) {
+          sets.push("setNumber = ?");
+          vals.push(input.setNumber ?? null);
         }
         if (input.photoUrls !== void 0) {
           sets.push("photoUrlsJson = ?");

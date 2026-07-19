@@ -51,7 +51,7 @@ interface Listing {
 
 interface WTB {
   id: number; game: string; cardName: string; cardNameJa: string | null;
-  setName: string | null; officialImageUrl: string | null;
+  setName: string | null; setNumber: string | null; officialImageUrl: string | null;
   maxPriceHKD: number | null; minCondition: string | null;
   notes: string | null; isActive: number; createdAt: string;
   photoUrls: string[]; privateNote: string | null;
@@ -98,6 +98,9 @@ function RemoveActionSheet({ title, info, softLabel, onSoft, onHardDelete, onClo
 }
 
 function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClose: () => void; onSaved: () => void }) {
+  const [cardNameVal, setCardNameVal] = useState(listing.cardName);
+  const [setNameVal, setSetNameVal] = useState(listing.setName ?? "");
+  const [setNumberVal, setSetNumberVal] = useState(listing.setNumber ?? "");
   const [condition, setCondition] = useState(listing.condition as "NM" | "LP" | "MP" | "HP" | "DMG");
   const [isGraded, setIsGraded] = useState(listing.isGraded);
   const [gradingOrg, setGradingOrg] = useState(listing.gradingOrg ?? "PSA");
@@ -138,6 +141,9 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
     try {
       await updateMut.mutateAsync({
         id: listing.id,
+        cardName: cardNameVal.trim() || undefined,
+        setName: setNameVal.trim() || null,
+        setNumber: setNumberVal.trim() || null,
         priceHKD: price,
         description: desc.trim() || undefined,
         condition,
@@ -226,6 +232,40 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
               )}
             </div>
             <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handlePhotoUpload(e.target.files)} />
+          </div>
+
+          {/* 卡牌名稱 / 系列 */}
+          <div>
+            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>卡牌名稱 <span style={{ color: "#CC0000" }}>*</span></label>
+            <input
+              value={cardNameVal}
+              onChange={e => setCardNameVal(e.target.value)}
+              placeholder="卡牌名稱"
+              className="w-full px-3 py-2 text-sm outline-none"
+              style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827" }}
+            />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>系列 / 系列名稱</label>
+              <input
+                value={setNameVal}
+                onChange={e => setSetNameVal(e.target.value)}
+                placeholder="系列名稱（選填）"
+                className="w-full px-3 py-2 text-sm outline-none"
+                style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827" }}
+              />
+            </div>
+            <div style={{ width: 100 }}>
+              <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>卡號</label>
+              <input
+                value={setNumberVal}
+                onChange={e => setSetNumberVal(e.target.value)}
+                placeholder="卡號（選填）"
+                className="w-full px-3 py-2 text-sm outline-none"
+                style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827" }}
+              />
+            </div>
           </div>
 
           {/* 裸卡 / 評級卡 二選一 */}
@@ -498,7 +538,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
             </span>
           </div>
           {listing.privateNote && (
-            <p className="text-[10px] mt-0.5 line-clamp-1 px-1.5 py-0.5 rounded-md" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a" }}>
+            <p className="text-[10px] mt-0.5 line-clamp-1 px-1.5 py-0.5" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a", borderRadius: "5px" }}>
               {listing.privateNote}
             </p>
           )}
@@ -537,6 +577,8 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
 function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void; onSaved: () => void }) {
   const utils = trpc.useUtils();
   const [cardName, setCardName] = useState(wtb.cardName);
+  const [setNameVal, setSetNameVal] = useState(wtb.setName ?? "");
+  const [setNumberVal, setSetNumberVal] = useState(wtb.setNumber ?? "");
   const [officialImgUrl, setOfficialImgUrl] = useState<string | null>(wtb.officialImageUrl);
   const [maxPriceStr, setMaxPriceStr] = useState(wtb.maxPriceHKD ? String(wtb.maxPriceHKD) : "");
   const [minCondition, setMinCondition] = useState(wtb.minCondition ?? "");
@@ -576,6 +618,8 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
       await updateMut.mutateAsync({
         id: wtb.id,
         cardName: cardName.trim(),
+        setName: setNameVal.trim() || null,
+        setNumber: setNumberVal.trim() || null,
         maxPriceHKD: maxPriceStr ? (parseInt(maxPriceStr, 10) || null) : null,
         minCondition: minCondition || null,
         notes: notes.trim() || null,
@@ -620,7 +664,7 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
 
             {/* 卡牌名稱 */}
             <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>卡牌名稱</label>
+              <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>卡牌名稱 <span style={{ color: "#CC0000" }}>*</span></label>
               <input
                 value={cardName}
                 onChange={e => setCardName(e.target.value)}
@@ -628,6 +672,28 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
                 className="w-full px-3 py-2.5 text-sm font-black"
                 style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
               />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>系列 / 系列名稱</label>
+                <input
+                  value={setNameVal}
+                  onChange={e => setSetNameVal(e.target.value)}
+                  placeholder="系列名稱（選填）"
+                  className="w-full px-3 py-2 text-sm outline-none"
+                  style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827" }}
+                />
+              </div>
+              <div style={{ width: 100 }}>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>卡號</label>
+                <input
+                  value={setNumberVal}
+                  onChange={e => setSetNumberVal(e.target.value)}
+                  placeholder="卡號（選填）"
+                  className="w-full px-3 py-2 text-sm outline-none"
+                  style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827" }}
+                />
+              </div>
             </div>
 
             {/* 相片 — 官方圖 + 上載圖片 */}
@@ -876,7 +942,7 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
           </div>
           {wtb.notes && <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: "#9ca3af" }}>{wtb.notes}</p>}
           {wtb.privateNote && (
-            <p className="text-[10px] mt-0.5 line-clamp-1 px-1.5 py-0.5 rounded-md" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a" }}>
+            <p className="text-[10px] mt-0.5 line-clamp-1 px-1.5 py-0.5" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a", borderRadius: "5px" }}>
               {wtb.privateNote}
             </p>
           )}
