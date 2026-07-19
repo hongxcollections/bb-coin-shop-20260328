@@ -45,7 +45,7 @@ interface Listing {
   officialImageUrl: string | null; condition: string;
   isGraded: boolean; gradingOrg: string | null; gradeScore: string | null;
   priceHKD: number; photoUrls: string[]; description: string | null;
-  deliveryMethod: string | null;
+  deliveryMethod: string | null; privateNote: string | null;
   status: string; views: number; createdAt: string;
 }
 
@@ -54,7 +54,7 @@ interface WTB {
   setName: string | null; officialImageUrl: string | null;
   maxPriceHKD: number | null; minCondition: string | null;
   notes: string | null; isActive: number; createdAt: string;
-  photoUrls: string[];
+  photoUrls: string[]; privateNote: string | null;
 }
 
 function RemoveActionSheet({ title, info, softLabel, onSoft, onHardDelete, onClose }: {
@@ -106,6 +106,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
   const [priceStr, setPriceStr] = useState(String(listing.priceHKD));
   const [desc, setDesc] = useState(listing.description ?? "");
   const [deliveryMethod, setDeliveryMethod] = useState(listing.deliveryMethod ?? "面交或郵寄");
+  const [privateNote, setPrivateNote] = useState(listing.privateNote ?? "");
   const [photos, setPhotos] = useState<string[]>(listing.photoUrls);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -145,6 +146,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
         gradeScore: isGraded ? gradeScore.trim() || null : null,
         deliveryMethod,
         photoUrls: photos,
+        privateNote: privateNote.trim() || null,
       });
       toast.success("已更新上架資料");
       onSaved();
@@ -347,6 +349,20 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
             />
           </div>
 
+          {/* Private Note */}
+          <div>
+            <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>私人備忘（只有你看到）</label>
+            <textarea
+              value={privateNote}
+              onChange={e => setPrivateNote(e.target.value)}
+              rows={2}
+              maxLength={500}
+              placeholder="例：已傾好買家、保留給朋友…"
+              className="w-full px-3 py-2 text-sm resize-none"
+              style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "12px", color: "#92400e", outline: "none" }}
+            />
+          </div>
+
           {/* Save button */}
           <div style={{ paddingBottom: 40 }}>
             <button
@@ -481,6 +497,11 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
               {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.label}
             </span>
           </div>
+          {listing.privateNote && (
+            <p className="text-[10px] mt-0.5 line-clamp-1 px-1.5 py-0.5 rounded-md" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a" }}>
+              {listing.privateNote}
+            </p>
+          )}
           <div className="flex items-center gap-2 mt-1">
             <Eye className="w-3 h-3" style={{ color: "#9ca3af" }} />
             <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.views}</span>
@@ -520,6 +541,7 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
   const [maxPriceStr, setMaxPriceStr] = useState(wtb.maxPriceHKD ? String(wtb.maxPriceHKD) : "");
   const [minCondition, setMinCondition] = useState(wtb.minCondition ?? "");
   const [notes, setNotes] = useState(wtb.notes ?? "");
+  const [privateNote, setPrivateNote] = useState(wtb.privateNote ?? "");
   const [photos, setPhotos] = useState<string[]>(wtb.photoUrls ?? []);
   const [uploading, setUploading] = useState(false);
   const [lbIdx, setLbIdx] = useState<number | null>(null);
@@ -559,6 +581,7 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
         notes: notes.trim() || null,
         photoUrls: photos,
         officialImageUrl: officialImgUrl,
+        privateNote: privateNote.trim() || null,
       });
       await utils.cardTrading.getMyWTBs.invalidate();
       toast.success("已更新求購資料");
@@ -717,6 +740,20 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
               />
             </div>
 
+            {/* Private Note (WTB) */}
+            <div>
+              <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>私人備忘（只有你看到）</label>
+              <textarea
+                value={privateNote}
+                onChange={e => setPrivateNote(e.target.value)}
+                rows={2}
+                maxLength={500}
+                placeholder="例：朋友介紹、預算上限、已問過誰…"
+                className="w-full px-3 py-2 text-sm resize-none"
+                style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "12px", color: "#92400e", outline: "none" }}
+              />
+            </div>
+
             <div style={{ paddingBottom: 40 }}>
               <button
                 onClick={handleSave}
@@ -838,6 +875,11 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
             {wtb.minCondition && <span className="text-[10px]" style={{ color: "#9ca3af" }}>最低 {wtb.minCondition}</span>}
           </div>
           {wtb.notes && <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: "#9ca3af" }}>{wtb.notes}</p>}
+          {wtb.privateNote && (
+            <p className="text-[10px] mt-0.5 line-clamp-1 px-1.5 py-0.5 rounded-md" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a" }}>
+              {wtb.privateNote}
+            </p>
+          )}
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px]" style={{ color: "#d1d5db" }}>{timeAgo(wtb.createdAt)}</span>
             {!wtb.isActive && (

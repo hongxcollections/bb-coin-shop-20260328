@@ -14338,6 +14338,7 @@ EXAMPLE OUTPUT (exact format):
         photoUrls: z.array(z.string()).max(10),
         description: z.string().max(1000).optional(),
         deliveryMethod: z.string().max(50).optional(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const {
@@ -14361,6 +14362,7 @@ EXAMPLE OUTPUT (exact format):
           photoUrls: input.photoUrls,
           description: input.description ?? null,
           deliveryMethod: input.deliveryMethod ?? null,
+          privateNote: input.privateNote ?? null,
         });
         // Notify WTB users
         try {
@@ -14392,7 +14394,7 @@ EXAMPLE OUTPUT (exact format):
       }))
       .query(async ({ input }) => {
         const { getCardListings } = await import('./db');
-        return getCardListings({
+        const rows = await getCardListings({
           game: input.game || undefined,
           status: 'active',
           cardName: input.cardName || undefined,
@@ -14400,6 +14402,7 @@ EXAMPLE OUTPUT (exact format):
           limit: input.limit,
           offset: input.offset,
         });
+        return rows.map(({ privateNote: _pn, ...r }: any) => r);
       }),
 
     getListingById: publicProcedure
@@ -14423,6 +14426,7 @@ EXAMPLE OUTPUT (exact format):
         gradingOrg: z.string().max(20).optional().nullable(),
         gradeScore: z.string().max(10).optional().nullable(),
         deliveryMethod: z.string().max(50).optional().nullable(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { updateCardListing } = await import('./db');
@@ -14435,6 +14439,7 @@ EXAMPLE OUTPUT (exact format):
           gradingOrg: input.gradingOrg,
           gradeScore: input.gradeScore,
           deliveryMethod: input.deliveryMethod,
+          privateNote: input.privateNote,
         });
         return { ok: true };
       }),
@@ -14475,7 +14480,8 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({ userId: z.number().int(), status: z.string(), limit: z.number().int().default(12) }))
       .query(async ({ input }) => {
         const { getCardListings } = await import('./db');
-        return getCardListings({ userId: input.userId, status: input.status, limit: input.limit, offset: 0 });
+        const rows = await getCardListings({ userId: input.userId, status: input.status, limit: input.limit, offset: 0 });
+        return rows.map(({ privateNote: _pn, ...r }: any) => r);
       }),
 
     getSellerCardStats: publicProcedure
@@ -14523,6 +14529,7 @@ EXAMPLE OUTPUT (exact format):
         minCondition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']).optional(),
         notes: z.string().max(500).optional(),
         photoUrls: z.array(z.string()).max(10).optional(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { createCardWTB } = await import('./db');
@@ -14536,6 +14543,7 @@ EXAMPLE OUTPUT (exact format):
           minCondition: input.minCondition ?? null,
           notes: input.notes ?? null,
           photoUrlsJson: input.photoUrls ? JSON.stringify(input.photoUrls) : null,
+          privateNote: input.privateNote ?? null,
         });
         return { id: result.id };
       }),
@@ -14548,12 +14556,13 @@ EXAMPLE OUTPUT (exact format):
       }))
       .query(async ({ input }) => {
         const { getCardWTBs } = await import('./db');
-        return getCardWTBs({
+        const rows = await getCardWTBs({
           game: input.game || undefined,
           isActive: true,
           limit: input.limit,
           offset: input.offset,
         });
+        return rows.map(({ privateNote: _pn, ...r }: any) => r);
       }),
 
     getMyWTBs: protectedProcedure
@@ -14617,6 +14626,7 @@ EXAMPLE OUTPUT (exact format):
         notes: z.string().nullable().optional(),
         photoUrls: z.array(z.string()).max(10).optional(),
         officialImageUrl: z.string().nullable().optional(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { getRawPool } = await import('./db') as any;
@@ -14626,6 +14636,7 @@ EXAMPLE OUTPUT (exact format):
         if (input.cardName) { sets.push('cardName = ?'); vals.push(input.cardName); }
         if (input.photoUrls !== undefined) { sets.push('photoUrlsJson = ?'); vals.push(JSON.stringify(input.photoUrls)); }
         if (input.officialImageUrl !== undefined) { sets.push('officialImageUrl = ?'); vals.push(input.officialImageUrl ?? null); }
+        if (input.privateNote !== undefined) { sets.push('privateNote = ?'); vals.push(input.privateNote ?? null); }
         vals.push(input.id, ctx.user.id);
         await pool.execute(
           `UPDATE cardWantToBuy SET ${sets.join(', ')} WHERE id = ? AND userId = ?`,

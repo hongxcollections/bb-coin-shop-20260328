@@ -190,6 +190,8 @@ export default function CardMarketSell() {
   const [maxPriceStr, setMaxPriceStr] = useState("");
   const [wtbCondition, setWtbCondition] = useState<"NM" | "LP" | "MP" | "HP" | "DMG" | "">("NM");
   const [wtbNotes, setWtbNotes] = useState("");
+  const [wtbPrivateNote, setWtbPrivateNote] = useState("");
+  const [privateNote, setPrivateNote] = useState("");
   const [wtbPhotos, setWtbPhotos] = useState<string[]>([]);
   const [wtbOfficialUrl, setWtbOfficialUrl] = useState<string | null>(null);
   const [wtbUploading, setWtbUploading] = useState(false);
@@ -371,6 +373,7 @@ export default function CardMarketSell() {
         photoUrls: photos,
         description: description.trim() || undefined,
         deliveryMethod,
+        privateNote: privateNote.trim() || undefined,
       });
       await utils.cardTrading.getMyListings.invalidate();
       toast.success("已成功上架！");
@@ -401,6 +404,7 @@ export default function CardMarketSell() {
         minCondition: wtbCondition || undefined,
         notes: wtbNotes.trim() || undefined,
         photoUrls: wtbPhotos.length > 0 ? wtbPhotos : undefined,
+        privateNote: wtbPrivateNote.trim() || undefined,
       });
       toast.success("已登記求購！有人上架同款卡即通知你");
       navigate("/cardzx/market/my?tab=wtb");
@@ -1004,6 +1008,22 @@ export default function CardMarketSell() {
                   />
                 </div>
 
+                {/* Private Note (sell) */}
+                <div className="mb-4">
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>
+                    私人備忘（只有你看到）
+                  </label>
+                  <textarea
+                    value={privateNote}
+                    onChange={e => setPrivateNote(e.target.value)}
+                    placeholder="例：已傾好買家、保留給朋友…"
+                    rows={2}
+                    maxLength={500}
+                    className="w-full px-3 py-2.5 text-sm resize-none"
+                    style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "12px", color: "#92400e", outline: "none" }}
+                  />
+                </div>
+
                 {/* Delivery Method */}
                 <div className="mb-6">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>交收方法</label>
@@ -1136,7 +1156,7 @@ export default function CardMarketSell() {
                   </div>
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-4">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>備註（可選）</label>
                   <textarea
                     value={wtbNotes}
@@ -1145,6 +1165,22 @@ export default function CardMarketSell() {
                     rows={3}
                     className="w-full px-3 py-2.5 text-sm resize-none"
                     style={{ background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#111827", outline: "none" }}
+                  />
+                </div>
+
+                {/* Private Note (WTB) */}
+                <div className="mb-6">
+                  <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>
+                    私人備忘（只有你看到）
+                  </label>
+                  <textarea
+                    value={wtbPrivateNote}
+                    onChange={e => setWtbPrivateNote(e.target.value)}
+                    placeholder="例：朋友介紹、預算上限、已問過誰…"
+                    rows={2}
+                    maxLength={500}
+                    className="w-full px-3 py-2.5 text-sm resize-none"
+                    style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "12px", color: "#92400e", outline: "none" }}
                   />
                 </div>
 

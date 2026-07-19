@@ -8117,6 +8117,7 @@ export async function bootstrapCardTradingTables() {
     )
   `);
   try { await pool.execute(`ALTER TABLE cardListings ADD COLUMN deliveryMethod VARCHAR(50)`); } catch {}
+  try { await pool.execute(`ALTER TABLE cardListings ADD COLUMN privateNote TEXT`); } catch {}
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardWantToBuy (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8136,6 +8137,7 @@ export async function bootstrapCardTradingTables() {
     )
   `);
   try { await pool.execute(`ALTER TABLE cardWantToBuy ADD COLUMN photoUrlsJson TEXT`); } catch {}
+  try { await pool.execute(`ALTER TABLE cardWantToBuy ADD COLUMN privateNote TEXT`); } catch {}
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardTransactions (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8230,15 +8232,15 @@ export async function createCardListing(data: {
   setNumber?: string | null; rarity?: string | null; officialImageUrl?: string | null;
   condition: string; isGraded: boolean; gradingOrg?: string | null; gradeScore?: string | null;
   priceHKD: number; photoUrls: string[]; description?: string | null;
-  deliveryMethod?: string | null;
+  deliveryMethod?: string | null; privateNote?: string | null;
 }) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   const [res]: any = await pool.execute(
     `INSERT INTO cardListings
      (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, rarity, officialImageUrl,
-      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod, privateNote)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId, data.game, data.cardApiId ?? null,
       data.cardName, data.cardNameJa ?? null, data.setName ?? null,
@@ -8246,7 +8248,7 @@ export async function createCardListing(data: {
       data.condition, data.isGraded ? 1 : 0, data.gradingOrg ?? null,
       data.gradeScore ?? null, data.priceHKD,
       JSON.stringify(data.photoUrls), data.description ?? null,
-      data.deliveryMethod ?? null,
+      data.deliveryMethod ?? null, data.privateNote ?? null,
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
@@ -8255,7 +8257,7 @@ export async function createCardListing(data: {
 export async function updateCardListing(id: number, userId: number, updates: {
   priceHKD?: number; description?: string | null; status?: string; photoUrls?: string[];
   condition?: string; isGraded?: boolean; gradingOrg?: string | null; gradeScore?: string | null;
-  deliveryMethod?: string | null;
+  deliveryMethod?: string | null; privateNote?: string | null;
 }) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
@@ -8270,6 +8272,7 @@ export async function updateCardListing(id: number, userId: number, updates: {
   if (updates.gradingOrg !== undefined) { sets.push('gradingOrg = ?'); params.push(updates.gradingOrg); }
   if (updates.gradeScore !== undefined) { sets.push('gradeScore = ?'); params.push(updates.gradeScore); }
   if (updates.deliveryMethod !== undefined) { sets.push('deliveryMethod = ?'); params.push(updates.deliveryMethod); }
+  if (updates.privateNote !== undefined) { sets.push('privateNote = ?'); params.push(updates.privateNote); }
   if (!sets.length) return;
   params.push(id, userId);
   await pool.execute(`UPDATE cardListings SET ${sets.join(', ')} WHERE id = ? AND userId = ?`, params);
@@ -8300,20 +8303,20 @@ export async function createCardWTB(data: {
   cardName: string; cardNameJa?: string | null; setName?: string | null;
   setNumber?: string | null; officialImageUrl?: string | null;
   maxPriceHKD?: number | null; minCondition?: string | null; notes?: string | null;
-  photoUrlsJson?: string | null;
+  photoUrlsJson?: string | null; privateNote?: string | null;
 }) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   const [res]: any = await pool.execute(
     `INSERT INTO cardWantToBuy
-     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes, photoUrlsJson)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes, photoUrlsJson, privateNote)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId, data.game, data.cardApiId ?? null,
       data.cardName, data.cardNameJa ?? null, data.setName ?? null,
       data.setNumber ?? null, data.officialImageUrl ?? null,
       data.maxPriceHKD ?? null, data.minCondition ?? null, data.notes ?? null,
-      data.photoUrlsJson ?? null,
+      data.photoUrlsJson ?? null, data.privateNote ?? null,
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId as number };

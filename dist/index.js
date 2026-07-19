@@ -7624,6 +7624,10 @@ async function bootstrapCardTradingTables() {
     await pool.execute(`ALTER TABLE cardListings ADD COLUMN deliveryMethod VARCHAR(50)`);
   } catch {
   }
+  try {
+    await pool.execute(`ALTER TABLE cardListings ADD COLUMN privateNote TEXT`);
+  } catch {
+  }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardWantToBuy (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -7644,6 +7648,10 @@ async function bootstrapCardTradingTables() {
   `);
   try {
     await pool.execute(`ALTER TABLE cardWantToBuy ADD COLUMN photoUrlsJson TEXT`);
+  } catch {
+  }
+  try {
+    await pool.execute(`ALTER TABLE cardWantToBuy ADD COLUMN privateNote TEXT`);
   } catch {
   }
   await pool.execute(`
@@ -7763,8 +7771,8 @@ async function createCardListing(data) {
   const [res] = await pool.execute(
     `INSERT INTO cardListings
      (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, rarity, officialImageUrl,
-      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod, privateNote)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId,
       data.game,
@@ -7782,7 +7790,8 @@ async function createCardListing(data) {
       data.priceHKD,
       JSON.stringify(data.photoUrls),
       data.description ?? null,
-      data.deliveryMethod ?? null
+      data.deliveryMethod ?? null,
+      data.privateNote ?? null
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId };
@@ -7828,6 +7837,10 @@ async function updateCardListing(id, userId, updates) {
     sets.push("deliveryMethod = ?");
     params.push(updates.deliveryMethod);
   }
+  if (updates.privateNote !== void 0) {
+    sets.push("privateNote = ?");
+    params.push(updates.privateNote);
+  }
   if (!sets.length) return;
   params.push(id, userId);
   await pool.execute(`UPDATE cardListings SET ${sets.join(", ")} WHERE id = ? AND userId = ?`, params);
@@ -7856,8 +7869,8 @@ async function createCardWTB(data) {
   const pool = await getRawPool();
   const [res] = await pool.execute(
     `INSERT INTO cardWantToBuy
-     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes, photoUrlsJson)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+     (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, officialImageUrl, maxPriceHKD, minCondition, notes, photoUrlsJson, privateNote)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId,
       data.game,
@@ -7870,7 +7883,8 @@ async function createCardWTB(data) {
       data.maxPriceHKD ?? null,
       data.minCondition ?? null,
       data.notes ?? null,
-      data.photoUrlsJson ?? null
+      data.photoUrlsJson ?? null,
+      data.privateNote ?? null
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId };
@@ -25284,7 +25298,8 @@ EXAMPLE OUTPUT (exact format):
         priceHKD: z2.number().int().min(1),
         photoUrls: z2.array(z2.string()).max(10),
         description: z2.string().max(1e3).optional(),
-        deliveryMethod: z2.string().max(50).optional()
+        deliveryMethod: z2.string().max(50).optional(),
+        privateNote: z2.string().max(500).nullable().optional()
       })).mutation(async ({ input, ctx }) => {
         const {
           createCardListing: createCardListing2,
@@ -25307,7 +25322,8 @@ EXAMPLE OUTPUT (exact format):
           priceHKD: input.priceHKD,
           photoUrls: input.photoUrls,
           description: input.description ?? null,
-          deliveryMethod: input.deliveryMethod ?? null
+          deliveryMethod: input.deliveryMethod ?? null,
+          privateNote: input.privateNote ?? null
         });
         try {
           const wtbUsers = await getMatchingWTBsForListing2(input.game, input.cardApiId ?? null, input.cardName);
@@ -25342,7 +25358,7 @@ EXAMPLE OUTPUT (exact format):
         offset: z2.number().int().min(0).default(0)
       })).query(async ({ input }) => {
         const { getCardListings: getCardListings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-        return getCardListings2({
+        const rows = await getCardListings2({
           game: input.game || void 0,
           status: "active",
           cardName: input.cardName || void 0,
@@ -25350,6 +25366,7 @@ EXAMPLE OUTPUT (exact format):
           limit: input.limit,
           offset: input.offset
         });
+        return rows.map(({ privateNote: _pn, ...r }) => r);
       }),
       getListingById: publicProcedure.input(z2.object({ id: z2.number().int() })).query(async ({ input }) => {
         const { getCardListingById: getCardListingById2, incrementCardListingViews: incrementCardListingViews2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -25368,7 +25385,8 @@ EXAMPLE OUTPUT (exact format):
         isGraded: z2.boolean().optional(),
         gradingOrg: z2.string().max(20).optional().nullable(),
         gradeScore: z2.string().max(10).optional().nullable(),
-        deliveryMethod: z2.string().max(50).optional().nullable()
+        deliveryMethod: z2.string().max(50).optional().nullable(),
+        privateNote: z2.string().max(500).nullable().optional()
       })).mutation(async ({ input, ctx }) => {
         const { updateCardListing: updateCardListing2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await updateCardListing2(input.id, ctx.user.id, {
@@ -25379,7 +25397,8 @@ EXAMPLE OUTPUT (exact format):
           isGraded: input.isGraded,
           gradingOrg: input.gradingOrg,
           gradeScore: input.gradeScore,
-          deliveryMethod: input.deliveryMethod
+          deliveryMethod: input.deliveryMethod,
+          privateNote: input.privateNote
         });
         return { ok: true };
       }),
@@ -25405,7 +25424,8 @@ EXAMPLE OUTPUT (exact format):
       }),
       getSellerListings: publicProcedure.input(z2.object({ userId: z2.number().int(), status: z2.string(), limit: z2.number().int().default(12) })).query(async ({ input }) => {
         const { getCardListings: getCardListings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-        return getCardListings2({ userId: input.userId, status: input.status, limit: input.limit, offset: 0 });
+        const rows = await getCardListings2({ userId: input.userId, status: input.status, limit: input.limit, offset: 0 });
+        return rows.map(({ privateNote: _pn, ...r }) => r);
       }),
       getSellerCardStats: publicProcedure.input(z2.object({ userId: z2.number().int() })).query(async ({ input }) => {
         const { getRawPool: getRawPool2, bootstrapCardTradingTables: bootstrapCardTradingTables2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -25444,7 +25464,8 @@ EXAMPLE OUTPUT (exact format):
         maxPriceHKD: z2.number().int().min(1).optional(),
         minCondition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
         notes: z2.string().max(500).optional(),
-        photoUrls: z2.array(z2.string()).max(10).optional()
+        photoUrls: z2.array(z2.string()).max(10).optional(),
+        privateNote: z2.string().max(500).nullable().optional()
       })).mutation(async ({ input, ctx }) => {
         const { createCardWTB: createCardWTB2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const result = await createCardWTB2({
@@ -25459,7 +25480,8 @@ EXAMPLE OUTPUT (exact format):
           maxPriceHKD: input.maxPriceHKD ?? null,
           minCondition: input.minCondition ?? null,
           notes: input.notes ?? null,
-          photoUrlsJson: input.photoUrls ? JSON.stringify(input.photoUrls) : null
+          photoUrlsJson: input.photoUrls ? JSON.stringify(input.photoUrls) : null,
+          privateNote: input.privateNote ?? null
         });
         return { id: result.id };
       }),
@@ -25469,12 +25491,13 @@ EXAMPLE OUTPUT (exact format):
         offset: z2.number().int().min(0).default(0)
       })).query(async ({ input }) => {
         const { getCardWTBs: getCardWTBs2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-        return getCardWTBs2({
+        const rows = await getCardWTBs2({
           game: input.game || void 0,
           isActive: true,
           limit: input.limit,
           offset: input.offset
         });
+        return rows.map(({ privateNote: _pn, ...r }) => r);
       }),
       getMyWTBs: protectedProcedure.input(z2.object({
         limit: z2.number().int().min(1).max(50).default(30),
@@ -25521,7 +25544,8 @@ EXAMPLE OUTPUT (exact format):
         minCondition: z2.string().nullable().optional(),
         notes: z2.string().nullable().optional(),
         photoUrls: z2.array(z2.string()).max(10).optional(),
-        officialImageUrl: z2.string().nullable().optional()
+        officialImageUrl: z2.string().nullable().optional(),
+        privateNote: z2.string().max(500).nullable().optional()
       })).mutation(async ({ input, ctx }) => {
         const { getRawPool: getRawPool2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const pool = await getRawPool2();
@@ -25538,6 +25562,10 @@ EXAMPLE OUTPUT (exact format):
         if (input.officialImageUrl !== void 0) {
           sets.push("officialImageUrl = ?");
           vals.push(input.officialImageUrl ?? null);
+        }
+        if (input.privateNote !== void 0) {
+          sets.push("privateNote = ?");
+          vals.push(input.privateNote ?? null);
         }
         vals.push(input.id, ctx.user.id);
         await pool.execute(
