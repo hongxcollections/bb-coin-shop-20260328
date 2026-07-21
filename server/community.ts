@@ -177,8 +177,8 @@ export async function listCollectionPosts(input: {
   }
   if (input.authorId) conds.push(sql`cp.userId = ${input.authorId}`);
   if (input.tag && input.tag.trim()) {
-    const tagJson = JSON.stringify(input.tag.trim());
-    conds.push(sql`JSON_CONTAINS(cp.tagsJson, ${tagJson})`);
+    const tagLike = `%${input.tag.trim()}%`;
+    conds.push(sql`cp.tagsJson LIKE ${tagLike}`);
   }
   if (input.cursor) {
     if (input.sort === "latest") {

@@ -8715,7 +8715,7 @@ ${kb}`;
 
     /** 公開：取藏品社區發帖用的分類列表（由站設定 communityCategoryMerchantId 指定商戶） */
     getOwnerCategories: publicProcedure.query(async () => {
-      const DEFAULT_CATS = ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","卡牌","其它"];
+      const DEFAULT_CATS = ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];
       try {
         const { getSiteSetting, getMerchantSettings } = await import('./db') as any;
         const merchantIdStr: string | null = await getSiteSetting('communityCategoryMerchantId');
@@ -8729,7 +8729,7 @@ ${kb}`;
         return DEFAULT_CATS;
       } catch (e) {
         console.error('[getOwnerCategories] error:', e);
-        return ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","卡牌","其它"];
+        return ["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];
       }
     }),
   }),
