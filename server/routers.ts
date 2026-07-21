@@ -14422,7 +14422,7 @@ EXAMPLE OUTPUT (exact format):
         setName: z.string().max(200).nullable().optional(),
         setNumber: z.string().max(100).nullable().optional(),
         priceHKD: z.number().int().min(1).optional(),
-        description: z.string().max(1000).optional(),
+        description: z.string().max(1000).nullable().optional(),
         photoUrls: z.array(z.string()).max(10).optional(),
         condition: z.enum(['NM', 'LP', 'MP', 'HP', 'DMG']).optional(),
         isGraded: z.boolean().optional(),

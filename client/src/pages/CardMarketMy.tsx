@@ -145,7 +145,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
         setName: setNameVal.trim() || null,
         setNumber: setNumberVal.trim() || null,
         priceHKD: price,
-        description: desc.trim() || undefined,
+        description: desc.trim() || null,
         condition,
         isGraded,
         gradingOrg: isGraded ? gradingOrg : null,

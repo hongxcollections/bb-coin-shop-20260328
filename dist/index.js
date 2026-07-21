@@ -25394,7 +25394,7 @@ EXAMPLE OUTPUT (exact format):
         setName: z2.string().max(200).nullable().optional(),
         setNumber: z2.string().max(100).nullable().optional(),
         priceHKD: z2.number().int().min(1).optional(),
-        description: z2.string().max(1e3).optional(),
+        description: z2.string().max(1e3).nullable().optional(),
         photoUrls: z2.array(z2.string()).max(10).optional(),
         condition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
         isGraded: z2.boolean().optional(),
