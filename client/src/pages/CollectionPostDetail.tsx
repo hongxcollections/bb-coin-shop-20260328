@@ -28,6 +28,7 @@ export default function CollectionPostDetail() {
     try {
       const sp = new URLSearchParams(searchStr);
       const from = sp.get("from") ?? "";
+      if (from === "card-market") return "/card-market";
       if (from.startsWith("user:")) {
         const uid = from.slice(5);
         if (uid) return `/users/${uid}?from=community`;
@@ -35,7 +36,7 @@ export default function CollectionPostDetail() {
     } catch {}
     return "/collection-square";
   })();
-  const backLabel = backHref.startsWith("/users/") ? "返回會員主頁" : "返回藏品社區";
+  const backLabel = backHref === "/card-market" ? "返回卡牌交易" : backHref.startsWith("/users/") ? "返回會員主頁" : "返回藏品社區";
   const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
