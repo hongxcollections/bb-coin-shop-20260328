@@ -5,7 +5,7 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal, QrCode, MessageSquare, Pencil, Trash2, Send, ImagePlus, ThumbsUp, CornerDownRight } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal, QrCode, MessageSquare, MessageCircle, Pencil, Trash2, Send, ImagePlus, ThumbsUp, CornerDownRight } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
