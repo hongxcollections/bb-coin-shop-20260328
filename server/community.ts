@@ -158,6 +158,7 @@ export async function listCollectionPosts(input: {
    * - "all"：兩種都包
    */
   tab?: "community" | "merchant" | "all";
+  tag?: string;
 }) {
   const db = await getDb();
   if (!db) return { items: [], nextCursor: null as number | null };
@@ -175,6 +176,10 @@ export async function listCollectionPosts(input: {
     conds.push(sql`(cp.title LIKE ${kw} OR cp.body LIKE ${kw})`);
   }
   if (input.authorId) conds.push(sql`cp.userId = ${input.authorId}`);
+  if (input.tag && input.tag.trim()) {
+    const tagJson = JSON.stringify(input.tag.trim());
+    conds.push(sql`JSON_CONTAINS(cp.tagsJson, ${tagJson})`);
+  }
   if (input.cursor) {
     if (input.sort === "latest") {
       conds.push(sql`cp.id < ${input.cursor}`);

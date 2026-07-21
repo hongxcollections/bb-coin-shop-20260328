@@ -8415,6 +8415,7 @@ ${kb}`;
         authorId: z.number().int().positive().optional(),
         // 方案 B：tab 過濾。"community"（預設）唔包商戶帖；"merchant" 只 show 商戶帖；"all" 兩種都 show。
         tab: z.enum(["community", "merchant", "all"]).default("community"),
+        tag: z.string().max(40).optional(),
       }))
       .query(async ({ input, ctx }) => {
         const viewerIsAdmin = ctx.user?.role === "admin";
@@ -8428,6 +8429,7 @@ ${kb}`;
           viewerUserId: ctx.user?.id ?? null,
           authorId: input.authorId,
           tab: input.tab,
+          tag: input.tag,
         });
       }),
 

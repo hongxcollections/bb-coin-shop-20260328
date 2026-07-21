@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
@@ -18,9 +18,13 @@ function intentBadge(intent: string) {
 export default function CollectionSquare() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const searchStr = useSearch();
+  const urlParams = new URLSearchParams(searchStr);
+  const urlTag = urlParams.get("tag") ?? "";
   const [sort, setSort] = useState<"latest" | "hot">("latest");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState(urlTag);
   // 方案 B：tab — community（純會員分享）/ merchant（商戶上架）
   const [tab, setTab] = useState<"community" | "merchant">("community");
 
@@ -30,6 +34,7 @@ export default function CollectionSquare() {
     search: search || undefined,
     limit: 30,
     tab,
+    tag: tagFilter || undefined,
   });
 
   const { data: challengeToday } = trpc.dailyChallenge.today.useQuery(undefined, {
@@ -79,6 +84,32 @@ export default function CollectionSquare() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 -mt-5 relative">
+        {/* 由卡牌交易跳轉時顯示 banner */}
+        {tagFilter === "卡牌" && (
+          <div className="mb-4 px-3 py-2.5 rounded-2xl flex items-center justify-between gap-2" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base flex-shrink-0">🃏</span>
+              <span className="text-xs font-semibold text-amber-800">只顯示卡牌相關帖子</span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => navigate("/cardzx/market")}
+                className="text-xs font-bold px-2.5 py-1 rounded-full"
+                style={{ background: "#F97316", color: "#fff" }}
+              >
+                ← 返回卡牌交易
+              </button>
+              <button
+                onClick={() => setTagFilter("")}
+                className="text-xs font-semibold px-2 py-1 rounded-full"
+                style={{ background: "#fde68a", color: "#92400e" }}
+              >
+                睇全部帖
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 每日一幣挑戰 入口 banner */}
         <Link href="/daily-challenge">
           <a className="block mb-4">
@@ -230,7 +261,7 @@ export default function CollectionSquare() {
             )}
           </form>
           {/* 方案 B：tab bar — 會員分享 / 商戶上架 */}
-          <div className="flex items-center gap-2 mt-3 border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2 mt-3 border-b border-gray-100 pb-3 flex-wrap">
             <button
               type="button"
               onClick={() => setTab("community")}
@@ -252,6 +283,17 @@ export default function CollectionSquare() {
               }`}
             >
               <Store className="w-3.5 h-3.5" />商戶上架
+            </button>
+            <button
+              type="button"
+              onClick={() => setTagFilter(tagFilter === "卡牌" ? "" : "卡牌")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                tagFilter === "卡牌"
+                  ? "bg-yellow-400 text-gray-900 border-yellow-400 shadow-sm"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-yellow-300"
+              }`}
+            >
+              🃏 卡牌{tagFilter === "卡牌" && " ✕"}
             </button>
           </div>
           <div className="flex items-center gap-1.5 mt-3">

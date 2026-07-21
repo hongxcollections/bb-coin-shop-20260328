@@ -1590,6 +1590,14 @@ export default function CardMarket() {
   const recentListings = listings;
   const wtbList = wtbs as WTB[];
 
+  const { data: communityData } = trpc.community.list.useQuery({
+    intent: "all",
+    sort: "latest",
+    limit: 6,
+    tab: "all",
+    tag: "卡牌",
+  }, { staleTime: 120000 });
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setSearch(searchInput.trim());
@@ -1869,6 +1877,51 @@ export default function CardMarket() {
               style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
               登記
             </button>
+          </div>
+        )}
+
+        {/* 社區卡牌帖 */}
+        {communityData && communityData.items.length > 0 && (
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1 h-4 rounded-full" style={{ background: "#0ea5e9" }} />
+                <MessageCircle className="w-3.5 h-3.5" style={{ color: "#0ea5e9" }} />
+                <span className="text-sm font-black" style={{ color: "#111827" }}>社區卡牌分享</span>
+              </div>
+              <a
+                href="/collection-square?tag=卡牌"
+                onClick={e => { e.preventDefault(); navigate("/collection-square?tag=卡牌"); }}
+                className="text-xs font-bold"
+                style={{ color: "#F97316" }}
+              >
+                睇更多 →
+              </a>
+            </div>
+            <div className="flex flex-col gap-2">
+              {communityData.items.slice(0, 5).map(post => (
+                <div
+                  key={post.id}
+                  className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer"
+                  style={{ background: "#fff", border: "1px solid #f0f0f0" }}
+                  onClick={() => navigate(`/collection-square/${post.id}?from=card-market`)}
+                >
+                  {post.coverImage ? (
+                    <img src={post.coverImage} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" style={{ background: "#f3f4f6" }} />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: "#f3f4f6" }}>🃏</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold line-clamp-1" style={{ color: "#111827" }}>{post.title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>{post.authorName ?? "匿名"}</p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0" style={{ color: "#9ca3af" }}>
+                    <MessageCircle className="w-3 h-3" />
+                    <span className="text-xs">{post.commentCount}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

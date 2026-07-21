@@ -11044,6 +11044,10 @@ async function listCollectionPosts(input) {
     conds.push(sql4`(cp.title LIKE ${kw} OR cp.body LIKE ${kw})`);
   }
   if (input.authorId) conds.push(sql4`cp.userId = ${input.authorId}`);
+  if (input.tag && input.tag.trim()) {
+    const tagJson = JSON.stringify(input.tag.trim());
+    conds.push(sql4`JSON_CONTAINS(cp.tagsJson, ${tagJson})`);
+  }
   if (input.cursor) {
     if (input.sort === "latest") {
       conds.push(sql4`cp.id < ${input.cursor}`);
@@ -20226,7 +20230,8 @@ ${kb}`;
       limit: z2.number().int().min(1).max(50).default(20),
       authorId: z2.number().int().positive().optional(),
       // 方案 B：tab 過濾。"community"（預設）唔包商戶帖；"merchant" 只 show 商戶帖；"all" 兩種都 show。
-      tab: z2.enum(["community", "merchant", "all"]).default("community")
+      tab: z2.enum(["community", "merchant", "all"]).default("community"),
+      tag: z2.string().max(40).optional()
     })).query(async ({ input, ctx }) => {
       const viewerIsAdmin = ctx.user?.role === "admin";
       return listCollectionPosts({
@@ -20238,7 +20243,8 @@ ${kb}`;
         viewerIsAdmin,
         viewerUserId: ctx.user?.id ?? null,
         authorId: input.authorId,
-        tab: input.tab
+        tab: input.tab,
+        tag: input.tag
       });
     }),
     // 方案 B：商戶查詢自己當月配額
