@@ -20467,7 +20467,7 @@ ${kb}`;
     }),
     /** 公開：取藏品社區發帖用的分類列表（由站設定 communityCategoryMerchantId 指定商戶） */
     getOwnerCategories: publicProcedure.query(async () => {
-      const DEFAULT_CATS = ["\u4EBA\u6C11\u5E63 1,2,3\u7248", "\u4EBA\u6C11\u5E63 4,5\u7248", "\u6E2F\u9214/\u6E2F\u5E63", "\u7D00\u5FF5\u9214/\u5E63", "\u91D1\u9280\u5E63/\u7AE0", "\u53E4\u9322/\u53E4\u5E63", "\u5916\u570B\u9214/\u5E63", "\u53E4\u8463/\u96DC\u4EF6", "\u932F\u9AD4\u9214/\u5E63", "\u5176\u5B83"];
+      const DEFAULT_CATS = ["\u4EBA\u6C11\u5E63 1,2,3\u7248", "\u4EBA\u6C11\u5E63 4,5\u7248", "\u6E2F\u9214/\u6E2F\u5E63", "\u7D00\u5FF5\u9214/\u5E63", "\u91D1\u9280\u5E63/\u7AE0", "\u53E4\u9322/\u53E4\u5E63", "\u5916\u570B\u9214/\u5E63", "\u53E4\u8463/\u96DC\u4EF6", "\u932F\u9AD4\u9214/\u5E63", "\u5361\u724C", "\u5176\u5B83"];
       try {
         const { getSiteSetting: getSiteSetting3, getMerchantSettings: getMerchantSettings2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const merchantIdStr = await getSiteSetting3("communityCategoryMerchantId");
@@ -20481,7 +20481,7 @@ ${kb}`;
         return DEFAULT_CATS;
       } catch (e) {
         console.error("[getOwnerCategories] error:", e);
-        return ["\u4EBA\u6C11\u5E63 1,2,3\u7248", "\u4EBA\u6C11\u5E63 4,5\u7248", "\u6E2F\u9214/\u6E2F\u5E63", "\u7D00\u5FF5\u9214/\u5E63", "\u91D1\u9280\u5E63/\u7AE0", "\u53E4\u9322/\u53E4\u5E63", "\u5916\u570B\u9214/\u5E63", "\u53E4\u8463/\u96DC\u4EF6", "\u932F\u9AD4\u9214/\u5E63", "\u5176\u5B83"];
+        return ["\u4EBA\u6C11\u5E63 1,2,3\u7248", "\u4EBA\u6C11\u5E63 4,5\u7248", "\u6E2F\u9214/\u6E2F\u5E63", "\u7D00\u5FF5\u9214/\u5E63", "\u91D1\u9280\u5E63/\u7AE0", "\u53E4\u9322/\u53E4\u5E63", "\u5916\u570B\u9214/\u5E63", "\u53E4\u8463/\u96DC\u4EF6", "\u932F\u9AD4\u9214/\u5E63", "\u5361\u724C", "\u5176\u5B83"];
       }
     })
   }),
