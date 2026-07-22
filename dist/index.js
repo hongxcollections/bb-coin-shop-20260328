@@ -27185,8 +27185,10 @@ async function injectCardMarketListingOgMeta(html, reqPath, reqQuery, protocol, 
     const setName = row.setName ?? "";
     const condition = row.condition ?? "";
     const ogTitle = `${titleName} | HKD $${price} | ${gameLabel} | CardZx | hongxcollections.com`;
-    const descParts = [cardName, rarity, setName, `HKD $${price}`, condition, gameLabel].filter(Boolean);
-    const ogDesc = `${descParts.join(" \xB7 ")} | CardZx \u5361\u724C\u5E02\u5834 hongxcollections`;
+    const infoParts = [cardName, rarity, setName, condition, gameLabel].filter(Boolean);
+    const ogDesc = `${infoParts.join(" \xB7 ")}
+HKD $${price}
+@\u6240\u6709\u4EBA \u6B61\u8FCE\u767B\u5165\u7DB2\u7AD9\u9F4A\u4F86\u9078\u8CFC`;
     const photoUrlsParsed = (() => {
       try {
         const v = row.photoUrlsJson;
