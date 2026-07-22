@@ -1417,7 +1417,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
             )}
           </div>
           {listing.description && (
-            <p className="text-sm mt-2 leading-relaxed" style={{ color: "#374151" }}>{listing.description}</p>
+            <p className="text-sm mt-2 leading-relaxed whitespace-pre-wrap" style={{ color: "#374151" }}>{listing.description}</p>
           )}
         </div>
 

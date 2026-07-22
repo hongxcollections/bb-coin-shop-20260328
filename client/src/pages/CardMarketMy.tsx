@@ -538,7 +538,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
             </span>
           </div>
           {listing.privateNote && (
-            <p className="text-[10px] mt-0.5 line-clamp-1 px-1.5 py-0.5" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a", borderRadius: "5px" }}>
+            <p className="text-[10px] mt-0.5 line-clamp-1 whitespace-pre-wrap px-1.5 py-0.5" style={{ background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a", borderRadius: "5px" }}>
               {listing.privateNote}
             </p>
           )}
