@@ -85,7 +85,7 @@ function ListingShareDropdown({ listing }: { listing: ListingForShare }) {
   const gameLabel = GAMES.find(g => g.id === listing.game)?.label ?? listing.game;
   const shareUrl = `${SHARE_ORIGIN}/cardzx/market?listing=${listing.id}`;
   const shareParts = [gameLabel, listing.cardName, listing.rarity, listing.setName].filter(Boolean);
-  const shareText = shareParts.join(" · ") + `\nHKD $${listing.priceHKD.toLocaleString()}\n${shareUrl}`;
+  const shareText = shareParts.join(" · ") + `\nHKD $${listing.priceHKD.toLocaleString()}\n@所有人 歡迎登入網站齊來選購!\n${shareUrl}`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
@@ -738,7 +738,7 @@ function WTBShareDropdown({ wtb }: { wtb: WTB }) {
   const shareUrl = `${SHARE_ORIGIN}/cardzx/market?wtb=${wtb.id}`;
   const pricePart = (wtb.maxPriceHKD && wtb.maxPriceHKD > 0) ? `上限 HKD $${wtb.maxPriceHKD.toLocaleString()}` : "HKD 價格面議";
   const shareParts = [`[求購] ${gameLabel} · ${wtb.cardName}`, wtb.setName, pricePart].filter(Boolean);
-  const shareText = shareParts.join("\n") + `\n${shareUrl}`;
+  const shareText = shareParts.join("\n") + `\n@所有人 歡迎登入網站齊來選購!\n${shareUrl}`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
