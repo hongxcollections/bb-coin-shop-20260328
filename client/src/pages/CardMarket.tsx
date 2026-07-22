@@ -22,7 +22,7 @@ const GAMES = [
 ] as const;
 
 const CONDITION_LABELS: Record<string, { label: string; full: string; color: string }> = {
-  NM:  { label: "NM", full: "NM — 近全新", color: "#16a34a" },
+  NM:  { label: "M/NM", full: "M/NM — 全新/近全新", color: "#16a34a" },
   LP:  { label: "LP", full: "LP — 輕微磨損", color: "#65a30d" },
   MP:  { label: "MP", full: "MP — 中度磨損", color: "#d97706" },
   HP:  { label: "HP", full: "HP — 嚴重磨損", color: "#ea580c" },

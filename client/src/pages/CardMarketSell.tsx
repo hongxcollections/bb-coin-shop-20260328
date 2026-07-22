@@ -31,7 +31,7 @@ type GameId = typeof GAMES[number]["id"];
 type BrowsableGame = "pokemon" | "yugioh" | "mtg" | "digimon";
 
 const CONDITIONS = [
-  { id: "NM", label: "NM — 近全新", desc: "無可見磨損" },
+  { id: "NM", label: "M/NM — 全新/近全新", desc: "無可見磨損" },
   { id: "LP", label: "LP — 輕微磨損", desc: "輕微刮痕或折痕" },
   { id: "MP", label: "MP — 中度磨損", desc: "明顯磨損但可辨別" },
   { id: "HP", label: "HP — 嚴重磨損", desc: "大量磨損" },
