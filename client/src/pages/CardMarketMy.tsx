@@ -145,14 +145,14 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
         setName: setNameVal.trim() || null,
         setNumber: setNumberVal.trim() || null,
         priceHKD: price,
-        description: desc.trim() || null,
+        description: desc || null,
         condition,
         isGraded,
         gradingOrg: isGraded ? gradingOrg : null,
         gradeScore: isGraded ? gradeScore.trim() || null : null,
         deliveryMethod,
         photoUrls: photos,
-        privateNote: privateNote.trim() || null,
+        privateNote: privateNote || null,
       });
       toast.success("已更新上架資料");
       onSaved();
@@ -625,7 +625,7 @@ function EditWTBSheet({ wtb, onClose, onSaved }: { wtb: WTB; onClose: () => void
         notes: notes.trim() || null,
         photoUrls: photos,
         officialImageUrl: officialImgUrl,
-        privateNote: privateNote.trim() || null,
+        privateNote: privateNote || null,
       });
       await utils.cardTrading.getMyWTBs.invalidate();
       toast.success("已更新求購資料");

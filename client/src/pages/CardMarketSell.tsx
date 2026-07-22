@@ -371,9 +371,9 @@ export default function CardMarketSell() {
         gradeScore: isGraded ? gradeScore : undefined,
         priceHKD: price,
         photoUrls: photos,
-        description: description.trim() || undefined,
+        description: description || undefined,
         deliveryMethod,
-        privateNote: privateNote.trim() || undefined,
+        privateNote: privateNote || undefined,
       });
       await utils.cardTrading.getMyListings.invalidate();
       toast.success("已成功上架！");
