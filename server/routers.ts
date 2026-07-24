@@ -14811,6 +14811,61 @@ EXAMPLE OUTPUT (exact format):
         const signed = await storageSignPut(key, mime, 300);
         return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl };
       }),
+
+    // ── Promo Videos ─────────────────────────────────────────────────────────
+    signPromoVideoUpload: protectedProcedure
+      .input(z.object({ mimeType: z.string().default('video/mp4') }))
+      .mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser } = await import('./db') as any;
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已批核商戶會員才可上載推廣影片' });
+        }
+        const allowed = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'];
+        const mime = (input.mimeType || 'video/mp4').toLowerCase();
+        if (!allowed.includes(mime)) throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此視頻格式（${mime}）` });
+        const ext = mime === 'video/webm' ? 'webm' : mime === 'video/quicktime' ? 'mov' : 'mp4';
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `card-promo-videos/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 600);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl };
+      }),
+
+    createPromoVideo: protectedProcedure
+      .input(z.object({ videoUrl: z.string().url() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser, createCardPromoVideo } = await import('./db') as any;
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已批核商戶會員才可上載推廣影片' });
+        }
+        const result = await createCardPromoVideo(ctx.user.id, input.videoUrl);
+        return { id: result.id };
+      }),
+
+    deactivatePromoVideo: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser, deactivateCardPromoVideo } = await import('./db') as any;
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已批核商戶會員才可取消推廣影片' });
+        }
+        await deactivateCardPromoVideo(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+
+    getPromoVideos: publicProcedure
+      .query(async () => {
+        const { getActiveCardPromoVideos } = await import('./db') as any;
+        return getActiveCardPromoVideos(10);
+      }),
+
+    getMyPromoVideos: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getMyCardPromoVideos } = await import('./db') as any;
+        return getMyCardPromoVideos(ctx.user.id);
+      }),
   }); })(),
 });
 export type AppRouter = typeof appRouter;

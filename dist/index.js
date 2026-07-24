@@ -1027,6 +1027,7 @@ __export(db_exports, {
   countRecentBuyerOffersForProduct: () => countRecentBuyerOffersForProduct,
   createAuction: () => createAuction,
   createCardListing: () => createCardListing,
+  createCardPromoVideo: () => createCardPromoVideo,
   createCardWTB: () => createCardWTB,
   createDepositTopUpRequest: () => createDepositTopUpRequest,
   createEmptyGalleryItem: () => createEmptyGalleryItem,
@@ -1040,6 +1041,7 @@ __export(db_exports, {
   createRefundRequest: () => createRefundRequest,
   createSubscriptionPlan: () => createSubscriptionPlan,
   createUserSubscription: () => createUserSubscription,
+  deactivateCardPromoVideo: () => deactivateCardPromoVideo,
   deactivateCardWTB: () => deactivateCardWTB,
   deactivateProxyBid: () => deactivateProxyBid,
   deductCommission: () => deductCommission,
@@ -1065,6 +1067,7 @@ __export(db_exports, {
   exportPackagesData: () => exportPackagesData,
   getActiveAuctionsEndingSoon: () => getActiveAuctionsEndingSoon,
   getActiveBuyerOfferForProduct: () => getActiveBuyerOfferForProduct,
+  getActiveCardPromoVideos: () => getActiveCardPromoVideos,
   getActiveFeaturedListings: () => getActiveFeaturedListings,
   getActiveProxiesForAuction: () => getActiveProxiesForAuction,
   getActiveSubscriptionPlans: () => getActiveSubscriptionPlans,
@@ -1122,6 +1125,7 @@ __export(db_exports, {
   getMerchantProduct: () => getMerchantProduct,
   getMerchantSettings: () => getMerchantSettings,
   getMessageRoomId: () => getMessageRoomId,
+  getMyCardPromoVideos: () => getMyCardPromoVideos,
   getMyChatUnreadTotal: () => getMyChatUnreadTotal,
   getMyDepositTopUpRequests: () => getMyDepositTopUpRequests,
   getMyRefundRequests: () => getMyRefundRequests,
@@ -7690,6 +7694,61 @@ async function bootstrapCardTradingTables() {
       INDEX idx_clcl_commentId (commentId)
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardPromoVideos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      userId INT NOT NULL,
+      videoUrl TEXT NOT NULL,
+      isActive TINYINT(1) DEFAULT 1,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cpv_userId (userId),
+      INDEX idx_cpv_isActive (isActive)
+    )
+  `);
+}
+async function createCardPromoVideo(userId, videoUrl) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [res] = await pool.execute(
+    `INSERT INTO cardPromoVideos (userId, videoUrl, isActive) VALUES (?, ?, 1)`,
+    [userId, videoUrl]
+  );
+  return { id: (Array.isArray(res) ? res[0] : res).insertId };
+}
+async function getActiveCardPromoVideos(limit = 10) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(
+    `SELECT id, userId, videoUrl, createdAt FROM cardPromoVideos WHERE isActive = 1 ORDER BY RAND() LIMIT ?`,
+    [limit]
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  return list.map((r) => ({
+    id: Number(r.id),
+    userId: Number(r.userId),
+    videoUrl: String(r.videoUrl),
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt)
+  }));
+}
+async function getMyCardPromoVideos(userId) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(
+    `SELECT id, videoUrl, isActive, createdAt FROM cardPromoVideos WHERE userId = ? ORDER BY createdAt DESC`,
+    [userId]
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  return list.map((r) => ({
+    id: Number(r.id),
+    videoUrl: String(r.videoUrl),
+    isActive: Number(r.isActive) === 1,
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt)
+  }));
+}
+async function deactivateCardPromoVideo(id, userId) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`UPDATE cardPromoVideos SET isActive = 0 WHERE id = ? AND userId = ?`, [id, userId]);
 }
 async function getCardListings(opts) {
   await bootstrapCardTradingTables();
@@ -25744,6 +25803,48 @@ EXAMPLE OUTPUT (exact format):
         const key = `card-comments/${ctx.user.id}/${uid}.${ext}`;
         const signed = await storageSignPut(key, mime, 300);
         return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl };
+      }),
+      // ── Promo Videos ─────────────────────────────────────────────────────────
+      signPromoVideoUpload: protectedProcedure.input(z2.object({ mimeType: z2.string().default("video/mp4") })).mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser: getMerchantApplicationByUser2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const app = await getMerchantApplicationByUser2(ctx.user.id);
+        if (app?.status !== "approved" && ctx.user.role !== "admin") {
+          throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u4E0A\u8F09\u63A8\u5EE3\u5F71\u7247" });
+        }
+        const allowed = ["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"];
+        const mime = (input.mimeType || "video/mp4").toLowerCase();
+        if (!allowed.includes(mime)) throw new TRPCError3({ code: "BAD_REQUEST", message: `\u4E0D\u652F\u63F4\u6B64\u8996\u983B\u683C\u5F0F\uFF08${mime}\uFF09` });
+        const ext = mime === "video/webm" ? "webm" : mime === "video/quicktime" ? "mov" : "mp4";
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `card-promo-videos/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 600);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl };
+      }),
+      createPromoVideo: protectedProcedure.input(z2.object({ videoUrl: z2.string().url() })).mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser: getMerchantApplicationByUser2, createCardPromoVideo: createCardPromoVideo2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const app = await getMerchantApplicationByUser2(ctx.user.id);
+        if (app?.status !== "approved" && ctx.user.role !== "admin") {
+          throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u4E0A\u8F09\u63A8\u5EE3\u5F71\u7247" });
+        }
+        const result = await createCardPromoVideo2(ctx.user.id, input.videoUrl);
+        return { id: result.id };
+      }),
+      deactivatePromoVideo: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser: getMerchantApplicationByUser2, deactivateCardPromoVideo: deactivateCardPromoVideo2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const app = await getMerchantApplicationByUser2(ctx.user.id);
+        if (app?.status !== "approved" && ctx.user.role !== "admin") {
+          throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u53D6\u6D88\u63A8\u5EE3\u5F71\u7247" });
+        }
+        await deactivateCardPromoVideo2(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+      getPromoVideos: publicProcedure.query(async () => {
+        const { getActiveCardPromoVideos: getActiveCardPromoVideos2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getActiveCardPromoVideos2(10);
+      }),
+      getMyPromoVideos: protectedProcedure.query(async ({ ctx }) => {
+        const { getMyCardPromoVideos: getMyCardPromoVideos2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getMyCardPromoVideos2(ctx.user.id);
       })
     });
   })()

@@ -6,8 +6,9 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X, Plus, RotateCcw, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X, Plus, RotateCcw, AlertTriangle, Video, Upload, EyeOff } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-provider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const CONDITION_LABELS: Record<string, { label: string; color: string }> = {
   NM:  { label: "M/NM", color: "#16a34a" },
@@ -976,7 +977,171 @@ function WTBRow({ wtb, onRefresh }: { wtb: WTB; onRefresh: () => void }) {
   );
 }
 
-type Tab = "active" | "sold" | "removed" | "wtb";
+type Tab = "active" | "sold" | "removed" | "wtb" | "video";
+
+// ── Promo Video Upload Panel ──────────────────────────────────────────────────
+function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
+  const [showMerchantAlert, setShowMerchantAlert] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const signMut = trpc.cardTrading.signPromoVideoUpload.useMutation();
+  const createMut = trpc.cardTrading.createPromoVideo.useMutation();
+  const deactivateMut = trpc.cardTrading.deactivatePromoVideo.useMutation();
+  const { data: myVideos = [], refetch: refetchVideos } = trpc.cardTrading.getMyPromoVideos.useQuery(undefined, { refetchOnMount: "always" });
+  const confirm = useConfirm();
+
+  async function handleFileSelect(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const MAX_MB = 30;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      toast.error(`影片不可超過 ${MAX_MB}MB（目前 ${(file.size / 1024 / 1024).toFixed(1)}MB）`);
+      return;
+    }
+    const allowed = ["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"];
+    if (!allowed.includes(file.type)) {
+      toast.error("只支援 MP4 / WebM / MOV 格式");
+      return;
+    }
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const { uploadUrl, finalUrl } = await signMut.mutateAsync({ mimeType: file.type });
+      // Upload with progress tracking via XHR
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`));
+        xhr.onerror = () => reject(new Error("Upload network error"));
+        xhr.open("PUT", uploadUrl);
+        xhr.setRequestHeader("Content-Type", file.type);
+        xhr.send(file);
+      });
+      await createMut.mutateAsync({ videoUrl: finalUrl });
+      toast.success("推廣影片已上載！將隨機在卡牌主頁播放");
+      refetchVideos();
+    } catch (err: any) {
+      toast.error(err?.message ?? "上載失敗，請重試");
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeactivate(id: number) {
+    const ok = await confirm({ title: "取消推廣影片展示", description: "此影片將立即停止在卡牌主頁展示。確認嗎？", confirmText: "確認取消展示", tone: "danger" });
+    if (!ok) return;
+    await deactivateMut.mutateAsync({ id });
+    toast.success("已取消展示");
+    refetchVideos();
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Upload button */}
+      <div
+        className="flex flex-col items-center justify-center py-6 rounded-2xl cursor-pointer"
+        style={{ background: "#fff", border: "2px dashed #e5e7eb" }}
+        onClick={() => {
+          if (!isMerchant) { setShowMerchantAlert(true); return; }
+          fileInputRef.current?.click();
+        }}
+      >
+        {uploading ? (
+          <>
+            <Loader2 className="w-7 h-7 animate-spin mb-2" style={{ color: "#0ea5e9" }} />
+            <p className="text-sm font-bold" style={{ color: "#0ea5e9" }}>上載中… {uploadProgress}%</p>
+            <div className="mt-2 w-40 rounded-full overflow-hidden" style={{ height: 4, background: "#e5e7eb" }}>
+              <div style={{ width: `${uploadProgress}%`, background: "#0ea5e9", height: "100%", transition: "width 0.2s" }} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2" style={{ background: "linear-gradient(135deg,#0ea5e9,#38bdf8)" }}>
+              <Upload className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-sm font-black" style={{ color: "#111827" }}>上載推廣影片</p>
+            <p className="text-xs mt-1" style={{ color: "#9ca3af" }}>最多 30MB · MP4 / WebM / MOV</p>
+            {!isMerchant && (
+              <div className="mt-2 px-3 py-1 rounded-full text-xs font-bold" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316" }}>
+                只限商戶會員
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime,video/x-m4v"
+        className="hidden"
+        onChange={e => handleFileSelect(e.target.files)}
+      />
+
+      {/* My videos list */}
+      {(myVideos as any[]).length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-black px-1" style={{ color: "#374151" }}>我的推廣影片</p>
+          {(myVideos as any[]).map((v: any) => (
+            <div key={v.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
+              <video
+                src={v.videoUrl}
+                className="w-full"
+                style={{ maxHeight: 180, objectFit: "cover" }}
+                muted
+                playsInline
+                preload="metadata"
+              />
+              <div className="px-3 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ background: v.isActive ? "#16a34a" : "#9ca3af" }} />
+                  <span className="text-xs font-bold" style={{ color: v.isActive ? "#16a34a" : "#9ca3af" }}>
+                    {v.isActive ? "展示中" : "已停止展示"}
+                  </span>
+                </div>
+                {v.isActive && (
+                  <button
+                    onClick={() => handleDeactivate(v.id)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+                    style={{ background: "rgba(220,38,38,0.08)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)" }}
+                  >
+                    <EyeOff className="w-3 h-3" />取消展示
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Merchant-only alert dialog */}
+      <Dialog open={showMerchantAlert} onOpenChange={setShowMerchantAlert}>
+        <DialogContent className="max-w-xs rounded-3xl" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="px-6 pt-6 pb-5 flex flex-col items-center text-center gap-3">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#0ea5e9,#38bdf8)" }}>
+              <Video className="w-7 h-7 text-white" />
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-base font-black" style={{ color: "#111827" }}>只限商戶會員使用</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm" style={{ color: "#6b7280" }}>上載推廣影片功能只供已登記及批核嘅商戶會員使用。如有興趣成為商戶，請聯絡我們。</p>
+            <button
+              onClick={() => setShowMerchantAlert(false)}
+              className="w-full py-3 rounded-2xl text-sm font-black"
+              style={{ background: "linear-gradient(90deg,#0ea5e9,#38bdf8)", color: "#fff" }}
+            >
+              明白
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 export default function CardMarketMy() {
   const [, navigate] = useLocation();
@@ -984,7 +1149,7 @@ export default function CardMarketMy() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [tab, setTab] = useState<Tab>(() => {
     const p = new URLSearchParams(search).get("tab");
-    if (p === "sold" || p === "removed" || p === "wtb") return p;
+    if (p === "sold" || p === "removed" || p === "wtb" || p === "video") return p as Tab;
     return "active";
   });
 
@@ -992,6 +1157,8 @@ export default function CardMarketMy() {
   const { data: soldListings = [], refetch: refetchSold } = trpc.cardTrading.getMyListings.useQuery({ status: "sold", limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
   const { data: removedListings = [], refetch: refetchRemoved } = trpc.cardTrading.getMyListings.useQuery({ status: "removed", limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
   const { data: myWTBs = [], refetch: refetchWTBs } = trpc.cardTrading.getMyWTBs.useQuery({ limit: 50 }, { enabled: isAuthenticated, refetchOnMount: "always" });
+  const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
+  const isMerchant = !!isMerchantData;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -1016,6 +1183,7 @@ export default function CardMarketMy() {
     { id: "sold", label: "已售出", count: (soldListings as Listing[]).length },
     { id: "removed", label: "已下架", count: (removedListings as Listing[]).length },
     { id: "wtb", label: "求購 WTB", count: (myWTBs as WTB[]).filter(w => w.isActive).length },
+    { id: "video", label: "推廣影片" },
   ];
 
   const currentListings: Listing[] =
@@ -1075,10 +1243,11 @@ export default function CardMarketMy() {
               onClick={() => setTab(t.id)}
               className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
               style={tab === t.id
-                ? { background: t.id === "wtb" ? "rgba(249,115,22,0.12)" : "linear-gradient(90deg, #FFDE00, #FFB800)", color: t.id === "wtb" ? "#F97316" : "#111827" }
+                ? { background: t.id === "wtb" ? "rgba(249,115,22,0.12)" : t.id === "video" ? "rgba(14,165,233,0.12)" : "linear-gradient(90deg, #FFDE00, #FFB800)", color: t.id === "wtb" ? "#F97316" : t.id === "video" ? "#0ea5e9" : "#111827" }
                 : { color: "#9ca3af" }}
             >
               {t.id === "wtb" && <ShoppingBag className="w-3 h-3" />}
+              {t.id === "video" && <Video className="w-3 h-3" />}
               {t.label}
               {(t.count ?? 0) > 0 && (
                 <span className="text-[9px] px-1 py-0.5 rounded-full min-w-[16px] text-center" style={{ background: tab === t.id ? "rgba(255,255,255,0.25)" : "#f3f4f6", color: tab === t.id ? "#fff" : "#9ca3af" }}>
@@ -1090,7 +1259,9 @@ export default function CardMarketMy() {
         </div>
 
         {/* Content */}
-        {tab !== "wtb" ? (
+        {tab === "video" ? (
+          <PromoVideoPanel isMerchant={isMerchant} />
+        ) : tab !== "wtb" ? (
           <div className="flex flex-col gap-2">
             {currentListings.length === 0 ? (
               <div className="flex flex-col items-center py-10 gap-3">

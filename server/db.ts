@@ -8171,6 +8171,65 @@ export async function bootstrapCardTradingTables() {
       INDEX idx_clcl_commentId (commentId)
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardPromoVideos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      userId INT NOT NULL,
+      videoUrl TEXT NOT NULL,
+      isActive TINYINT(1) DEFAULT 1,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cpv_userId (userId),
+      INDEX idx_cpv_isActive (isActive)
+    )
+  `);
+}
+
+export async function createCardPromoVideo(userId: number, videoUrl: string): Promise<{ id: number }> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [res]: any = await pool.execute(
+    `INSERT INTO cardPromoVideos (userId, videoUrl, isActive) VALUES (?, ?, 1)`,
+    [userId, videoUrl]
+  );
+  return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
+}
+
+export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number; userId: number; videoUrl: string; createdAt: string }[]> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, userId, videoUrl, createdAt FROM cardPromoVideos WHERE isActive = 1 ORDER BY RAND() LIMIT ?`,
+    [limit]
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  return list.map((r: any) => ({
+    id: Number(r.id),
+    userId: Number(r.userId),
+    videoUrl: String(r.videoUrl),
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  }));
+}
+
+export async function getMyCardPromoVideos(userId: number): Promise<{ id: number; videoUrl: string; isActive: boolean; createdAt: string }[]> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, videoUrl, isActive, createdAt FROM cardPromoVideos WHERE userId = ? ORDER BY createdAt DESC`,
+    [userId]
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  return list.map((r: any) => ({
+    id: Number(r.id),
+    videoUrl: String(r.videoUrl),
+    isActive: Number(r.isActive) === 1,
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  }));
+}
+
+export async function deactivateCardPromoVideo(id: number, userId: number): Promise<void> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`UPDATE cardPromoVideos SET isActive = 0 WHERE id = ? AND userId = ?`, [id, userId]);
 }
 
 export async function getCardListings(opts: {

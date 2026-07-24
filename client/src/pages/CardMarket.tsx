@@ -5,10 +5,156 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal, QrCode, MessageSquare, MessageCircle, Pencil, Trash2, Send, ImagePlus, ThumbsUp, CornerDownRight } from "lucide-react";
+import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, ClipboardList, X, LayoutGrid, LayoutList, ChevronDown, Share2, Copy, Check, MoreHorizontal, QrCode, MessageSquare, MessageCircle, Pencil, Trash2, Send, ImagePlus, ThumbsUp, CornerDownRight, Volume2, VolumeX, Play, EyeOff } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
+
+// ── Promo Video Player ───────────────────────────────────────────────────────
+const PROMO_AUTO_STOP_SECS = 8;
+
+function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
+  video: { id: number; userId: number; videoUrl: string };
+  currentUserId?: number;
+  isMerchant: boolean;
+  onDismiss: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
+  const [playFull, setPlayFull] = useState(false);
+  const [stopped, setStopped] = useState(false);
+  const deactivateMut = trpc.cardTrading.deactivatePromoVideo.useMutation();
+  const utils = trpc.useUtils();
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.currentTime = 0;
+    el.muted = true;
+    el.play().catch(() => {});
+  }, [video.videoUrl]);
+
+  useEffect(() => {
+    if (playFull || stopped) return;
+    const el = videoRef.current;
+    if (!el) return;
+    const check = setInterval(() => {
+      if (el.currentTime >= PROMO_AUTO_STOP_SECS) {
+        el.pause();
+        setStopped(true);
+        clearInterval(check);
+      }
+    }, 200);
+    return () => clearInterval(check);
+  }, [playFull, stopped]);
+
+  function handlePlayFull() {
+    setPlayFull(true);
+    setStopped(false);
+    const el = videoRef.current;
+    if (!el) return;
+    el.muted = false;
+    setMuted(false);
+    el.play().catch(() => {});
+  }
+
+  async function handleCancelDisplay() {
+    try {
+      await deactivateMut.mutateAsync({ id: video.id });
+      utils.cardTrading.getPromoVideos.invalidate();
+      toast.success("已取消展示");
+      onDismiss();
+    } catch (err: any) {
+      toast.error(err?.message ?? "操作失敗");
+    }
+  }
+
+  const isOwner = currentUserId != null && currentUserId === video.userId;
+
+  return (
+    <div
+      className="relative overflow-hidden"
+      style={{ borderRadius: 12, background: "#000", width: "100%" }}
+    >
+      <video
+        ref={videoRef}
+        src={video.videoUrl}
+        muted={muted}
+        playsInline
+        loop={playFull}
+        className="w-full"
+        style={{ maxHeight: 200, objectFit: "cover", display: "block" }}
+      />
+
+      {/* Dismiss button top-right */}
+      <button
+        onClick={onDismiss}
+        className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center"
+        style={{ background: "rgba(0,0,0,0.55)" }}
+      >
+        <X className="w-3.5 h-3.5 text-white" />
+      </button>
+
+      {/* Mute toggle top-left */}
+      <button
+        onClick={() => {
+          const el = videoRef.current;
+          if (!el) return;
+          const newMuted = !muted;
+          el.muted = newMuted;
+          setMuted(newMuted);
+        }}
+        className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center"
+        style={{ background: "rgba(0,0,0,0.55)" }}
+      >
+        {muted ? <VolumeX className="w-3 h-3 text-white" /> : <Volume2 className="w-3 h-3 text-white" />}
+      </button>
+
+      {/* Overlay when stopped at 8s */}
+      {stopped && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+        >
+          <button
+            onClick={handlePlayFull}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black"
+            style={{ background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827" }}
+          >
+            <Play className="w-3.5 h-3.5" />播放全部
+          </button>
+        </div>
+      )}
+
+      {/* Bottom bar */}
+      <div className="px-2.5 py-1.5 flex items-center justify-between" style={{ background: "rgba(0,0,0,0.72)" }}>
+        <span className="text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>
+          推廣影片 · {playFull ? "播放中" : `限時 ${PROMO_AUTO_STOP_SECS}s`}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {!stopped && !playFull && (
+            <button
+              onClick={handlePlayFull}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
+            >
+              <Play className="w-2.5 h-2.5" />播放全部
+            </button>
+          )}
+          {isMerchant && isOwner && (
+            <button
+              onClick={handleCancelDisplay}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black"
+              style={{ background: "rgba(220,38,38,0.2)", color: "#fca5a5" }}
+            >
+              <EyeOff className="w-2.5 h-2.5" />取消展示
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const GAMES = [
   { id: "", label: "全部" },
@@ -1541,6 +1687,8 @@ export default function CardMarket() {
   const [wtbLightbox, setWtbLightbox] = useState<WTB | null>(null);
   const [riskOpen, setRiskOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [promoVideoIdx, setPromoVideoIdx] = useState(0);
+  const [promoDismissed, setPromoDismissed] = useState(false);
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
@@ -1589,6 +1737,12 @@ export default function CardMarket() {
   const hotListings = [...listings].sort((a, b) => b.views - a.views).slice(0, 10);
   const recentListings = listings;
   const wtbList = wtbs as WTB[];
+
+  const { data: promoVideosRaw = [] } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { staleTime: 60000 });
+  const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
+  const isMerchant = !!isMerchantData;
+  const promoVideos = promoVideosRaw as { id: number; userId: number; videoUrl: string }[];
+  const activePromoVideo = !promoDismissed && promoVideos.length > 0 ? promoVideos[promoVideoIdx % promoVideos.length] : null;
 
   const { data: communityData } = trpc.community.list.useQuery({
     intent: "all",
@@ -1733,6 +1887,24 @@ export default function CardMarket() {
           </div>
         ))}
       </div>
+
+      {/* ── Promo Video Player ── */}
+      {activePromoVideo && (
+        <div className="px-[5px] mb-3">
+          <PromoVideoPlayer
+            video={activePromoVideo}
+            currentUserId={user?.id}
+            isMerchant={isMerchant}
+            onDismiss={() => {
+              if (promoVideos.length > 1) {
+                setPromoVideoIdx(i => (i + 1) % promoVideos.length);
+              } else {
+                setPromoDismissed(true);
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* ── Content area ── */}
       <div className="px-[5px]">
