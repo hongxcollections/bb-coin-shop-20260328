@@ -976,6 +976,7 @@ __export(db_exports, {
   FEATURED_TIER_LABELS: () => FEATURED_TIER_LABELS,
   FEATURED_TIER_PRICES: () => FEATURED_TIER_PRICES,
   MAX_FEATURED_SLOTS: () => MAX_FEATURED_SLOTS,
+  activateCardPromoVideo: () => activateCardPromoVideo,
   addAuctionImage: () => addAuctionImage,
   addGalleryImagesToPool: () => addGalleryImagesToPool,
   addProductGalleryItems: () => addProductGalleryItems,
@@ -7749,6 +7750,11 @@ async function deactivateCardPromoVideo(id, userId) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   await pool.execute(`UPDATE cardPromoVideos SET isActive = 0 WHERE id = ? AND userId = ?`, [id, userId]);
+}
+async function activateCardPromoVideo(id, userId) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`UPDATE cardPromoVideos SET isActive = 1 WHERE id = ? AND userId = ?`, [id, userId]);
 }
 async function deleteCardPromoVideo(id, userId) {
   await bootstrapCardTradingTables();
@@ -25841,6 +25847,15 @@ EXAMPLE OUTPUT (exact format):
           throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u53D6\u6D88\u63A8\u5EE3\u5F71\u7247" });
         }
         await deactivateCardPromoVideo2(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+      activatePromoVideo: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser: getMerchantApplicationByUser2, activateCardPromoVideo: activateCardPromoVideo2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const app = await getMerchantApplicationByUser2(ctx.user.id);
+        if (app?.status !== "approved" && ctx.user.role !== "admin") {
+          throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u5C55\u793A\u63A8\u5EE3\u5F71\u7247" });
+        }
+        await activateCardPromoVideo2(input.id, ctx.user.id);
         return { ok: true };
       }),
       deletePromoVideo: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {

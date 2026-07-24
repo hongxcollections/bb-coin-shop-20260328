@@ -8231,6 +8231,12 @@ export async function deactivateCardPromoVideo(id: number, userId: number): Prom
   await pool.execute(`UPDATE cardPromoVideos SET isActive = 0 WHERE id = ? AND userId = ?`, [id, userId]);
 }
 
+export async function activateCardPromoVideo(id: number, userId: number): Promise<void> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`UPDATE cardPromoVideos SET isActive = 1 WHERE id = ? AND userId = ?`, [id, userId]);
+}
+
 export async function deleteCardPromoVideo(id: number, userId: number): Promise<void> {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();

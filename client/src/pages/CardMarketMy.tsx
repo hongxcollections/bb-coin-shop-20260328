@@ -990,6 +990,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
   const signMut = trpc.cardTrading.signPromoVideoUpload.useMutation();
   const createMut = trpc.cardTrading.createPromoVideo.useMutation();
   const deactivateMut = trpc.cardTrading.deactivatePromoVideo.useMutation();
+  const activateMut = trpc.cardTrading.activatePromoVideo.useMutation();
   const deleteMut = trpc.cardTrading.deletePromoVideo.useMutation();
   const { data: myVideos = [], refetch: refetchVideos } = trpc.cardTrading.getMyPromoVideos.useQuery(undefined, { refetchOnMount: "always" });
   const confirm = useConfirm();
@@ -1052,13 +1053,10 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
     const ok = await confirm({ title: "恢復展示推廣影片", description: "此影片將重新在卡牌主頁隨機播放。", confirmText: "確認恢復" });
     if (!ok) return;
     try {
-      // reuse deactivate route with isActive toggle via a re-upload is not needed;
-      // call a direct update — use the deactivate procedure won't work, so we use deletePromoVideo + recreate flow.
-      // Simpler: just set isActive=1 via a dedicated activate. For now use deactivateMut is wrong direction.
-      // We'll add activatePromoVideo or just call createPromoVideo with same URL after deactivate.
-      // Actually simplest: the server deactivatePromoVideo only sets isActive=0. We need a separate activate.
-      // For now, we won't show "恢復展示" — user can re-upload instead. Skip for now.
-      toast.info("請重新上載影片以恢復展示");
+      await activateMut.mutateAsync({ id });
+      toast.success("已恢復展示");
+      refetchVideos();
+      utils.cardTrading.getPromoVideos.invalidate();
     } catch (err: any) {
       toast.error(err?.message ?? "操作失敗");
     }
@@ -1172,9 +1170,13 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
                     <EyeOff className="w-3 h-3" />取消展示
                   </button>
                 ) : (
-                  <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold" style={{ background: "#f3f4f6", color: "#9ca3af", border: "1px solid #e5e7eb" }}>
-                    <EyeOff className="w-3 h-3" />已停止展示
-                  </span>
+                  <button
+                    onClick={() => handleReactivate(v.id)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold"
+                    style={{ background: "rgba(22,163,74,0.08)", color: "#16a34a", border: "1px solid rgba(22,163,74,0.2)" }}
+                  >
+                    <Eye className="w-3 h-3" />恢復展示
+                  </button>
                 )}
 
                 {/* 永久拆除 */}

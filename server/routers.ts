@@ -14855,6 +14855,18 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    activatePromoVideo: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser, activateCardPromoVideo } = await import('./db') as any;
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已批核商戶會員才可展示推廣影片' });
+        }
+        await activateCardPromoVideo(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+
     deletePromoVideo: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ input, ctx }) => {

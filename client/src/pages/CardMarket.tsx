@@ -23,8 +23,7 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
   const [muted, setMuted] = useState(true);
   const [playFull, setPlayFull] = useState(false);
   const [stopped, setStopped] = useState(false);
-  const deactivateMut = trpc.cardTrading.deactivatePromoVideo.useMutation();
-  const utils = trpc.useUtils();
+  const [dissolving, setDissolving] = useState(false);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -34,6 +33,7 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
     el.play().catch(() => {});
   }, [video.videoUrl]);
 
+  // 8-second auto-stop (only when not in full-play mode)
   useEffect(() => {
     if (playFull || stopped) return;
     const el = videoRef.current;
@@ -58,93 +58,103 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
     el.play().catch(() => {});
   }
 
-  async function handleCancelDisplay() {
-    try {
-      await deactivateMut.mutateAsync({ id: video.id });
-      utils.cardTrading.getPromoVideos.invalidate();
-      toast.success("已取消展示");
-      onDismiss();
-    } catch (err: any) {
-      toast.error(err?.message ?? "操作失敗");
-    }
+  // Auto-dismiss with dissolve when full video ends
+  function handleEnded() {
+    setDissolving(true);
+    setTimeout(() => onDismiss(), 900);
   }
 
-  const isOwner = currentUserId != null && currentUserId === video.userId;
-
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 74,
-        right: 10,
-        zIndex: 200,
-        width: 200,
-        borderRadius: 14,
-        overflow: "hidden",
-        background: "#000",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
-      }}
-    >
-      <video
-        ref={videoRef}
-        src={video.videoUrl}
-        muted={muted}
-        playsInline
-        loop={playFull}
-        style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
-      />
-
-      {/* Dismiss button top-right */}
-      <button
-        onClick={onDismiss}
-        style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-      >
-        <X style={{ width: 12, height: 12, color: "#fff" }} />
-      </button>
-
-      {/* Mute toggle top-left */}
-      <button
-        onClick={() => {
-          const el = videoRef.current;
-          if (!el) return;
-          const newMuted = !muted;
-          el.muted = newMuted;
-          setMuted(newMuted);
+    <>
+      <style>{`
+        @keyframes promoDissolveFade {
+          0%   { opacity: 1; transform: scale(1) translateY(0px); filter: blur(0px); }
+          40%  { opacity: 0.7; transform: scale(1.06) translateY(-5px); filter: blur(1px); }
+          100% { opacity: 0; transform: scale(0.88) translateY(-14px); filter: blur(10px); }
+        }
+      `}</style>
+      <div
+        style={{
+          position: "fixed",
+          top: 74,
+          right: 10,
+          zIndex: 200,
+          width: 200,
+          borderRadius: 14,
+          overflow: "hidden",
+          background: "#000",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+          animation: dissolving ? "promoDissolveFade 0.9s ease-out forwards" : undefined,
+          pointerEvents: dissolving ? "none" : undefined,
         }}
-        style={{ position: "absolute", top: 6, left: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
       >
-        {muted
-          ? <VolumeX style={{ width: 11, height: 11, color: "#fff" }} />
-          : <Volume2 style={{ width: 11, height: 11, color: "#fff" }} />}
-      </button>
+        <video
+          ref={videoRef}
+          src={video.videoUrl}
+          muted={muted}
+          playsInline
+          style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
+          onEnded={playFull ? handleEnded : undefined}
+        />
 
-      {/* Overlay when stopped at 8s */}
-      {stopped && (
-        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.62)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <button
-            onClick={handlePlayFull}
-            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 999, fontSize: 11, fontWeight: 900, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none", cursor: "pointer" }}
-          >
-            <Play style={{ width: 12, height: 12 }} />播放全部
-          </button>
-        </div>
-      )}
+        {/* ✕ dismiss — always visible top-right */}
+        <button
+          onClick={onDismiss}
+          style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
+        >
+          <X style={{ width: 12, height: 12, color: "#fff" }} />
+        </button>
 
-      {/* Bottom bar */}
-      <div style={{ padding: "5px 8px", background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.45)" }}>
-          推廣影片{playFull ? "" : ` · ${PROMO_AUTO_STOP_SECS}s`}
-        </span>
-        {!stopped && !playFull && (
-          <button
-            onClick={handlePlayFull}
-            style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 900, background: "rgba(255,255,255,0.12)", color: "#fff", border: "none", cursor: "pointer" }}
-          >
-            <Play style={{ width: 8, height: 8 }} />播放全部
-          </button>
+        {/* Mute toggle top-left */}
+        <button
+          onClick={() => {
+            const el = videoRef.current;
+            if (!el) return;
+            const newMuted = !muted;
+            el.muted = newMuted;
+            setMuted(newMuted);
+          }}
+          style={{ position: "absolute", top: 6, left: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
+        >
+          {muted
+            ? <VolumeX style={{ width: 11, height: 11, color: "#fff" }} />
+            : <Volume2 style={{ width: 11, height: 11, color: "#fff" }} />}
+        </button>
+
+        {/* Overlay when stopped at 8s — shows both 播放全部 AND ✕ */}
+        {stopped && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            <button
+              onClick={handlePlayFull}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 999, fontSize: 11, fontWeight: 900, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none", cursor: "pointer" }}
+            >
+              <Play style={{ width: 12, height: 12 }} />播放全部
+            </button>
+            <button
+              onClick={onDismiss}
+              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 999, fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer" }}
+            >
+              <X style={{ width: 10, height: 10 }} />取消
+            </button>
+          </div>
         )}
+
+        {/* Bottom label */}
+        <div style={{ padding: "5px 8px", background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.45)" }}>
+            推廣影片{playFull ? "" : ` · ${PROMO_AUTO_STOP_SECS}s`}
+          </span>
+          {!stopped && !playFull && (
+            <button
+              onClick={handlePlayFull}
+              style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 900, background: "rgba(255,255,255,0.12)", color: "#fff", border: "none", cursor: "pointer" }}
+            >
+              <Play style={{ width: 8, height: 8 }} />播放全部
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
