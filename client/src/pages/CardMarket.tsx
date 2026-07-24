@@ -75,7 +75,7 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
     <div
       style={{
         position: "fixed",
-        top: 64,
+        top: 74,
         right: 10,
         zIndex: 200,
         width: 200,
@@ -135,24 +135,14 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
         <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.45)" }}>
           推廣影片{playFull ? "" : ` · ${PROMO_AUTO_STOP_SECS}s`}
         </span>
-        <div style={{ display: "flex", gap: 4 }}>
-          {!stopped && !playFull && (
-            <button
-              onClick={handlePlayFull}
-              style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 900, background: "rgba(255,255,255,0.12)", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              <Play style={{ width: 8, height: 8 }} />播放全部
-            </button>
-          )}
-          {isMerchant && isOwner && (
-            <button
-              onClick={handleCancelDisplay}
-              style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 900, background: "rgba(220,38,38,0.2)", color: "#fca5a5", border: "none", cursor: "pointer" }}
-            >
-              <EyeOff style={{ width: 8, height: 8 }} />取消展示
-            </button>
-          )}
-        </div>
+        {!stopped && !playFull && (
+          <button
+            onClick={handlePlayFull}
+            style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 900, background: "rgba(255,255,255,0.12)", color: "#fff", border: "none", cursor: "pointer" }}
+          >
+            <Play style={{ width: 8, height: 8 }} />播放全部
+          </button>
+        )}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { useLocation, useSearch } from "wouter";
 import Header from "@/components/Header";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X, Plus, RotateCcw, AlertTriangle, Video, Upload, EyeOff } from "lucide-react";
+import { ChevronLeft, Edit2, Trash2, Check, ShoppingBag, Loader2, Eye, X, Plus, RotateCcw, AlertTriangle, Video, Upload, EyeOff, Play } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -984,11 +984,13 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
   const [showMerchantAlert, setShowMerchantAlert] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [viewingUrl, setViewingUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
   const signMut = trpc.cardTrading.signPromoVideoUpload.useMutation();
   const createMut = trpc.cardTrading.createPromoVideo.useMutation();
   const deactivateMut = trpc.cardTrading.deactivatePromoVideo.useMutation();
+  const deleteMut = trpc.cardTrading.deletePromoVideo.useMutation();
   const { data: myVideos = [], refetch: refetchVideos } = trpc.cardTrading.getMyPromoVideos.useQuery(undefined, { refetchOnMount: "always" });
   const confirm = useConfirm();
 
@@ -1009,7 +1011,6 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
     setUploadProgress(0);
     try {
       const { uploadUrl, finalUrl } = await signMut.mutateAsync({ mimeType: file.type });
-      // Upload with progress tracking via XHR
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = (e) => {
@@ -1035,11 +1036,50 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
   }
 
   async function handleDeactivate(id: number) {
-    const ok = await confirm({ title: "取消推廣影片展示", description: "此影片將立即停止在卡牌主頁展示。確認嗎？", confirmText: "確認取消展示", tone: "danger" });
+    const ok = await confirm({ title: "取消推廣影片展示", description: "此影片將立即停止在卡牌主頁展示。", confirmText: "確認取消", tone: "danger" });
     if (!ok) return;
-    await deactivateMut.mutateAsync({ id });
-    toast.success("已取消展示");
-    refetchVideos();
+    try {
+      await deactivateMut.mutateAsync({ id });
+      toast.success("已取消展示");
+      refetchVideos();
+      utils.cardTrading.getPromoVideos.invalidate();
+    } catch (err: any) {
+      toast.error(err?.message ?? "操作失敗");
+    }
+  }
+
+  async function handleReactivate(id: number) {
+    const ok = await confirm({ title: "恢復展示推廣影片", description: "此影片將重新在卡牌主頁隨機播放。", confirmText: "確認恢復" });
+    if (!ok) return;
+    try {
+      // reuse deactivate route with isActive toggle via a re-upload is not needed;
+      // call a direct update — use the deactivate procedure won't work, so we use deletePromoVideo + recreate flow.
+      // Simpler: just set isActive=1 via a dedicated activate. For now use deactivateMut is wrong direction.
+      // We'll add activatePromoVideo or just call createPromoVideo with same URL after deactivate.
+      // Actually simplest: the server deactivatePromoVideo only sets isActive=0. We need a separate activate.
+      // For now, we won't show "恢復展示" — user can re-upload instead. Skip for now.
+      toast.info("請重新上載影片以恢復展示");
+    } catch (err: any) {
+      toast.error(err?.message ?? "操作失敗");
+    }
+  }
+
+  async function handleDelete(id: number) {
+    // Triple confirmation
+    const ok1 = await confirm({ title: "永久拆除推廣影片", description: "此操作將永久刪除影片記錄，無法復原。確定要繼續嗎？", confirmText: "繼續", tone: "danger" });
+    if (!ok1) return;
+    const ok2 = await confirm({ title: "⚠️ 再次確認", description: "影片將從系統中永久移除，卡牌主頁亦不會再播放。這是不可逆操作。", confirmText: "我明白，繼續", tone: "danger" });
+    if (!ok2) return;
+    const ok3 = await confirm({ title: "🚨 最後確認", description: "確定要永久拆除這條推廣影片嗎？", confirmText: "永久拆除", tone: "danger" });
+    if (!ok3) return;
+    try {
+      await deleteMut.mutateAsync({ id });
+      toast.success("已永久拆除");
+      refetchVideos();
+      utils.cardTrading.getPromoVideos.invalidate();
+    } catch (err: any) {
+      toast.error(err?.message ?? "拆除失敗");
+    }
   }
 
   return (
@@ -1090,34 +1130,92 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
           <p className="text-xs font-black px-1" style={{ color: "#374151" }}>我的推廣影片</p>
           {(myVideos as any[]).map((v: any) => (
             <div key={v.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e5e7eb" }}>
-              <video
-                src={v.videoUrl}
-                className="w-full"
-                style={{ maxHeight: 180, objectFit: "cover" }}
-                muted
-                playsInline
-                preload="metadata"
-              />
-              <div className="px-3 py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ background: v.isActive ? "#16a34a" : "#9ca3af" }} />
-                  <span className="text-xs font-bold" style={{ color: v.isActive ? "#16a34a" : "#9ca3af" }}>
-                    {v.isActive ? "展示中" : "已停止展示"}
-                  </span>
+              {/* Thumbnail (non-interactive) */}
+              <div className="relative" style={{ background: "#000" }}>
+                <video
+                  src={v.videoUrl}
+                  style={{ width: "100%", maxHeight: 160, objectFit: "cover", display: "block", opacity: v.isActive ? 1 : 0.45 }}
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+                <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: "none" }}>
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
+                    <Play className="w-5 h-5 text-white" style={{ marginLeft: 2 }} />
+                  </div>
                 </div>
-                {v.isActive && (
+                {/* Status badge */}
+                <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: v.isActive ? "rgba(22,163,74,0.85)" : "rgba(107,114,128,0.85)" }}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                  <span className="text-[10px] font-black text-white">{v.isActive ? "展示中" : "已停止展示"}</span>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="px-3 py-2.5 flex items-center gap-2 flex-wrap">
+                {/* 檢視影片 */}
+                <button
+                  onClick={() => setViewingUrl(v.videoUrl)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold"
+                  style={{ background: "rgba(14,165,233,0.08)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.2)" }}
+                >
+                  <Eye className="w-3 h-3" />檢視影片
+                </button>
+
+                {/* 取消展示 / 已停止 */}
+                {v.isActive ? (
                   <button
                     onClick={() => handleDeactivate(v.id)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold"
                     style={{ background: "rgba(220,38,38,0.08)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)" }}
                   >
                     <EyeOff className="w-3 h-3" />取消展示
                   </button>
+                ) : (
+                  <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold" style={{ background: "#f3f4f6", color: "#9ca3af", border: "1px solid #e5e7eb" }}>
+                    <EyeOff className="w-3 h-3" />已停止展示
+                  </span>
                 )}
+
+                {/* 永久拆除 */}
+                <button
+                  onClick={() => handleDelete(v.id)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold ml-auto"
+                  style={{ background: "rgba(127,29,29,0.07)", color: "#991b1b", border: "1px solid rgba(127,29,29,0.15)" }}
+                >
+                  <Trash2 className="w-3 h-3" />永久拆除
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Video viewer modal */}
+      {viewingUrl && createPortal(
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: 500, background: "rgba(0,0,0,0.85)" }}
+          onClick={() => setViewingUrl(null)}
+        >
+          <div className="relative w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <video
+              src={viewingUrl}
+              controls
+              autoPlay
+              playsInline
+              style={{ width: "100%", borderRadius: 16, background: "#000", maxHeight: "75vh", objectFit: "contain" }}
+            />
+            <button
+              onClick={() => setViewingUrl(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
+            >
+              <X className="w-4 h-4" style={{ color: "#111827" }} />
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Merchant-only alert dialog */}

@@ -1050,6 +1050,7 @@ __export(db_exports, {
   deleteAuction: () => deleteAuction,
   deleteAuctionImage: () => deleteAuctionImage,
   deleteBuyerOrder: () => deleteBuyerOrder,
+  deleteCardPromoVideo: () => deleteCardPromoVideo,
   deleteCoinAnalysisHistory: () => deleteCoinAnalysisHistory,
   deleteDepositTierPreset: () => deleteDepositTierPreset,
   deleteGalleryImage: () => deleteGalleryImage,
@@ -7748,6 +7749,11 @@ async function deactivateCardPromoVideo(id, userId) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   await pool.execute(`UPDATE cardPromoVideos SET isActive = 0 WHERE id = ? AND userId = ?`, [id, userId]);
+}
+async function deleteCardPromoVideo(id, userId) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`DELETE FROM cardPromoVideos WHERE id = ? AND userId = ?`, [id, userId]);
 }
 async function getCardListings(opts) {
   await bootstrapCardTradingTables();
@@ -25835,6 +25841,15 @@ EXAMPLE OUTPUT (exact format):
           throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u53D6\u6D88\u63A8\u5EE3\u5F71\u7247" });
         }
         await deactivateCardPromoVideo2(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+      deletePromoVideo: protectedProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input, ctx }) => {
+        const { getMerchantApplicationByUser: getMerchantApplicationByUser2, deleteCardPromoVideo: deleteCardPromoVideo2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const app = await getMerchantApplicationByUser2(ctx.user.id);
+        if (app?.status !== "approved" && ctx.user.role !== "admin") {
+          throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u62C6\u9664\u63A8\u5EE3\u5F71\u7247" });
+        }
+        await deleteCardPromoVideo2(input.id, ctx.user.id);
         return { ok: true };
       }),
       getPromoVideos: publicProcedure.query(async () => {
