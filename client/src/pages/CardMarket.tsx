@@ -1738,7 +1738,7 @@ export default function CardMarket() {
   const recentListings = listings;
   const wtbList = wtbs as WTB[];
 
-  const { data: promoVideosRaw = [] } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { staleTime: 60000 });
+  const { data: promoVideosRaw = [] } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { refetchOnMount: "always", staleTime: 0 });
   const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
   const isMerchant = !!isMerchantData;
   const promoVideos = promoVideosRaw as { id: number; userId: number; videoUrl: string }[];

@@ -985,6 +985,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const utils = trpc.useUtils();
   const signMut = trpc.cardTrading.signPromoVideoUpload.useMutation();
   const createMut = trpc.cardTrading.createPromoVideo.useMutation();
   const deactivateMut = trpc.cardTrading.deactivatePromoVideo.useMutation();
@@ -1023,6 +1024,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
       await createMut.mutateAsync({ videoUrl: finalUrl });
       toast.success("推廣影片已上載！將隨機在卡牌主頁播放");
       refetchVideos();
+      utils.cardTrading.getPromoVideos.invalidate();
     } catch (err: any) {
       toast.error(err?.message ?? "上載失敗，請重試");
     } finally {
