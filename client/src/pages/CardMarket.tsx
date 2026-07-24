@@ -37,6 +37,7 @@ function PromoVideoPlayer({ video, onDismiss }: {
   const [playFull, setPlayFull] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [dissolving, setDissolving] = useState(false);
+  const [countdown, setCountdown] = useState(PROMO_AUTO_STOP_SECS);
 
   // Pause + dismiss (always a hard close)
   function dismiss() {
@@ -56,15 +57,18 @@ function PromoVideoPlayer({ video, onDismiss }: {
     if (!el) return;
     el.currentTime = 0;
     el.muted = true;
+    setCountdown(PROMO_AUTO_STOP_SECS);
     el.play().catch(() => {});
   }, [video.videoUrl]);
 
-  // 8-second auto-stop (only while not in full-play mode)
+  // 8-second auto-stop + countdown (only while not in full-play mode)
   useEffect(() => {
     if (playFull || stopped) return;
     const el = videoRef.current;
     if (!el) return;
     const check = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil(PROMO_AUTO_STOP_SECS - el.currentTime));
+      setCountdown(remaining);
       if (el.currentTime >= PROMO_AUTO_STOP_SECS) {
         el.pause();
         setStopped(true);
@@ -110,13 +114,15 @@ function PromoVideoPlayer({ video, onDismiss }: {
           onEnded={playFull ? dissolveAndDismiss : undefined}
         />
 
-        {/* ✕ always visible top-right — hard close */}
-        <button
-          onClick={dismiss}
-          style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
-        >
-          <X style={{ width: 12, height: 12, color: "#fff" }} />
-        </button>
+        {/* ✕ only shown after 8s stop OR during full-play — hidden during 8s preview */}
+        {(stopped || playFull) && (
+          <button
+            onClick={dismiss}
+            style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
+          >
+            <X style={{ width: 12, height: 12, color: "#fff" }} />
+          </button>
+        )}
 
         {/* Mute toggle top-left */}
         <button
@@ -152,12 +158,19 @@ function PromoVideoPlayer({ video, onDismiss }: {
           </div>
         )}
 
-        {/* Bottom label */}
+        {/* Bottom bar */}
         <div style={{ padding: "5px 8px", background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.45)" }}>
-            推廣影片{playFull ? "" : ` · ${PROMO_AUTO_STOP_SECS}s`}
+            推廣影片
           </span>
+          {/* During 8s preview — live countdown */}
           {!stopped && !playFull && (
+            <span style={{ fontSize: 10, fontWeight: 900, color: "#FFDE00", minWidth: 24, textAlign: "right" }}>
+              {countdown}s
+            </span>
+          )}
+          {/* After stop — 播放全部 shortcut in bottom bar */}
+          {stopped && (
             <button
               onClick={handlePlayFull}
               style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 900, background: "rgba(255,255,255,0.12)", color: "#fff", border: "none", cursor: "pointer" }}
