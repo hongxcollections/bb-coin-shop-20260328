@@ -7719,8 +7719,7 @@ async function getActiveCardPromoVideos(limit = 10) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   const [rows] = await pool.execute(
-    `SELECT id, userId, videoUrl, createdAt FROM cardPromoVideos WHERE isActive = 1 ORDER BY RAND() LIMIT ?`,
-    [limit]
+    `SELECT id, userId, videoUrl, createdAt FROM cardPromoVideos WHERE isActive = 1 ORDER BY RAND() LIMIT 10`
   );
   const list = Array.isArray(rows) ? rows : [];
   return list.map((r) => ({
