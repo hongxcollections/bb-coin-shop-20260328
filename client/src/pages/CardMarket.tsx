@@ -13,10 +13,23 @@ import { SHARE_ORIGIN } from "@/lib/shareUrl";
 // ── Promo Video Player (fixed overlay, top-right) ────────────────────────────
 const PROMO_AUTO_STOP_SECS = 8;
 
-function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
+// Injected once into <head> so the keyframe is available globally
+const PROMO_STYLE_ID = "promo-dissolve-style";
+if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID)) {
+  const s = document.createElement("style");
+  s.id = PROMO_STYLE_ID;
+  s.textContent = `
+    @keyframes promoDissolveFade {
+      0%   { opacity: 1;   transform: scale(1)    translateY(0px);   filter: blur(0px);  }
+      40%  { opacity: 0.7; transform: scale(1.05) translateY(-6px);  filter: blur(2px);  }
+      100% { opacity: 0;   transform: scale(0.85) translateY(-18px); filter: blur(12px); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
+function PromoVideoPlayer({ video, onDismiss }: {
   video: { id: number; userId: number; videoUrl: string };
-  currentUserId?: number;
-  isMerchant: boolean;
   onDismiss: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -24,6 +37,19 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
   const [playFull, setPlayFull] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [dissolving, setDissolving] = useState(false);
+
+  // Pause + dismiss (always a hard close)
+  function dismiss() {
+    videoRef.current?.pause();
+    onDismiss();
+  }
+
+  // Dissolve then dismiss (used after full video ends)
+  function dissolveAndDismiss() {
+    videoRef.current?.pause();
+    setDissolving(true);
+    setTimeout(() => onDismiss(), 950);
+  }
 
   useEffect(() => {
     const el = videoRef.current;
@@ -33,7 +59,7 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
     el.play().catch(() => {});
   }, [video.videoUrl]);
 
-  // 8-second auto-stop (only when not in full-play mode)
+  // 8-second auto-stop (only while not in full-play mode)
   useEffect(() => {
     if (playFull || stopped) return;
     const el = videoRef.current;
@@ -58,48 +84,35 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
     el.play().catch(() => {});
   }
 
-  // Auto-dismiss with dissolve when full video ends
-  function handleEnded() {
-    setDissolving(true);
-    setTimeout(() => onDismiss(), 900);
-  }
-
   return (
-    <>
-      <style>{`
-        @keyframes promoDissolveFade {
-          0%   { opacity: 1; transform: scale(1) translateY(0px); filter: blur(0px); }
-          40%  { opacity: 0.7; transform: scale(1.06) translateY(-5px); filter: blur(1px); }
-          100% { opacity: 0; transform: scale(0.88) translateY(-14px); filter: blur(10px); }
-        }
-      `}</style>
-      <div
-        style={{
-          position: "fixed",
-          top: 74,
-          right: 10,
-          zIndex: 200,
-          width: 200,
-          borderRadius: 14,
-          overflow: "hidden",
-          background: "#000",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
-          animation: dissolving ? "promoDissolveFade 0.9s ease-out forwards" : undefined,
-          pointerEvents: dissolving ? "none" : undefined,
-        }}
-      >
+    // Outer wrapper: handles position + dissolve animation — NO overflow:hidden so blur/scale shows freely
+    <div
+      style={{
+        position: "fixed",
+        top: 74,
+        right: 10,
+        zIndex: 200,
+        width: 200,
+        borderRadius: 14,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+        animation: dissolving ? "promoDissolveFade 0.95s ease-out forwards" : undefined,
+        pointerEvents: dissolving ? "none" : undefined,
+      }}
+    >
+      {/* Inner wrapper clips video to rounded corners */}
+      <div style={{ borderRadius: 14, overflow: "hidden", background: "#000", position: "relative" }}>
         <video
           ref={videoRef}
           src={video.videoUrl}
           muted={muted}
           playsInline
           style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
-          onEnded={playFull ? handleEnded : undefined}
+          onEnded={playFull ? dissolveAndDismiss : undefined}
         />
 
-        {/* ✕ dismiss — always visible top-right */}
+        {/* ✕ always visible top-right — hard close */}
         <button
-          onClick={onDismiss}
+          onClick={dismiss}
           style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
         >
           <X style={{ width: 12, height: 12, color: "#fff" }} />
@@ -110,9 +123,9 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
           onClick={() => {
             const el = videoRef.current;
             if (!el) return;
-            const newMuted = !muted;
-            el.muted = newMuted;
-            setMuted(newMuted);
+            const n = !muted;
+            el.muted = n;
+            setMuted(n);
           }}
           style={{ position: "absolute", top: 6, left: 6, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
         >
@@ -121,7 +134,7 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
             : <Volume2 style={{ width: 11, height: 11, color: "#fff" }} />}
         </button>
 
-        {/* Overlay when stopped at 8s — shows both 播放全部 AND ✕ */}
+        {/* 8s pause overlay — 播放全部 + ✕ 取消 */}
         {stopped && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
             <button
@@ -131,7 +144,7 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
               <Play style={{ width: 12, height: 12 }} />播放全部
             </button>
             <button
-              onClick={onDismiss}
+              onClick={dismiss}
               style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 999, fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer" }}
             >
               <X style={{ width: 10, height: 10 }} />取消
@@ -154,7 +167,7 @@ function PromoVideoPlayer({ video, currentUserId, isMerchant, onDismiss }: {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -1894,15 +1907,7 @@ export default function CardMarket() {
       {activePromoVideo && createPortal(
         <PromoVideoPlayer
           video={activePromoVideo}
-          currentUserId={user?.id}
-          isMerchant={isMerchant}
-          onDismiss={() => {
-            if (promoVideos.length > 1) {
-              setPromoVideoIdx(i => (i + 1) % promoVideos.length);
-            } else {
-              setPromoDismissed(true);
-            }
-          }}
+          onDismiss={() => setPromoDismissed(true)}
         />,
         document.body
       )}
