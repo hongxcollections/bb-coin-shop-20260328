@@ -7751,29 +7751,36 @@ async function bootstrapCardTradingTables() {
       throw e;
     }
   }
-  await pool.execute(`
-    UPDATE cardPromoVideoPlays
-    SET timeBucket = FLOOR(UNIX_TIMESTAMP(playedAt) / 300)
-    WHERE timeBucket = 0
+  const [idxRows] = await pool.execute(`
+    SELECT COUNT(*) AS cnt FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cardPromoVideoPlays' AND INDEX_NAME = 'uk_cpvp_dedupe'
   `);
-  await pool.execute(`
-    DELETE cpvp FROM cardPromoVideoPlays cpvp
-    WHERE cpvp.viewerUserId IS NOT NULL
-      AND cpvp.id NOT IN (
-        SELECT keepId FROM (
-          SELECT MIN(id) AS keepId
-          FROM cardPromoVideoPlays
-          WHERE viewerUserId IS NOT NULL
-          GROUP BY videoId, viewerUserId, timeBucket
-        ) AS keep_ids
-      )
-  `);
-  try {
-    await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
-  } catch (e) {
-    if (e?.errno !== 1061) {
-      console.error("[Bootstrap] cardPromoVideoPlays unique key migration failed:", e?.message ?? e);
-      throw e;
+  const dedupeKeyExists = Number((Array.isArray(idxRows) ? idxRows[0] : idxRows)?.cnt ?? 0) > 0;
+  if (!dedupeKeyExists) {
+    await pool.execute(`
+      UPDATE cardPromoVideoPlays
+      SET timeBucket = FLOOR(UNIX_TIMESTAMP(playedAt) / 300)
+      WHERE timeBucket = 0
+    `);
+    await pool.execute(`
+      DELETE cpvp FROM cardPromoVideoPlays cpvp
+      WHERE cpvp.viewerUserId IS NOT NULL
+        AND cpvp.id NOT IN (
+          SELECT keepId FROM (
+            SELECT MIN(id) AS keepId
+            FROM cardPromoVideoPlays
+            WHERE viewerUserId IS NOT NULL
+            GROUP BY videoId, viewerUserId, timeBucket
+          ) AS keep_ids
+        )
+    `);
+    try {
+      await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
+    } catch (e) {
+      if (e?.errno !== 1061) {
+        console.error("[Bootstrap] cardPromoVideoPlays unique key migration failed:", e?.message ?? e);
+        throw e;
+      }
     }
   }
   await pool.execute(`

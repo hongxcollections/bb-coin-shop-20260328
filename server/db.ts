@@ -8218,32 +8218,40 @@ export async function bootstrapCardTradingTables() {
       throw e;
     }
   }
-  // Step 2: backfill timeBucket from playedAt for rows that still have default 0
-  await pool.execute(`
-    UPDATE cardPromoVideoPlays
-    SET timeBucket = FLOOR(UNIX_TIMESTAMP(playedAt) / 300)
-    WHERE timeBucket = 0
+  // Steps 2-4 are one-time data migration — gate on unique key absence so they never repeat after first run
+  const [idxRows]: any = await pool.execute(`
+    SELECT COUNT(*) AS cnt FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cardPromoVideoPlays' AND INDEX_NAME = 'uk_cpvp_dedupe'
   `);
-  // Step 3: deduplicate authenticated rows per (videoId, viewerUserId, timeBucket) keeping oldest (MIN id)
-  await pool.execute(`
-    DELETE cpvp FROM cardPromoVideoPlays cpvp
-    WHERE cpvp.viewerUserId IS NOT NULL
-      AND cpvp.id NOT IN (
-        SELECT keepId FROM (
-          SELECT MIN(id) AS keepId
-          FROM cardPromoVideoPlays
-          WHERE viewerUserId IS NOT NULL
-          GROUP BY videoId, viewerUserId, timeBucket
-        ) AS keep_ids
-      )
-  `);
-  // Step 4: add unique key — only suppress "duplicate key name" (errno 1061)
-  try {
-    await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
-  } catch (e: any) {
-    if (e?.errno !== 1061) {
-      console.error('[Bootstrap] cardPromoVideoPlays unique key migration failed:', e?.message ?? e);
-      throw e;
+  const dedupeKeyExists = Number((Array.isArray(idxRows) ? idxRows[0] : idxRows)?.cnt ?? 0) > 0;
+  if (!dedupeKeyExists) {
+    // Step 2: backfill timeBucket from playedAt for any rows still at default 0
+    await pool.execute(`
+      UPDATE cardPromoVideoPlays
+      SET timeBucket = FLOOR(UNIX_TIMESTAMP(playedAt) / 300)
+      WHERE timeBucket = 0
+    `);
+    // Step 3: deduplicate authenticated rows per (videoId, viewerUserId, timeBucket), keeping MIN id
+    await pool.execute(`
+      DELETE cpvp FROM cardPromoVideoPlays cpvp
+      WHERE cpvp.viewerUserId IS NOT NULL
+        AND cpvp.id NOT IN (
+          SELECT keepId FROM (
+            SELECT MIN(id) AS keepId
+            FROM cardPromoVideoPlays
+            WHERE viewerUserId IS NOT NULL
+            GROUP BY videoId, viewerUserId, timeBucket
+          ) AS keep_ids
+        )
+    `);
+    // Step 4: add unique key — only suppress "duplicate key name" (errno 1061)
+    try {
+      await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
+    } catch (e: any) {
+      if (e?.errno !== 1061) {
+        console.error('[Bootstrap] cardPromoVideoPlays unique key migration failed:', e?.message ?? e);
+        throw e;
+      }
     }
   }
   await pool.execute(`
