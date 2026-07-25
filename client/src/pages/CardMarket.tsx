@@ -1956,6 +1956,7 @@ export default function CardMarket() {
       {/* ── Promo Video Player (floating overlay top-right) ── */}
       {activePromoVideo && createPortal(
         <PromoVideoPlayer
+          key={activePromoVideo.id}
           video={activePromoVideo}
           onClose={() => setPromoDismissed(true)}
           onNext={() => setPromoVideoIdx(i => i + 1)}
