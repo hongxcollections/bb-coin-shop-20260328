@@ -8287,36 +8287,70 @@ export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
 
-  // Single query: all active videos, LEFT JOIN subscription to detect isSubscribed.
-  // GROUP BY cpv.id (PK) — other columns are functionally dependent.
-  // MAX(CASE...) picks up any active subscription for that merchant.
-  // ORDER BY RAND() restores original random behaviour so free videos appear at index 0 sometimes.
-  // Uses pool.query() (not execute/prepared-statement) because RAND() + GROUP BY + prepared statements
-  // triggers "Incorrect arguments to mysqld_stmt_execute" on Railway MySQL.
-  // limit is a server-controlled integer — safe to interpolate.
-  const [rows]: any = await pool.query(`
-    SELECT
-      cpv.id,
-      cpv.userId,
-      cpv.videoUrl,
-      cpv.createdAt,
-      MAX(CASE WHEN cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0 THEN 1 ELSE 0 END) AS isSubscribed
-    FROM cardPromoVideos cpv
-    LEFT JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
-    WHERE cpv.isActive = 1
-    GROUP BY cpv.id
-    ORDER BY RAND()
-    LIMIT ${limit}
-  `);
+  // Phase 1: subscribed videos (active subscription, remainingPlays > 0), sorted by urgency.
+  // Phase 2: remaining slots filled with any other active videos (free merchants or exhausted subscriptions).
+  // Both use pool.execute() — proven to work.
+  // Final step: Fisher-Yates shuffle so free videos are randomly distributed across the list
+  // (restores original random behaviour; free videos can appear at index 0).
 
-  const list = Array.isArray(rows) ? rows : [];
-  return list.map((r: any) => ({
-    id: Number(r.id),
-    userId: Number(r.userId),
-    videoUrl: String(r.videoUrl),
-    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
-    isSubscribed: Number(r.isSubscribed) === 1,
-  }));
+  const [subRows]: any = await pool.execute(`
+    SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+    FROM cardPromoVideos cpv
+    INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
+      AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
+    WHERE cpv.isActive = 1
+    ORDER BY (cps.remainingPlays / GREATEST(1, DATEDIFF(cps.endDate, NOW()))) DESC
+    LIMIT ?
+  `, [limit]);
+  const subList = Array.isArray(subRows) ? subRows : [];
+
+  const result: { id: number; userId: number; videoUrl: string; createdAt: string; isSubscribed: boolean }[] = [];
+  const usedIds = new Set<number>();
+  for (const r of subList) {
+    const vid = Number(r.id);
+    if (usedIds.has(vid)) continue; // dedupe (merchant with multiple subscriptions)
+    result.push({
+      id: vid,
+      userId: Number(r.userId),
+      videoUrl: String(r.videoUrl),
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+      isSubscribed: true,
+    });
+    usedIds.add(vid);
+  }
+
+  const remaining = limit - result.length;
+  if (remaining > 0) {
+    const excludeSql = usedIds.size > 0
+      ? `AND cpv.id NOT IN (${[...usedIds].map(() => '?').join(',')})`
+      : '';
+    const [freeRows]: any = await pool.execute(`
+      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+      FROM cardPromoVideos cpv
+      WHERE cpv.isActive = 1 ${excludeSql}
+      ORDER BY RAND()
+      LIMIT ?
+    `, [...usedIds, remaining]);
+    const freeList = Array.isArray(freeRows) ? freeRows : [];
+    for (const r of freeList) {
+      result.push({
+        id: Number(r.id),
+        userId: Number(r.userId),
+        videoUrl: String(r.videoUrl),
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+        isSubscribed: false,
+      });
+    }
+  }
+
+  // Shuffle so free videos are not always buried after subscribed ones.
+  // Fisher-Yates in-place shuffle.
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result;
 }
 
 export async function getMyCardPromoVideos(userId: number): Promise<{ id: number; videoUrl: string; isActive: boolean; createdAt: string; playCount: number }[]> {

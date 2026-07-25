@@ -7813,28 +7813,56 @@ async function createCardPromoVideo(userId, videoUrl) {
 async function getActiveCardPromoVideos(limit = 10) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  const [rows] = await pool.query(`
-    SELECT
-      cpv.id,
-      cpv.userId,
-      cpv.videoUrl,
-      cpv.createdAt,
-      MAX(CASE WHEN cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0 THEN 1 ELSE 0 END) AS isSubscribed
+  const [subRows] = await pool.execute(`
+    SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
     FROM cardPromoVideos cpv
-    LEFT JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
+    INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
+      AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
     WHERE cpv.isActive = 1
-    GROUP BY cpv.id
-    ORDER BY RAND()
-    LIMIT ${limit}
-  `);
-  const list = Array.isArray(rows) ? rows : [];
-  return list.map((r) => ({
-    id: Number(r.id),
-    userId: Number(r.userId),
-    videoUrl: String(r.videoUrl),
-    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
-    isSubscribed: Number(r.isSubscribed) === 1
-  }));
+    ORDER BY (cps.remainingPlays / GREATEST(1, DATEDIFF(cps.endDate, NOW()))) DESC
+    LIMIT ?
+  `, [limit]);
+  const subList = Array.isArray(subRows) ? subRows : [];
+  const result = [];
+  const usedIds = /* @__PURE__ */ new Set();
+  for (const r of subList) {
+    const vid = Number(r.id);
+    if (usedIds.has(vid)) continue;
+    result.push({
+      id: vid,
+      userId: Number(r.userId),
+      videoUrl: String(r.videoUrl),
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+      isSubscribed: true
+    });
+    usedIds.add(vid);
+  }
+  const remaining = limit - result.length;
+  if (remaining > 0) {
+    const excludeSql = usedIds.size > 0 ? `AND cpv.id NOT IN (${[...usedIds].map(() => "?").join(",")})` : "";
+    const [freeRows] = await pool.execute(`
+      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+      FROM cardPromoVideos cpv
+      WHERE cpv.isActive = 1 ${excludeSql}
+      ORDER BY RAND()
+      LIMIT ?
+    `, [...usedIds, remaining]);
+    const freeList = Array.isArray(freeRows) ? freeRows : [];
+    for (const r of freeList) {
+      result.push({
+        id: Number(r.id),
+        userId: Number(r.userId),
+        videoUrl: String(r.videoUrl),
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+        isSubscribed: false
+      });
+    }
+  }
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
 async function getMyCardPromoVideos(userId) {
   await bootstrapCardTradingTables();
