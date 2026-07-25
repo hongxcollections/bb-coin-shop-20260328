@@ -14900,6 +14900,17 @@ EXAMPLE OUTPUT (exact format):
         return getMyCardPromoVideos(ctx.user.id);
       }),
 
+    recordPromoVideoPlay: publicProcedure
+      .input(z.object({
+        videoId: z.number().int(),
+        isSubscribed: z.boolean().default(false),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { recordCardPromoVideoPlay } = await import('./db') as any;
+        await recordCardPromoVideoPlay(input.videoId, (ctx.user as any)?.id ?? null, input.isSubscribed);
+        return { ok: true };
+      }),
+
     // ── Promo Subscription Plans (admin CRUD + public read) ───────────────────
     getPromoPlans: publicProcedure
       .query(async () => {

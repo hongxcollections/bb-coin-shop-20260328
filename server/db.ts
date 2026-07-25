@@ -8196,6 +8196,17 @@ export async function bootstrapCardTradingTables() {
     )
   `);
   await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardPromoVideoPlays (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      videoId INT NOT NULL,
+      viewerUserId INT NULL,
+      isSubscribed TINYINT(1) DEFAULT 0,
+      playedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cpvp_videoId (videoId),
+      INDEX idx_cpvp_playedAt (playedAt)
+    )
+  `);
+  await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardPromoSubscriptions (
       id INT AUTO_INCREMENT PRIMARY KEY,
       userId INT NOT NULL,
@@ -8224,26 +8235,69 @@ export async function createCardPromoVideo(userId: number, videoUrl: string): Pr
   return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
 }
 
-export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number; userId: number; videoUrl: string; createdAt: string }[]> {
+export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number; userId: number; videoUrl: string; createdAt: string; isSubscribed: boolean }[]> {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  const [rows]: any = await pool.execute(
-    `SELECT id, userId, videoUrl, createdAt FROM cardPromoVideos WHERE isActive = 1 ORDER BY RAND() LIMIT 10`
-  );
-  const list = Array.isArray(rows) ? rows : [];
-  return list.map((r: any) => ({
-    id: Number(r.id),
-    userId: Number(r.userId),
-    videoUrl: String(r.videoUrl),
-    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
-  }));
+
+  // 1. Priority: subscribed videos with remaining guaranteed plays, sorted by urgency (remainingPlays / remainingDays)
+  const [subRows]: any = await pool.execute(`
+    SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+    FROM cardPromoVideos cpv
+    INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
+      AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
+    WHERE cpv.isActive = 1
+    ORDER BY (cps.remainingPlays / GREATEST(1, DATEDIFF(cps.endDate, NOW()))) DESC
+    LIMIT ?
+  `, [limit]);
+  const subList = Array.isArray(subRows) ? subRows : [];
+
+  const result: { id: number; userId: number; videoUrl: string; createdAt: string; isSubscribed: boolean }[] = [];
+  const usedIds = new Set<number>();
+  for (const r of subList) {
+    result.push({
+      id: Number(r.id),
+      userId: Number(r.userId),
+      videoUrl: String(r.videoUrl),
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+      isSubscribed: true,
+    });
+    usedIds.add(Number(r.id));
+  }
+
+  // 2. Fill remaining slots with random free videos
+  const remaining = limit - result.length;
+  if (remaining > 0) {
+    const excludeSql = usedIds.size > 0 ? `AND cpv.id NOT IN (${[...usedIds].map(() => '?').join(',')})` : '';
+    const excludeParams = usedIds.size > 0 ? [...usedIds] : [];
+    const [freeRows]: any = await pool.execute(`
+      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+      FROM cardPromoVideos cpv
+      WHERE cpv.isActive = 1 ${excludeSql}
+      ORDER BY RAND()
+      LIMIT ?
+    `, [...excludeParams, remaining]);
+    const freeList = Array.isArray(freeRows) ? freeRows : [];
+    for (const r of freeList) {
+      result.push({
+        id: Number(r.id),
+        userId: Number(r.userId),
+        videoUrl: String(r.videoUrl),
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+        isSubscribed: false,
+      });
+    }
+  }
+
+  return result;
 }
 
-export async function getMyCardPromoVideos(userId: number): Promise<{ id: number; videoUrl: string; isActive: boolean; createdAt: string }[]> {
+export async function getMyCardPromoVideos(userId: number): Promise<{ id: number; videoUrl: string; isActive: boolean; createdAt: string; playCount: number }[]> {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
-    `SELECT id, videoUrl, isActive, createdAt FROM cardPromoVideos WHERE userId = ? ORDER BY createdAt DESC`,
+    `SELECT cpv.id, cpv.videoUrl, cpv.isActive, cpv.createdAt,
+            COALESCE((SELECT COUNT(*) FROM cardPromoVideoPlays WHERE videoId = cpv.id), 0) AS playCount
+     FROM cardPromoVideos cpv WHERE cpv.userId = ? ORDER BY cpv.createdAt DESC`,
     [userId]
   );
   const list = Array.isArray(rows) ? rows : [];
@@ -8252,7 +8306,33 @@ export async function getMyCardPromoVideos(userId: number): Promise<{ id: number
     videoUrl: String(r.videoUrl),
     isActive: Number(r.isActive) === 1,
     createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    playCount: Number(r.playCount),
   }));
+}
+
+export async function recordCardPromoVideoPlay(videoId: number, viewerUserId: number | null, isSubscribed: boolean): Promise<void> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  // Record the play event
+  await pool.execute(
+    `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,
+    [videoId, viewerUserId ?? null, isSubscribed ? 1 : 0]
+  );
+  // If this was a subscribed play, decrement the owner's active subscription remaining plays
+  if (isSubscribed) {
+    const [vidRows]: any = await pool.execute(`SELECT userId FROM cardPromoVideos WHERE id = ?`, [videoId]);
+    const vidList = Array.isArray(vidRows) ? vidRows : [];
+    if (vidList.length > 0) {
+      const ownerId = Number(vidList[0].userId);
+      await pool.execute(
+        `UPDATE cardPromoSubscriptions
+         SET remainingPlays = GREATEST(0, remainingPlays - 1)
+         WHERE userId = ? AND status = 'active' AND endDate > NOW() AND remainingPlays > 0
+         ORDER BY id DESC LIMIT 1`,
+        [ownerId]
+      );
+    }
+  }
 }
 
 export async function deactivateCardPromoVideo(id: number, userId: number): Promise<void> {

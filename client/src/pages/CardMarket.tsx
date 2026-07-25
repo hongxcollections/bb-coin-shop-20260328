@@ -30,7 +30,7 @@ if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID))
 }
 
 function PromoVideoPlayer({ video, onDismiss }: {
-  video: { id: number; userId: number; videoUrl: string };
+  video: { id: number; userId: number; videoUrl: string; isSubscribed?: boolean };
   onDismiss: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -40,6 +40,7 @@ function PromoVideoPlayer({ video, onDismiss }: {
   const [dissolving, setDissolving] = useState(false);
   const [countdown, setCountdown] = useState(PROMO_AUTO_STOP_SECS);
   const [idleCountdown, setIdleCountdown] = useState(PROMO_IDLE_CLOSE_SECS);
+  const recordPlayMut = trpc.cardTrading.recordPromoVideoPlay.useMutation();
 
   // Pause + dismiss (always a hard close)
   function dismiss() {
@@ -61,6 +62,9 @@ function PromoVideoPlayer({ video, onDismiss }: {
     el.muted = true;
     setCountdown(PROMO_AUTO_STOP_SECS);
     el.play().catch(() => {});
+    // Record this play event (fire and forget)
+    recordPlayMut.mutate({ videoId: video.id, isSubscribed: video.isSubscribed ?? false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video.videoUrl]);
 
   // 5-second idle auto-dismiss after 8s stop (if user takes no action)
@@ -1791,7 +1795,7 @@ export default function CardMarket() {
   const { data: promoVideosRaw = [] } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { refetchOnMount: "always", staleTime: 0 });
   const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
   const isMerchant = !!isMerchantData;
-  const promoVideos = promoVideosRaw as { id: number; userId: number; videoUrl: string }[];
+  const promoVideos = promoVideosRaw as { id: number; userId: number; videoUrl: string; isSubscribed: boolean }[];
   const activePromoVideo = !promoDismissed && promoVideos.length > 0 ? promoVideos[promoVideoIdx % promoVideos.length] : null;
 
   const { data: communityData } = trpc.community.list.useQuery({

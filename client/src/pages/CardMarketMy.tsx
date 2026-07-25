@@ -1292,14 +1292,17 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
                 </div>
               </div>
 
-              {/* Subscription status badge */}
-              {mySubscription && (
-                <div className="px-3 pb-1 pt-1 flex items-center gap-1">
+              {/* Play count + subscription status */}
+              <div className="px-3 pb-1 pt-1 flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}>
+                  ▶ 已播放 {Number(v.playCount ?? 0)} 次
+                </span>
+                {mySubscription && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black" style={{ background: "rgba(14,165,233,0.1)", color: "#0369a1", border: "1px solid rgba(14,165,233,0.2)" }}>
                     📺 訂閱中 · 剩餘 {(mySubscription as any).remainingPlays} 次保證播放
                   </span>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Action buttons */}
               <div className="px-3 py-2.5 flex items-center gap-2 flex-wrap">
