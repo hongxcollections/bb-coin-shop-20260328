@@ -1087,10 +1087,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
       <div className="rounded-2xl px-4 py-3 flex flex-col gap-2" style={{ background: "linear-gradient(135deg,#eff6ff,#e0f2fe)", border: "1px solid #bae6fd" }}>
         <p className="text-xs font-black" style={{ color: "#0369a1" }}>📢 推廣影片說明</p>
         <p className="text-xs leading-relaxed" style={{ color: "#0c4a6e" }}>
-          系統會隨機在卡牌主頁播放您的推廣影片，讓更多買家認識您的商品。
-        </p>
-        <p className="text-xs leading-relaxed" style={{ color: "#0c4a6e" }}>
-          可以月費形式訂閱，保證指定播放次數。詳情請按以下按鈕。
+          系統會隨機(免費)在卡牌主頁播放您的推廣影片，讓更多買家接觸/認識您的商品。可以月費形式訂閱，保證指定播放次數。詳情請按以下按鈕。
         </p>
         <button
           onClick={() => setShowSubInfo(true)}
