@@ -7813,7 +7813,7 @@ async function createCardPromoVideo(userId, videoUrl) {
 async function getActiveCardPromoVideos(limit = 10) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  const [rows] = await pool.execute(`
+  const [rows] = await pool.query(`
     SELECT
       cpv.id,
       cpv.userId,
@@ -7823,10 +7823,10 @@ async function getActiveCardPromoVideos(limit = 10) {
     FROM cardPromoVideos cpv
     LEFT JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
     WHERE cpv.isActive = 1
-    GROUP BY cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+    GROUP BY cpv.id
     ORDER BY RAND()
-    LIMIT ?
-  `, [limit]);
+    LIMIT ${limit}
+  `);
   const list = Array.isArray(rows) ? rows : [];
   return list.map((r) => ({
     id: Number(r.id),

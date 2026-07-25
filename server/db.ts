@@ -8288,10 +8288,13 @@ export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number
   const pool = await getRawPool();
 
   // Single query: all active videos, LEFT JOIN subscription to detect isSubscribed.
-  // Dedupe by cpv.id (a merchant may have multiple subscriptions — take the best one via MAX).
-  // Final ORDER BY RAND() so free videos appear at index 0 sometimes (restores original random behaviour).
-  // Quota decrement is always server-side in recordCardPromoVideoPlay; display order does not affect correctness.
-  const [rows]: any = await pool.execute(`
+  // GROUP BY cpv.id (PK) — other columns are functionally dependent.
+  // MAX(CASE...) picks up any active subscription for that merchant.
+  // ORDER BY RAND() restores original random behaviour so free videos appear at index 0 sometimes.
+  // Uses pool.query() (not execute/prepared-statement) because RAND() + GROUP BY + prepared statements
+  // triggers "Incorrect arguments to mysqld_stmt_execute" on Railway MySQL.
+  // limit is a server-controlled integer — safe to interpolate.
+  const [rows]: any = await pool.query(`
     SELECT
       cpv.id,
       cpv.userId,
@@ -8301,10 +8304,10 @@ export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number
     FROM cardPromoVideos cpv
     LEFT JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
     WHERE cpv.isActive = 1
-    GROUP BY cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+    GROUP BY cpv.id
     ORDER BY RAND()
-    LIMIT ?
-  `, [limit]);
+    LIMIT ${limit}
+  `);
 
   const list = Array.isArray(rows) ? rows : [];
   return list.map((r: any) => ({
