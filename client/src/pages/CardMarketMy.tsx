@@ -986,6 +986,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [viewingUrl, setViewingUrl] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
   const signMut = trpc.cardTrading.signPromoVideoUpload.useMutation();
@@ -994,7 +995,44 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
   const activateMut = trpc.cardTrading.activatePromoVideo.useMutation();
   const deleteMut = trpc.cardTrading.deletePromoVideo.useMutation();
   const { data: myVideos = [], refetch: refetchVideos } = trpc.cardTrading.getMyPromoVideos.useQuery(undefined, { refetchOnMount: "always" });
+  const { data: promoPlans = [], isLoading: promoPlansLoading } = trpc.cardTrading.getPromoPlans.useQuery(undefined, { enabled: showSubInfo });
+  const { data: mySubscription, refetch: refetchMySubscription } = trpc.cardTrading.getMyPromoSubscription.useQuery(undefined, { refetchOnMount: "always" });
+  const subscribeMut = trpc.cardTrading.subscribePromoPlan.useMutation({
+    onSuccess: (data) => {
+      toast.success(`✅ 訂閱成功！保證播放 ${data.plan.guaranteedPlays} 次，有效期 30 天`);
+      refetchMySubscription();
+      setShowSubInfo(false);
+    },
+    onError: (err) => toast.error(err.message || "訂閱失敗，請重試"),
+  });
   const confirm = useConfirm();
+
+  async function handleSubscribe() {
+    if (!selectedPlanId) return;
+    const plan = (promoPlans as any[]).find((p: any) => p.id === selectedPlanId);
+    if (!plan) return;
+    const ok1 = await confirm({
+      title: "確認訂閱計劃",
+      description: `月費：HKD $${Number(plan.monthlyFee).toFixed(0)}\n保證播放次數：${plan.guaranteedPlays} 次\n有效期：30 天`,
+      confirmText: "繼續",
+    });
+    if (!ok1) return;
+    const ok2 = await confirm({
+      title: "確認扣款",
+      description: `HKD $${Number(plan.monthlyFee).toFixed(0)} 將即時從您的保證金扣除。請確保保證金餘額充足。`,
+      confirmText: "確認扣款",
+      tone: "danger",
+    });
+    if (!ok2) return;
+    const ok3 = await confirm({
+      title: "🚨 最後確認",
+      description: `確定立即訂閱並扣除保證金 HKD $${Number(plan.monthlyFee).toFixed(0)}？此操作不可撤回。`,
+      confirmText: "立即扣款並訂閱",
+      tone: "danger",
+    });
+    if (!ok3) return;
+    subscribeMut.mutate({ planId: selectedPlanId });
+  }
 
   async function handleFileSelect(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -1106,17 +1144,79 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
           onClick={() => setShowSubInfo(false)}
         >
           <div
-            className="rounded-2xl p-6 mx-6 flex flex-col gap-3"
-            style={{ background: "#fff", maxWidth: 320, width: "100%" }}
+            className="rounded-2xl p-5 mx-4 flex flex-col gap-4"
+            style={{ background: "#fff", maxWidth: 340, width: "100%", maxHeight: "80vh", overflowY: "auto" }}
             onClick={e => e.stopPropagation()}
           >
-            <p className="text-sm font-black" style={{ color: "#111827" }}>📋 訂閱推廣播放</p>
-            <p className="text-sm leading-relaxed" style={{ color: "#6b7280" }}>
-              功能仍然在開發中，敬請密切留意最新消息。
-            </p>
+            <p className="text-sm font-black" style={{ color: "#111827" }}>📋 訂閱推廣播放計劃</p>
+
+            {/* Current active subscription */}
+            {mySubscription ? (
+              <div className="rounded-xl px-4 py-3 flex flex-col gap-1.5" style={{ background: "#ecfdf5", border: "1px solid #a7f3d0" }}>
+                <p className="text-xs font-black" style={{ color: "#065f46" }}>✅ 您有一個有效訂閱</p>
+                <p className="text-xs" style={{ color: "#047857" }}>月費：HKD ${Number((mySubscription as any).monthlyFee).toFixed(0)}</p>
+                <p className="text-xs" style={{ color: "#047857" }}>保證播放：{(mySubscription as any).guaranteedPlays} 次（剩餘 {(mySubscription as any).remainingPlays} 次）</p>
+                <p className="text-xs" style={{ color: "#047857" }}>到期日：{new Date((mySubscription as any).endDate).toLocaleDateString('zh-HK', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs leading-relaxed" style={{ color: "#6b7280" }}>選擇計劃後，月費即時從保證金扣除，並保證指定次數在卡牌主頁播放您的推廣影片。</p>
+
+                {promoPlansLoading ? (
+                  <p className="text-xs text-center py-3" style={{ color: "#9ca3af" }}>載入中…</p>
+                ) : (promoPlans as any[]).length === 0 ? (
+                  <p className="text-xs text-center py-3" style={{ color: "#9ca3af" }}>目前未有可選計劃，請稍後再試。</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {(promoPlans as any[]).map((plan: any) => (
+                      <label
+                        key={plan.id}
+                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+                        style={{
+                          background: selectedPlanId === plan.id ? "#eff6ff" : "#f9fafb",
+                          border: `1.5px solid ${selectedPlanId === plan.id ? "#93c5fd" : "#e5e7eb"}`,
+                          transition: "all 0.15s"
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="promoPlan"
+                          value={plan.id}
+                          checked={selectedPlanId === plan.id}
+                          onChange={() => setSelectedPlanId(plan.id)}
+                          style={{ accentColor: "#0ea5e9" }}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-black" style={{ color: "#111827" }}>HKD ${Number(plan.monthlyFee).toFixed(0)} <span className="font-normal text-xs" style={{ color: "#6b7280" }}>/ 月</span></p>
+                          <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>保證播放 {plan.guaranteedPlays} 次</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {(promoPlans as any[]).length > 0 && (
+                  <button
+                    onClick={handleSubscribe}
+                    disabled={!selectedPlanId || subscribeMut.isPending}
+                    className="py-2.5 rounded-xl text-sm font-black"
+                    style={{
+                      background: selectedPlanId ? "linear-gradient(90deg,#0ea5e9,#38bdf8)" : "#e5e7eb",
+                      color: selectedPlanId ? "#fff" : "#9ca3af",
+                      border: "none",
+                      cursor: selectedPlanId ? "pointer" : "not-allowed",
+                      opacity: subscribeMut.isPending ? 0.6 : 1
+                    }}
+                  >
+                    {subscribeMut.isPending ? "處理中…" : "立即訂閱"}
+                  </button>
+                )}
+              </>
+            )}
+
             <button
               onClick={() => setShowSubInfo(false)}
-              className="mt-1 py-2 rounded-xl text-sm font-bold"
+              className="py-2 rounded-xl text-sm font-bold"
               style={{ background: "#f3f4f6", color: "#374151", border: "none", cursor: "pointer" }}
             >
               關閉
@@ -1191,6 +1291,15 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
                   <span className="text-[10px] font-black text-white">{v.isActive ? "展示中" : "已停止展示"}</span>
                 </div>
               </div>
+
+              {/* Subscription status badge */}
+              {mySubscription && (
+                <div className="px-3 pb-1 pt-1 flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black" style={{ background: "rgba(14,165,233,0.1)", color: "#0369a1", border: "1px solid rgba(14,165,233,0.2)" }}>
+                    📺 訂閱中 · 剩餘 {(mySubscription as any).remainingPlays} 次保證播放
+                  </span>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div className="px-3 py-2.5 flex items-center gap-2 flex-wrap">

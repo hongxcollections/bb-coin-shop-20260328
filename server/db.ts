@@ -8193,6 +8193,27 @@ export async function bootstrapCardTradingTables() {
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardPromoSubscriptions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      userId INT NOT NULL,
+      planId INT NOT NULL,
+      videoId INT NULL,
+      startDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      endDate TIMESTAMP NOT NULL,
+      guaranteedPlays INT NOT NULL DEFAULT 0,
+      remainingPlays INT NOT NULL DEFAULT 0,
+      status ENUM('active','expired','cancelled') NOT NULL DEFAULT 'active',
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cps_userId (userId),
+      INDEX idx_cps_status (status)
+    )
+  `);
+  // Expand deposit_transactions type enum to include promo_subscription
+  try {
+    await pool.execute(`ALTER TABLE deposit_transactions MODIFY COLUMN type ENUM('top_up','commission','refund','adjustment','promo_subscription') NOT NULL`);
+  } catch {}
 }
 
 export async function createCardPromoVideo(userId: number, videoUrl: string): Promise<{ id: number }> {
@@ -8296,6 +8317,91 @@ export async function deleteCardPromoSubscriptionPlan(id: number): Promise<void>
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   await pool.execute(`DELETE FROM cardPromoSubscriptionPlans WHERE id = ?`, [id]);
+}
+
+export async function getActiveCardPromoSubscriptionByUser(userId: number): Promise<{
+  id: number; planId: number; videoId: number | null;
+  startDate: string; endDate: string;
+  guaranteedPlays: number; remainingPlays: number;
+  status: string; monthlyFee: number;
+} | null> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT cps.id, cps.planId, cps.videoId, cps.startDate, cps.endDate,
+            cps.guaranteedPlays, cps.remainingPlays, cps.status,
+            cpsp.monthlyFee
+     FROM cardPromoSubscriptions cps
+     LEFT JOIN cardPromoSubscriptionPlans cpsp ON cpsp.id = cps.planId
+     WHERE cps.userId = ? AND cps.status = 'active' AND cps.endDate > NOW()
+     ORDER BY cps.id DESC LIMIT 1`,
+    [userId]
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 0) return null;
+  const r = list[0];
+  return {
+    id: Number(r.id),
+    planId: Number(r.planId),
+    videoId: r.videoId != null ? Number(r.videoId) : null,
+    startDate: r.startDate instanceof Date ? r.startDate.toISOString() : String(r.startDate),
+    endDate: r.endDate instanceof Date ? r.endDate.toISOString() : String(r.endDate),
+    guaranteedPlays: Number(r.guaranteedPlays),
+    remainingPlays: Number(r.remainingPlays),
+    status: String(r.status),
+    monthlyFee: Number(r.monthlyFee),
+  };
+}
+
+export async function deductAndCreatePromoSubscription(
+  userId: number,
+  planId: number,
+  monthlyFee: number,
+  guaranteedPlays: number,
+  videoId?: number
+): Promise<{ subscriptionId: number; newBalance: number }> {
+  await bootstrapCardTradingTables();
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+
+  const deposit = await getOrCreateSellerDeposit(userId);
+  if (!deposit) throw new Error('無法取得保證金資料');
+
+  const currentBalance = parseFloat(deposit.balance.toString());
+  if (currentBalance < monthlyFee) {
+    throw new Error(`保證金餘額不足（餘額：HKD $${currentBalance.toFixed(2)}，需要：HKD $${monthlyFee.toFixed(2)}）`);
+  }
+
+  const newBalance = currentBalance - monthlyFee;
+  await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
+
+  const pool = await getRawPool();
+  // Insert deposit_transaction using raw SQL to support promo_subscription enum value
+  await pool.execute(
+    `INSERT INTO deposit_transactions (depositId, userId, type, amount, balanceAfter, description)
+     VALUES (?, ?, 'promo_subscription', ?, ?, ?)`,
+    [
+      deposit.id,
+      userId,
+      (-monthlyFee).toFixed(2),
+      newBalance.toFixed(2),
+      `推廣影片訂閱月費 HKD $${monthlyFee.toFixed(2)}（保證播放 ${guaranteedPlays} 次）`,
+    ]
+  );
+
+  // 30-day subscription end date
+  const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const [res]: any = await pool.execute(
+    `INSERT INTO cardPromoSubscriptions (userId, planId, videoId, endDate, guaranteedPlays, remainingPlays, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+    [userId, planId, videoId ?? null, endDate, guaranteedPlays, guaranteedPlays]
+  );
+
+  return {
+    subscriptionId: (Array.isArray(res) ? res[0] : res).insertId as number,
+    newBalance,
+  };
 }
 
 export async function getCardListings(opts: {

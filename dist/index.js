@@ -1047,6 +1047,7 @@ __export(db_exports, {
   deactivateCardPromoVideo: () => deactivateCardPromoVideo,
   deactivateCardWTB: () => deactivateCardWTB,
   deactivateProxyBid: () => deactivateProxyBid,
+  deductAndCreatePromoSubscription: () => deductAndCreatePromoSubscription,
   deductCommission: () => deductCommission,
   deductListingQuota: () => deductListingQuota,
   deductListingQuotaBulk: () => deductListingQuotaBulk,
@@ -1072,6 +1073,7 @@ __export(db_exports, {
   exportPackagesData: () => exportPackagesData,
   getActiveAuctionsEndingSoon: () => getActiveAuctionsEndingSoon,
   getActiveBuyerOfferForProduct: () => getActiveBuyerOfferForProduct,
+  getActiveCardPromoSubscriptionByUser: () => getActiveCardPromoSubscriptionByUser,
   getActiveCardPromoVideos: () => getActiveCardPromoVideos,
   getActiveFeaturedListings: () => getActiveFeaturedListings,
   getActiveProxiesForAuction: () => getActiveProxiesForAuction,
@@ -7723,6 +7725,27 @@ async function bootstrapCardTradingTables() {
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardPromoSubscriptions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      userId INT NOT NULL,
+      planId INT NOT NULL,
+      videoId INT NULL,
+      startDate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      endDate TIMESTAMP NOT NULL,
+      guaranteedPlays INT NOT NULL DEFAULT 0,
+      remainingPlays INT NOT NULL DEFAULT 0,
+      status ENUM('active','expired','cancelled') NOT NULL DEFAULT 'active',
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cps_userId (userId),
+      INDEX idx_cps_status (status)
+    )
+  `);
+  try {
+    await pool.execute(`ALTER TABLE deposit_transactions MODIFY COLUMN type ENUM('top_up','commission','refund','adjustment','promo_subscription') NOT NULL`);
+  } catch {
+  }
 }
 async function createCardPromoVideo(userId, videoUrl) {
   await bootstrapCardTradingTables();
@@ -7815,6 +7838,70 @@ async function deleteCardPromoSubscriptionPlan(id) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   await pool.execute(`DELETE FROM cardPromoSubscriptionPlans WHERE id = ?`, [id]);
+}
+async function getActiveCardPromoSubscriptionByUser(userId) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(
+    `SELECT cps.id, cps.planId, cps.videoId, cps.startDate, cps.endDate,
+            cps.guaranteedPlays, cps.remainingPlays, cps.status,
+            cpsp.monthlyFee
+     FROM cardPromoSubscriptions cps
+     LEFT JOIN cardPromoSubscriptionPlans cpsp ON cpsp.id = cps.planId
+     WHERE cps.userId = ? AND cps.status = 'active' AND cps.endDate > NOW()
+     ORDER BY cps.id DESC LIMIT 1`,
+    [userId]
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.length === 0) return null;
+  const r = list[0];
+  return {
+    id: Number(r.id),
+    planId: Number(r.planId),
+    videoId: r.videoId != null ? Number(r.videoId) : null,
+    startDate: r.startDate instanceof Date ? r.startDate.toISOString() : String(r.startDate),
+    endDate: r.endDate instanceof Date ? r.endDate.toISOString() : String(r.endDate),
+    guaranteedPlays: Number(r.guaranteedPlays),
+    remainingPlays: Number(r.remainingPlays),
+    status: String(r.status),
+    monthlyFee: Number(r.monthlyFee)
+  };
+}
+async function deductAndCreatePromoSubscription(userId, planId, monthlyFee, guaranteedPlays, videoId) {
+  await bootstrapCardTradingTables();
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const deposit = await getOrCreateSellerDeposit(userId);
+  if (!deposit) throw new Error("\u7121\u6CD5\u53D6\u5F97\u4FDD\u8B49\u91D1\u8CC7\u6599");
+  const currentBalance = parseFloat(deposit.balance.toString());
+  if (currentBalance < monthlyFee) {
+    throw new Error(`\u4FDD\u8B49\u91D1\u9918\u984D\u4E0D\u8DB3\uFF08\u9918\u984D\uFF1AHKD $${currentBalance.toFixed(2)}\uFF0C\u9700\u8981\uFF1AHKD $${monthlyFee.toFixed(2)}\uFF09`);
+  }
+  const newBalance = currentBalance - monthlyFee;
+  await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
+  const pool = await getRawPool();
+  await pool.execute(
+    `INSERT INTO deposit_transactions (depositId, userId, type, amount, balanceAfter, description)
+     VALUES (?, ?, 'promo_subscription', ?, ?, ?)`,
+    [
+      deposit.id,
+      userId,
+      (-monthlyFee).toFixed(2),
+      newBalance.toFixed(2),
+      `\u63A8\u5EE3\u5F71\u7247\u8A02\u95B1\u6708\u8CBB HKD $${monthlyFee.toFixed(2)}\uFF08\u4FDD\u8B49\u64AD\u653E ${guaranteedPlays} \u6B21\uFF09`
+    ]
+  );
+  const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3);
+  const [res] = await pool.execute(
+    `INSERT INTO cardPromoSubscriptions (userId, planId, videoId, endDate, guaranteedPlays, remainingPlays, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+    [userId, planId, videoId ?? null, endDate, guaranteedPlays, guaranteedPlays]
+  );
+  return {
+    subscriptionId: (Array.isArray(res) ? res[0] : res).insertId,
+    newBalance
+  };
 }
 async function getCardListings(opts) {
   await bootstrapCardTradingTables();
@@ -25968,6 +26055,47 @@ EXAMPLE OUTPUT (exact format):
         const { deleteCardPromoSubscriptionPlan: deleteCardPromoSubscriptionPlan2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         await deleteCardPromoSubscriptionPlan2(input.id);
         return { ok: true };
+      }),
+      // ── Merchant Promo Subscription (商戶訂閱推廣計劃) ────────────────────────
+      getMyPromoSubscription: protectedProcedure.query(async ({ ctx }) => {
+        const { getActiveCardPromoSubscriptionByUser: getActiveCardPromoSubscriptionByUser2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getActiveCardPromoSubscriptionByUser2(ctx.user.id);
+      }),
+      subscribePromoPlan: protectedProcedure.input(z2.object({
+        planId: z2.number().int(),
+        videoId: z2.number().int().optional()
+      })).mutation(async ({ input, ctx }) => {
+        const {
+          getMerchantApplicationByUser: getMerchantApplicationByUser2,
+          getCardPromoSubscriptionPlans: getCardPromoSubscriptionPlans2,
+          getActiveCardPromoSubscriptionByUser: getActiveCardPromoSubscriptionByUser2,
+          deductAndCreatePromoSubscription: deductAndCreatePromoSubscription2
+        } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const app = await getMerchantApplicationByUser2(ctx.user.id);
+        if (app?.status !== "approved" && ctx.user.role !== "admin") {
+          throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u8A02\u95B1\u63A8\u5EE3\u8A08\u5283" });
+        }
+        const existing = await getActiveCardPromoSubscriptionByUser2(ctx.user.id);
+        if (existing) {
+          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u60A8\u5DF2\u6709\u4E00\u500B\u6709\u6548\u8A02\u95B1\uFF0C\u5230\u671F\u5F8C\u624D\u53EF\u518D\u8A02\u95B1" });
+        }
+        const plans = await getCardPromoSubscriptionPlans2();
+        const plan = plans.find((p) => p.id === input.planId && p.isActive);
+        if (!plan) {
+          throw new TRPCError3({ code: "NOT_FOUND", message: "\u8A02\u95B1\u8A08\u5283\u4E0D\u5B58\u5728\u6216\u5DF2\u505C\u7528" });
+        }
+        try {
+          const result = await deductAndCreatePromoSubscription2(
+            ctx.user.id,
+            input.planId,
+            plan.monthlyFee,
+            plan.guaranteedPlays,
+            input.videoId
+          );
+          return { ...result, plan };
+        } catch (err) {
+          throw new TRPCError3({ code: "BAD_REQUEST", message: err.message || "\u8A02\u95B1\u5931\u6557\uFF0C\u8ACB\u91CD\u8A66" });
+        }
       })
     });
   })()

@@ -14943,6 +14943,58 @@ EXAMPLE OUTPUT (exact format):
         await deleteCardPromoSubscriptionPlan(input.id);
         return { ok: true };
       }),
+
+    // ── Merchant Promo Subscription (商戶訂閱推廣計劃) ────────────────────────
+    getMyPromoSubscription: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getActiveCardPromoSubscriptionByUser } = await import('./db') as any;
+        return getActiveCardPromoSubscriptionByUser(ctx.user.id);
+      }),
+
+    subscribePromoPlan: protectedProcedure
+      .input(z.object({
+        planId: z.number().int(),
+        videoId: z.number().int().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const {
+          getMerchantApplicationByUser,
+          getCardPromoSubscriptionPlans,
+          getActiveCardPromoSubscriptionByUser,
+          deductAndCreatePromoSubscription,
+        } = await import('./db') as any;
+
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已批核商戶會員才可訂閱推廣計劃' });
+        }
+
+        // Prevent duplicate active subscriptions
+        const existing = await getActiveCardPromoSubscriptionByUser(ctx.user.id);
+        if (existing) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '您已有一個有效訂閱，到期後才可再訂閱' });
+        }
+
+        // Validate plan exists and is active
+        const plans = await getCardPromoSubscriptionPlans();
+        const plan = (plans as any[]).find((p: any) => p.id === input.planId && p.isActive);
+        if (!plan) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: '訂閱計劃不存在或已停用' });
+        }
+
+        try {
+          const result = await deductAndCreatePromoSubscription(
+            ctx.user.id,
+            input.planId,
+            plan.monthlyFee,
+            plan.guaranteedPlays,
+            input.videoId
+          );
+          return { ...result, plan };
+        } catch (err: any) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: err.message || '訂閱失敗，請重試' });
+        }
+      }),
   }); })(),
 });
 export type AppRouter = typeof appRouter;
