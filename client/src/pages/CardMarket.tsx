@@ -12,6 +12,7 @@ import { SHARE_ORIGIN } from "@/lib/shareUrl";
 
 // ── Promo Video Player (fixed overlay, top-right) ────────────────────────────
 const PROMO_AUTO_STOP_SECS = 8;
+const PROMO_IDLE_CLOSE_SECS = 5; // auto-dismiss after 8s stop if no user action
 
 // Injected once into <head> so the keyframe is available globally
 const PROMO_STYLE_ID = "promo-dissolve-style";
@@ -38,6 +39,7 @@ function PromoVideoPlayer({ video, onDismiss }: {
   const [stopped, setStopped] = useState(false);
   const [dissolving, setDissolving] = useState(false);
   const [countdown, setCountdown] = useState(PROMO_AUTO_STOP_SECS);
+  const [idleCountdown, setIdleCountdown] = useState(PROMO_IDLE_CLOSE_SECS);
 
   // Pause + dismiss (always a hard close)
   function dismiss() {
@@ -60,6 +62,23 @@ function PromoVideoPlayer({ video, onDismiss }: {
     setCountdown(PROMO_AUTO_STOP_SECS);
     el.play().catch(() => {});
   }, [video.videoUrl]);
+
+  // 5-second idle auto-dismiss after 8s stop (if user takes no action)
+  useEffect(() => {
+    if (!stopped || playFull) return;
+    let count = PROMO_IDLE_CLOSE_SECS;
+    setIdleCountdown(count);
+    const iv = setInterval(() => {
+      count -= 1;
+      setIdleCountdown(count);
+      if (count <= 0) {
+        clearInterval(iv);
+        dissolveAndDismiss();
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopped, playFull]);
 
   // 8-second auto-stop + countdown (only while not in full-play mode)
   useEffect(() => {
@@ -140,7 +159,7 @@ function PromoVideoPlayer({ video, onDismiss }: {
             : <Volume2 style={{ width: 11, height: 11, color: "#fff" }} />}
         </button>
 
-        {/* 8s pause overlay — 播放全部 + ✕ 取消 */}
+        {/* 8s pause overlay — 播放全部 + ✕ 取消 + 5s idle countdown */}
         {stopped && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
             <button
@@ -155,6 +174,9 @@ function PromoVideoPlayer({ video, onDismiss }: {
             >
               <X style={{ width: 10, height: 10 }} />取消
             </button>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+              {idleCountdown}s 後自動關閉
+            </span>
           </div>
         )}
 
