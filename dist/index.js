@@ -7745,11 +7745,36 @@ async function bootstrapCardTradingTables() {
   `);
   try {
     await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD COLUMN timeBucket BIGINT NOT NULL DEFAULT 0 AFTER isSubscribed`);
-  } catch (_e) {
+  } catch (e) {
+    if (e?.errno !== 1060) {
+      console.error("[Bootstrap] cardPromoVideoPlays.timeBucket migration failed:", e?.message ?? e);
+      throw e;
+    }
   }
+  await pool.execute(`
+    UPDATE cardPromoVideoPlays
+    SET timeBucket = FLOOR(UNIX_TIMESTAMP(playedAt) / 300)
+    WHERE timeBucket = 0
+  `);
+  await pool.execute(`
+    DELETE cpvp FROM cardPromoVideoPlays cpvp
+    WHERE cpvp.viewerUserId IS NOT NULL
+      AND cpvp.id NOT IN (
+        SELECT keepId FROM (
+          SELECT MIN(id) AS keepId
+          FROM cardPromoVideoPlays
+          WHERE viewerUserId IS NOT NULL
+          GROUP BY videoId, viewerUserId, timeBucket
+        ) AS keep_ids
+      )
+  `);
   try {
     await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
-  } catch (_e) {
+  } catch (e) {
+    if (e?.errno !== 1061) {
+      console.error("[Bootstrap] cardPromoVideoPlays unique key migration failed:", e?.message ?? e);
+      throw e;
+    }
   }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardPromoSubscriptions (

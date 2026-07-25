@@ -8209,12 +8209,43 @@ export async function bootstrapCardTradingTables() {
     )
   `);
   // Migrate existing cardPromoVideoPlays tables (add timeBucket + unique key if missing)
+  // Step 1: add timeBucket column — only suppress "duplicate column" (errno 1060)
   try {
     await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD COLUMN timeBucket BIGINT NOT NULL DEFAULT 0 AFTER isSubscribed`);
-  } catch (_e: any) { /* column already exists */ }
+  } catch (e: any) {
+    if (e?.errno !== 1060) {
+      console.error('[Bootstrap] cardPromoVideoPlays.timeBucket migration failed:', e?.message ?? e);
+      throw e;
+    }
+  }
+  // Step 2: backfill timeBucket from playedAt for rows that still have default 0
+  await pool.execute(`
+    UPDATE cardPromoVideoPlays
+    SET timeBucket = FLOOR(UNIX_TIMESTAMP(playedAt) / 300)
+    WHERE timeBucket = 0
+  `);
+  // Step 3: deduplicate authenticated rows per (videoId, viewerUserId, timeBucket) keeping oldest (MIN id)
+  await pool.execute(`
+    DELETE cpvp FROM cardPromoVideoPlays cpvp
+    WHERE cpvp.viewerUserId IS NOT NULL
+      AND cpvp.id NOT IN (
+        SELECT keepId FROM (
+          SELECT MIN(id) AS keepId
+          FROM cardPromoVideoPlays
+          WHERE viewerUserId IS NOT NULL
+          GROUP BY videoId, viewerUserId, timeBucket
+        ) AS keep_ids
+      )
+  `);
+  // Step 4: add unique key — only suppress "duplicate key name" (errno 1061)
   try {
     await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
-  } catch (_e: any) { /* index already exists */ }
+  } catch (e: any) {
+    if (e?.errno !== 1061) {
+      console.error('[Bootstrap] cardPromoVideoPlays unique key migration failed:', e?.message ?? e);
+      throw e;
+    }
+  }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardPromoSubscriptions (
       id INT AUTO_INCREMENT PRIMARY KEY,
