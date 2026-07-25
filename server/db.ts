@@ -1639,7 +1639,7 @@ async function ensureDepositTables() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         depositId INT NOT NULL,
         userId INT NOT NULL,
-        type ENUM('top_up','commission','refund','adjustment') NOT NULL,
+        type ENUM('top_up','commission','refund','adjustment','promo_subscription') NOT NULL,
         amount DECIMAL(12,2) NOT NULL,
         balanceAfter DECIMAL(12,2) NOT NULL,
         description TEXT,
@@ -1648,6 +1648,8 @@ async function ensureDepositTables() {
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    // Ensure promo_subscription is in the enum for existing DBs that were created before this value was added
+    try { await db.execute(sql`ALTER TABLE deposit_transactions MODIFY COLUMN type ENUM('top_up','commission','refund','adjustment','promo_subscription') NOT NULL`); } catch {}
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS depositTierPresets (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8210,10 +8212,6 @@ export async function bootstrapCardTradingTables() {
       INDEX idx_cps_status (status)
     )
   `);
-  // Expand deposit_transactions type enum to include promo_subscription
-  try {
-    await pool.execute(`ALTER TABLE deposit_transactions MODIFY COLUMN type ENUM('top_up','commission','refund','adjustment','promo_subscription') NOT NULL`);
-  } catch {}
 }
 
 export async function createCardPromoVideo(userId: number, videoUrl: string): Promise<{ id: number }> {
@@ -8362,46 +8360,86 @@ export async function deductAndCreatePromoSubscription(
 ): Promise<{ subscriptionId: number; newBalance: number }> {
   await bootstrapCardTradingTables();
   await ensureDepositTables();
-  const db = await getDb();
-  if (!db) throw new Error('Database not available');
-
-  const deposit = await getOrCreateSellerDeposit(userId);
-  if (!deposit) throw new Error('無法取得保證金資料');
-
-  const currentBalance = parseFloat(deposit.balance.toString());
-  if (currentBalance < monthlyFee) {
-    throw new Error(`保證金餘額不足（餘額：HKD $${currentBalance.toFixed(2)}，需要：HKD $${monthlyFee.toFixed(2)}）`);
-  }
-
-  const newBalance = currentBalance - monthlyFee;
-  await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
-
   const pool = await getRawPool();
-  // Insert deposit_transaction using raw SQL to support promo_subscription enum value
-  await pool.execute(
-    `INSERT INTO deposit_transactions (depositId, userId, type, amount, balanceAfter, description)
-     VALUES (?, ?, 'promo_subscription', ?, ?, ?)`,
-    [
-      deposit.id,
-      userId,
-      (-monthlyFee).toFixed(2),
-      newBalance.toFixed(2),
-      `推廣影片訂閱月費 HKD $${monthlyFee.toFixed(2)}（保證播放 ${guaranteedPlays} 次）`,
-    ]
-  );
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
 
-  // 30-day subscription end date
-  const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  const [res]: any = await pool.execute(
-    `INSERT INTO cardPromoSubscriptions (userId, planId, videoId, endDate, guaranteedPlays, remainingPlays, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-    [userId, planId, videoId ?? null, endDate, guaranteedPlays, guaranteedPlays]
-  );
+    // Lock the deposit row to prevent concurrent balance modifications (TOCTOU-safe)
+    const [depositRows]: any = await conn.execute(
+      `SELECT id, balance FROM seller_deposits WHERE userId = ? FOR UPDATE`,
+      [userId]
+    );
+    let depositId: number;
+    let currentBalance: number;
+    const depList = Array.isArray(depositRows) ? depositRows : [];
+    if (depList.length > 0) {
+      depositId = Number(depList[0].id);
+      currentBalance = parseFloat(String(depList[0].balance));
+    } else {
+      // Create deposit row if not yet existing; re-lock after creation
+      await conn.execute(
+        `INSERT IGNORE INTO seller_deposits (userId, balance, requiredDeposit, commissionRate, isActive) VALUES (?, 0.00, 500.00, 0.0500, 1)`,
+        [userId]
+      );
+      const [newDep]: any = await conn.execute(
+        `SELECT id, balance FROM seller_deposits WHERE userId = ? FOR UPDATE`,
+        [userId]
+      );
+      const nd = Array.isArray(newDep) ? newDep : [];
+      if (nd.length === 0) throw new Error('無法取得保證金資料');
+      depositId = Number(nd[0].id);
+      currentBalance = parseFloat(String(nd[0].balance));
+    }
 
-  return {
-    subscriptionId: (Array.isArray(res) ? res[0] : res).insertId as number,
-    newBalance,
-  };
+    if (currentBalance < monthlyFee) {
+      throw new Error(`保證金餘額不足（餘額：HKD $${currentBalance.toFixed(2)}，需要：HKD $${monthlyFee.toFixed(2)}）`);
+    }
+
+    // Check for duplicate active subscription within the same transaction (concurrency-safe)
+    const [subRows]: any = await conn.execute(
+      `SELECT id FROM cardPromoSubscriptions WHERE userId = ? AND status = 'active' AND endDate > NOW() LIMIT 1 FOR UPDATE`,
+      [userId]
+    );
+    if (Array.isArray(subRows) && subRows.length > 0) {
+      throw new Error('您已有一個有效訂閱，到期後才可再訂閱');
+    }
+
+    const newBalance = currentBalance - monthlyFee;
+
+    // Deduct balance
+    await conn.execute(
+      `UPDATE seller_deposits SET balance = ? WHERE id = ?`,
+      [newBalance.toFixed(2), depositId]
+    );
+
+    // Record deposit transaction
+    await conn.execute(
+      `INSERT INTO deposit_transactions (depositId, userId, type, amount, balanceAfter, description)
+       VALUES (?, ?, 'promo_subscription', ?, ?, ?)`,
+      [depositId, userId, (-monthlyFee).toFixed(2), newBalance.toFixed(2),
+       `推廣影片訂閱月費 HKD $${monthlyFee.toFixed(2)}（保證播放 ${guaranteedPlays} 次）`]
+    );
+
+    // Create subscription record (30-day validity)
+    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const [res]: any = await conn.execute(
+      `INSERT INTO cardPromoSubscriptions (userId, planId, videoId, endDate, guaranteedPlays, remainingPlays, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+      [userId, planId, videoId ?? null, endDate, guaranteedPlays, guaranteedPlays]
+    );
+
+    await conn.commit();
+    return {
+      subscriptionId: (Array.isArray(res) ? res[0] : res).insertId as number,
+      newBalance,
+    };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
 }
 
 export async function getCardListings(opts: {
