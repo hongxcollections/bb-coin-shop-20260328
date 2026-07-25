@@ -62,8 +62,8 @@ function PromoVideoPlayer({ video, onDismiss }: {
     el.muted = true;
     setCountdown(PROMO_AUTO_STOP_SECS);
     el.play().catch(() => {});
-    // Record this play event (fire and forget)
-    recordPlayMut.mutate({ videoId: video.id, isSubscribed: video.isSubscribed ?? false });
+    // Record this play event (fire and forget — isSubscribed derived server-side)
+    recordPlayMut.mutate({ videoId: video.id });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video.videoUrl]);
 

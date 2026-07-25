@@ -14903,11 +14903,11 @@ EXAMPLE OUTPUT (exact format):
     recordPromoVideoPlay: publicProcedure
       .input(z.object({
         videoId: z.number().int(),
-        isSubscribed: z.boolean().default(false),
       }))
       .mutation(async ({ input, ctx }) => {
         const { recordCardPromoVideoPlay } = await import('./db') as any;
-        await recordCardPromoVideoPlay(input.videoId, (ctx.user as any)?.id ?? null, input.isSubscribed);
+        // isSubscribed is derived server-side inside recordCardPromoVideoPlay — never trusted from client
+        await recordCardPromoVideoPlay(input.videoId, (ctx.user as any)?.id ?? null);
         return { ok: true };
       }),
 

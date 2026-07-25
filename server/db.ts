@@ -8310,28 +8310,51 @@ export async function getMyCardPromoVideos(userId: number): Promise<{ id: number
   }));
 }
 
-export async function recordCardPromoVideoPlay(videoId: number, viewerUserId: number | null, isSubscribed: boolean): Promise<void> {
+export async function recordCardPromoVideoPlay(videoId: number, viewerUserId: number | null): Promise<void> {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  // Record the play event
-  await pool.execute(
-    `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,
-    [videoId, viewerUserId ?? null, isSubscribed ? 1 : 0]
-  );
-  // If this was a subscribed play, decrement the owner's active subscription remaining plays
-  if (isSubscribed) {
-    const [vidRows]: any = await pool.execute(`SELECT userId FROM cardPromoVideos WHERE id = ?`, [videoId]);
+  // Atomically: look up video owner, check active subscription, decrement if eligible, record play
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    // 1. Get video owner (with row lock)
+    const [vidRows]: any = await conn.execute(
+      `SELECT userId FROM cardPromoVideos WHERE id = ? FOR UPDATE`,
+      [videoId]
+    );
     const vidList = Array.isArray(vidRows) ? vidRows : [];
+    let isSubscribed = false;
     if (vidList.length > 0) {
       const ownerId = Number(vidList[0].userId);
-      await pool.execute(
-        `UPDATE cardPromoSubscriptions
-         SET remainingPlays = GREATEST(0, remainingPlays - 1)
+      // 2. Check + lock active subscription row with remaining plays
+      const [subRows]: any = await conn.execute(
+        `SELECT id FROM cardPromoSubscriptions
          WHERE userId = ? AND status = 'active' AND endDate > NOW() AND remainingPlays > 0
-         ORDER BY id DESC LIMIT 1`,
+         ORDER BY id DESC LIMIT 1
+         FOR UPDATE`,
         [ownerId]
       );
+      const subList = Array.isArray(subRows) ? subRows : [];
+      if (subList.length > 0) {
+        // 3. Decrement remaining plays
+        await conn.execute(
+          `UPDATE cardPromoSubscriptions SET remainingPlays = GREATEST(0, remainingPlays - 1) WHERE id = ?`,
+          [subList[0].id]
+        );
+        isSubscribed = true;
+      }
     }
+    // 4. Record play event with server-derived isSubscribed flag
+    await conn.execute(
+      `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,
+      [videoId, viewerUserId ?? null, isSubscribed ? 1 : 0]
+    );
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
   }
 }
 

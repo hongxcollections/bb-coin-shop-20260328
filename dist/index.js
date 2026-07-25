@@ -7835,26 +7835,46 @@ async function getMyCardPromoVideos(userId) {
     playCount: Number(r.playCount)
   }));
 }
-async function recordCardPromoVideoPlay(videoId, viewerUserId, isSubscribed) {
+async function recordCardPromoVideoPlay(videoId, viewerUserId) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  await pool.execute(
-    `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,
-    [videoId, viewerUserId ?? null, isSubscribed ? 1 : 0]
-  );
-  if (isSubscribed) {
-    const [vidRows] = await pool.execute(`SELECT userId FROM cardPromoVideos WHERE id = ?`, [videoId]);
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [vidRows] = await conn.execute(
+      `SELECT userId FROM cardPromoVideos WHERE id = ? FOR UPDATE`,
+      [videoId]
+    );
     const vidList = Array.isArray(vidRows) ? vidRows : [];
+    let isSubscribed = false;
     if (vidList.length > 0) {
       const ownerId = Number(vidList[0].userId);
-      await pool.execute(
-        `UPDATE cardPromoSubscriptions
-         SET remainingPlays = GREATEST(0, remainingPlays - 1)
+      const [subRows] = await conn.execute(
+        `SELECT id FROM cardPromoSubscriptions
          WHERE userId = ? AND status = 'active' AND endDate > NOW() AND remainingPlays > 0
-         ORDER BY id DESC LIMIT 1`,
+         ORDER BY id DESC LIMIT 1
+         FOR UPDATE`,
         [ownerId]
       );
+      const subList = Array.isArray(subRows) ? subRows : [];
+      if (subList.length > 0) {
+        await conn.execute(
+          `UPDATE cardPromoSubscriptions SET remainingPlays = GREATEST(0, remainingPlays - 1) WHERE id = ?`,
+          [subList[0].id]
+        );
+        isSubscribed = true;
+      }
     }
+    await conn.execute(
+      `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,
+      [videoId, viewerUserId ?? null, isSubscribed ? 1 : 0]
+    );
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
   }
 }
 async function deactivateCardPromoVideo(id, userId) {
@@ -26137,11 +26157,10 @@ EXAMPLE OUTPUT (exact format):
         return getMyCardPromoVideos2(ctx.user.id);
       }),
       recordPromoVideoPlay: publicProcedure.input(z2.object({
-        videoId: z2.number().int(),
-        isSubscribed: z2.boolean().default(false)
+        videoId: z2.number().int()
       })).mutation(async ({ input, ctx }) => {
         const { recordCardPromoVideoPlay: recordCardPromoVideoPlay2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-        await recordCardPromoVideoPlay2(input.videoId, ctx.user?.id ?? null, input.isSubscribed);
+        await recordCardPromoVideoPlay2(input.videoId, ctx.user?.id ?? null);
         return { ok: true };
       }),
       // ── Promo Subscription Plans (admin CRUD + public read) ───────────────────
