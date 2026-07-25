@@ -7751,7 +7751,7 @@ async function bootstrapCardTradingTables() {
       throw e;
     }
   }
-  const [idxRows] = await pool.execute(`
+  const [idxRows] = await pool.query(`
     SELECT COUNT(*) AS cnt FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cardPromoVideoPlays' AND INDEX_NAME = 'uk_cpvp_dedupe'
   `);
@@ -7813,16 +7813,21 @@ async function createCardPromoVideo(userId, videoUrl) {
 async function getActiveCardPromoVideos(limit = 10) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  const [subRows] = await pool.execute(`
-    SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
-    FROM cardPromoVideos cpv
-    INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
-      AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
-    WHERE cpv.isActive = 1
-    ORDER BY (cps.remainingPlays / GREATEST(1, DATEDIFF(cps.endDate, NOW()))) DESC
-    LIMIT ?
-  `, [limit]);
-  const subList = Array.isArray(subRows) ? subRows : [];
+  let subList = [];
+  try {
+    const [rows] = await pool.query(`
+      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+      FROM cardPromoVideos cpv
+      INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
+        AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
+      WHERE cpv.isActive = 1
+      ORDER BY cps.remainingPlays DESC
+      LIMIT ${Math.floor(limit)}
+    `);
+    subList = Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    console.error("[getActiveCardPromoVideos] subscribed query failed:", e?.message ?? e);
+  }
   const result = [];
   const usedIds = /* @__PURE__ */ new Set();
   for (const r of subList) {
@@ -7839,23 +7844,27 @@ async function getActiveCardPromoVideos(limit = 10) {
   }
   const remaining = limit - result.length;
   if (remaining > 0) {
-    const excludeSql = usedIds.size > 0 ? `AND cpv.id NOT IN (${[...usedIds].map(() => "?").join(",")})` : "";
-    const [freeRows] = await pool.execute(`
-      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
-      FROM cardPromoVideos cpv
-      WHERE cpv.isActive = 1 ${excludeSql}
-      ORDER BY RAND()
-      LIMIT ?
-    `, [...usedIds, remaining]);
-    const freeList = Array.isArray(freeRows) ? freeRows : [];
-    for (const r of freeList) {
-      result.push({
-        id: Number(r.id),
-        userId: Number(r.userId),
-        videoUrl: String(r.videoUrl),
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
-        isSubscribed: false
-      });
+    const excludeClause = usedIds.size > 0 ? `AND cpv.id NOT IN (${[...usedIds].map((id) => Math.floor(id)).join(",")})` : "";
+    try {
+      const [rows] = await pool.query(`
+        SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+        FROM cardPromoVideos cpv
+        WHERE cpv.isActive = 1 ${excludeClause}
+        ORDER BY RAND()
+        LIMIT ${Math.floor(remaining)}
+      `);
+      const freeList = Array.isArray(rows) ? rows : [];
+      for (const r of freeList) {
+        result.push({
+          id: Number(r.id),
+          userId: Number(r.userId),
+          videoUrl: String(r.videoUrl),
+          createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+          isSubscribed: false
+        });
+      }
+    } catch (e) {
+      console.error("[getActiveCardPromoVideos] free query failed:", e?.message ?? e);
     }
   }
   for (let i = result.length - 1; i > 0; i--) {

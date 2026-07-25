@@ -8219,7 +8219,8 @@ export async function bootstrapCardTradingTables() {
     }
   }
   // Steps 2-4 are one-time data migration — gate on unique key absence so they never repeat after first run
-  const [idxRows]: any = await pool.execute(`
+  // Use pool.query() (text protocol) for information_schema — prepared statements may be restricted on some MySQL configs
+  const [idxRows]: any = await pool.query(`
     SELECT COUNT(*) AS cnt FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cardPromoVideoPlays' AND INDEX_NAME = 'uk_cpvp_dedupe'
   `);
@@ -8287,28 +8288,31 @@ export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
 
-  // Phase 1: subscribed videos (active subscription, remainingPlays > 0), sorted by urgency.
-  // Phase 2: remaining slots filled with any other active videos (free merchants or exhausted subscriptions).
-  // Both use pool.execute() — proven to work.
-  // Final step: Fisher-Yates shuffle so free videos are randomly distributed across the list
-  // (restores original random behaviour; free videos can appear at index 0).
+  // All queries use pool.query() (text protocol, no prepared statements) and safe integer/ID interpolation.
+  // This avoids "Incorrect arguments to mysqld_stmt_execute" on Railway MySQL with RAND()/complex ORDER BY.
 
-  const [subRows]: any = await pool.execute(`
-    SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
-    FROM cardPromoVideos cpv
-    INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
-      AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
-    WHERE cpv.isActive = 1
-    ORDER BY (cps.remainingPlays / GREATEST(1, DATEDIFF(cps.endDate, NOW()))) DESC
-    LIMIT ?
-  `, [limit]);
-  const subList = Array.isArray(subRows) ? subRows : [];
+  // Phase 1: subscribed videos
+  let subList: any[] = [];
+  try {
+    const [rows]: any = await pool.query(`
+      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+      FROM cardPromoVideos cpv
+      INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
+        AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
+      WHERE cpv.isActive = 1
+      ORDER BY cps.remainingPlays DESC
+      LIMIT ${Math.floor(limit)}
+    `);
+    subList = Array.isArray(rows) ? rows : [];
+  } catch (e: any) {
+    console.error('[getActiveCardPromoVideos] subscribed query failed:', e?.message ?? e);
+  }
 
   const result: { id: number; userId: number; videoUrl: string; createdAt: string; isSubscribed: boolean }[] = [];
   const usedIds = new Set<number>();
   for (const r of subList) {
     const vid = Number(r.id);
-    if (usedIds.has(vid)) continue; // dedupe (merchant with multiple subscriptions)
+    if (usedIds.has(vid)) continue;
     result.push({
       id: vid,
       userId: Number(r.userId),
@@ -8319,32 +8323,36 @@ export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number
     usedIds.add(vid);
   }
 
+  // Phase 2: free videos filling remaining slots
   const remaining = limit - result.length;
   if (remaining > 0) {
-    const excludeSql = usedIds.size > 0
-      ? `AND cpv.id NOT IN (${[...usedIds].map(() => '?').join(',')})`
+    const excludeClause = usedIds.size > 0
+      ? `AND cpv.id NOT IN (${[...usedIds].map(id => Math.floor(id)).join(',')})`
       : '';
-    const [freeRows]: any = await pool.execute(`
-      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
-      FROM cardPromoVideos cpv
-      WHERE cpv.isActive = 1 ${excludeSql}
-      ORDER BY RAND()
-      LIMIT ?
-    `, [...usedIds, remaining]);
-    const freeList = Array.isArray(freeRows) ? freeRows : [];
-    for (const r of freeList) {
-      result.push({
-        id: Number(r.id),
-        userId: Number(r.userId),
-        videoUrl: String(r.videoUrl),
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
-        isSubscribed: false,
-      });
+    try {
+      const [rows]: any = await pool.query(`
+        SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+        FROM cardPromoVideos cpv
+        WHERE cpv.isActive = 1 ${excludeClause}
+        ORDER BY RAND()
+        LIMIT ${Math.floor(remaining)}
+      `);
+      const freeList = Array.isArray(rows) ? rows : [];
+      for (const r of freeList) {
+        result.push({
+          id: Number(r.id),
+          userId: Number(r.userId),
+          videoUrl: String(r.videoUrl),
+          createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+          isSubscribed: false,
+        });
+      }
+    } catch (e: any) {
+      console.error('[getActiveCardPromoVideos] free query failed:', e?.message ?? e);
     }
   }
 
-  // Shuffle so free videos are not always buried after subscribed ones.
-  // Fisher-Yates in-place shuffle.
+  // Fisher-Yates shuffle: free videos randomly distributed so they can appear at index 0
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
