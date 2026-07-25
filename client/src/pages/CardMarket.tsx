@@ -41,6 +41,8 @@ function PromoVideoPlayer({ video, onDismiss }: {
   const [countdown, setCountdown] = useState(PROMO_AUTO_STOP_SECS);
   const [idleCountdown, setIdleCountdown] = useState(PROMO_IDLE_CLOSE_SECS);
   const recordPlayMut = trpc.cardTrading.recordPromoVideoPlay.useMutation();
+  // Idempotency guard: only record once per video impression
+  const playRecordedRef = useRef(false);
 
   // Pause + dismiss (always a hard close)
   function dismiss() {
@@ -61,10 +63,8 @@ function PromoVideoPlayer({ video, onDismiss }: {
     el.currentTime = 0;
     el.muted = true;
     setCountdown(PROMO_AUTO_STOP_SECS);
+    playRecordedRef.current = false; // reset idempotency guard for new video
     el.play().catch(() => {});
-    // Record this play event (fire and forget — isSubscribed derived server-side)
-    recordPlayMut.mutate({ videoId: video.id });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video.videoUrl]);
 
   // 5-second idle auto-dismiss after 8s stop (if user takes no action)
@@ -135,6 +135,13 @@ function PromoVideoPlayer({ video, onDismiss }: {
           playsInline
           style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
           onEnded={playFull ? dissolveAndDismiss : undefined}
+          onPlay={() => {
+            // Record once per impression when playback actually begins (isSubscribed derived server-side)
+            if (!playRecordedRef.current) {
+              playRecordedRef.current = true;
+              recordPlayMut.mutate({ videoId: video.id });
+            }
+          }}
         />
 
         {/* ✕ only shown after 8s stop OR during full-play — hidden during 8s preview */}

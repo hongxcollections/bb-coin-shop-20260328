@@ -7838,16 +7838,25 @@ async function getMyCardPromoVideos(userId) {
 async function recordCardPromoVideoPlay(videoId, viewerUserId) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
+  if (viewerUserId !== null) {
+    const [dupeRows] = await pool.execute(
+      `SELECT id FROM cardPromoVideoPlays
+       WHERE videoId = ? AND viewerUserId = ? AND playedAt > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+       LIMIT 1`,
+      [videoId, viewerUserId]
+    );
+    if (Array.isArray(dupeRows) && dupeRows.length > 0) return;
+  }
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
     const [vidRows] = await conn.execute(
-      `SELECT userId FROM cardPromoVideos WHERE id = ? FOR UPDATE`,
+      `SELECT userId FROM cardPromoVideos WHERE id = ? AND isActive = 1 FOR UPDATE`,
       [videoId]
     );
     const vidList = Array.isArray(vidRows) ? vidRows : [];
     let isSubscribed = false;
-    if (vidList.length > 0) {
+    if (vidList.length > 0 && viewerUserId !== null) {
       const ownerId = Number(vidList[0].userId);
       const [subRows] = await conn.execute(
         `SELECT id FROM cardPromoSubscriptions
@@ -7864,6 +7873,9 @@ async function recordCardPromoVideoPlay(videoId, viewerUserId) {
         );
         isSubscribed = true;
       }
+    } else if (vidList.length === 0) {
+      await conn.rollback();
+      return;
     }
     await conn.execute(
       `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,

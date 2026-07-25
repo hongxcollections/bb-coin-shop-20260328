@@ -8313,18 +8313,31 @@ export async function getMyCardPromoVideos(userId: number): Promise<{ id: number
 export async function recordCardPromoVideoPlay(videoId: number, viewerUserId: number | null): Promise<void> {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  // Atomically: look up video owner, check active subscription, decrement if eligible, record play
+
+  // Anti-abuse dedupe: skip if same authenticated viewer already recorded a play for this video within 5 minutes
+  if (viewerUserId !== null) {
+    const [dupeRows]: any = await pool.execute(
+      `SELECT id FROM cardPromoVideoPlays
+       WHERE videoId = ? AND viewerUserId = ? AND playedAt > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+       LIMIT 1`,
+      [videoId, viewerUserId]
+    );
+    if (Array.isArray(dupeRows) && dupeRows.length > 0) return; // already recorded recently
+  }
+
+  // Atomically: validate video is active, look up owner, check subscription, decrement if eligible, record play
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    // 1. Get video owner (with row lock)
+    // 1. Get video owner — only proceed if video is currently active (eligible for public rotation)
     const [vidRows]: any = await conn.execute(
-      `SELECT userId FROM cardPromoVideos WHERE id = ? FOR UPDATE`,
+      `SELECT userId FROM cardPromoVideos WHERE id = ? AND isActive = 1 FOR UPDATE`,
       [videoId]
     );
     const vidList = Array.isArray(vidRows) ? vidRows : [];
     let isSubscribed = false;
-    if (vidList.length > 0) {
+    if (vidList.length > 0 && viewerUserId !== null) {
+      // Only decrement quota for authenticated viewers (unauthenticated plays count but don't consume guaranteed quota)
       const ownerId = Number(vidList[0].userId);
       // 2. Check + lock active subscription row with remaining plays
       const [subRows]: any = await conn.execute(
@@ -8343,6 +8356,10 @@ export async function recordCardPromoVideoPlay(videoId: number, viewerUserId: nu
         );
         isSubscribed = true;
       }
+    } else if (vidList.length === 0) {
+      // Video not active or doesn't exist — no-op, just rollback
+      await conn.rollback();
+      return;
     }
     // 4. Record play event with server-derived isSubscribed flag
     await conn.execute(
