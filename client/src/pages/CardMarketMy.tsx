@@ -1011,6 +1011,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
     if (!selectedPlanId) return;
     const plan = (promoPlans as any[]).find((p: any) => p.id === selectedPlanId);
     if (!plan) return;
+    setShowSubInfo(false); // 先關閉 modal，確認 dialog 才不會被遮擋
     const ok1 = await confirm({
       title: "確認訂閱計劃",
       description: `月費：HKD $${Number(plan.monthlyFee).toFixed(0)}\n保證播放次數：${plan.guaranteedPlays} 次\n有效期：30 天`,
@@ -1032,7 +1033,6 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
     });
     if (!ok3) return;
     subscribeMut.mutate({ planId: selectedPlanId });
-    setShowSubInfo(false);
   }
 
   async function handleFileSelect(files: FileList | null) {
