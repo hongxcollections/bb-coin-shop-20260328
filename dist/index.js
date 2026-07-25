@@ -7736,11 +7736,21 @@ async function bootstrapCardTradingTables() {
       videoId INT NOT NULL,
       viewerUserId INT NULL,
       isSubscribed TINYINT(1) DEFAULT 0,
+      timeBucket BIGINT NOT NULL DEFAULT 0,
       playedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_cpvp_videoId (videoId),
-      INDEX idx_cpvp_playedAt (playedAt)
+      INDEX idx_cpvp_playedAt (playedAt),
+      UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)
     )
   `);
+  try {
+    await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD COLUMN timeBucket BIGINT NOT NULL DEFAULT 0 AFTER isSubscribed`);
+  } catch (_e) {
+  }
+  try {
+    await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
+  } catch (_e) {
+  }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardPromoSubscriptions (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -7838,15 +7848,6 @@ async function getMyCardPromoVideos(userId) {
 async function recordCardPromoVideoPlay(videoId, viewerUserId) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-  if (viewerUserId !== null) {
-    const [dupeRows] = await pool.execute(
-      `SELECT id FROM cardPromoVideoPlays
-       WHERE videoId = ? AND viewerUserId = ? AND playedAt > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-       LIMIT 1`,
-      [videoId, viewerUserId]
-    );
-    if (Array.isArray(dupeRows) && dupeRows.length > 0) return;
-  }
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -7855,8 +7856,23 @@ async function recordCardPromoVideoPlay(videoId, viewerUserId) {
       [videoId]
     );
     const vidList = Array.isArray(vidRows) ? vidRows : [];
-    let isSubscribed = false;
-    if (vidList.length > 0 && viewerUserId !== null) {
+    if (vidList.length === 0) {
+      await conn.rollback();
+      return;
+    }
+    const [insertResult] = await conn.execute(
+      `INSERT IGNORE INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed, timeBucket)
+       VALUES (?, ?, 0, FLOOR(UNIX_TIMESTAMP() / 300))`,
+      [videoId, viewerUserId ?? null]
+    );
+    const res = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+    const affectedRows = res?.affectedRows ?? 0;
+    const insertId = res?.insertId ?? 0;
+    if (affectedRows === 0) {
+      await conn.rollback();
+      return;
+    }
+    if (viewerUserId !== null) {
       const ownerId = Number(vidList[0].userId);
       const [subRows] = await conn.execute(
         `SELECT id FROM cardPromoSubscriptions
@@ -7871,16 +7887,12 @@ async function recordCardPromoVideoPlay(videoId, viewerUserId) {
           `UPDATE cardPromoSubscriptions SET remainingPlays = GREATEST(0, remainingPlays - 1) WHERE id = ?`,
           [subList[0].id]
         );
-        isSubscribed = true;
+        await conn.execute(
+          `UPDATE cardPromoVideoPlays SET isSubscribed = 1 WHERE id = ?`,
+          [insertId]
+        );
       }
-    } else if (vidList.length === 0) {
-      await conn.rollback();
-      return;
     }
-    await conn.execute(
-      `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,
-      [videoId, viewerUserId ?? null, isSubscribed ? 1 : 0]
-    );
     await conn.commit();
   } catch (err) {
     await conn.rollback();

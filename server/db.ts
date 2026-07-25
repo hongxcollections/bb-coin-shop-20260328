@@ -8201,11 +8201,20 @@ export async function bootstrapCardTradingTables() {
       videoId INT NOT NULL,
       viewerUserId INT NULL,
       isSubscribed TINYINT(1) DEFAULT 0,
+      timeBucket BIGINT NOT NULL DEFAULT 0,
       playedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_cpvp_videoId (videoId),
-      INDEX idx_cpvp_playedAt (playedAt)
+      INDEX idx_cpvp_playedAt (playedAt),
+      UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)
     )
   `);
+  // Migrate existing cardPromoVideoPlays tables (add timeBucket + unique key if missing)
+  try {
+    await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD COLUMN timeBucket BIGINT NOT NULL DEFAULT 0 AFTER isSubscribed`);
+  } catch (_e: any) { /* column already exists */ }
+  try {
+    await pool.execute(`ALTER TABLE cardPromoVideoPlays ADD UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket)`);
+  } catch (_e: any) { /* index already exists */ }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardPromoSubscriptions (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8313,33 +8322,44 @@ export async function getMyCardPromoVideos(userId: number): Promise<{ id: number
 export async function recordCardPromoVideoPlay(videoId: number, viewerUserId: number | null): Promise<void> {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
-
-  // Anti-abuse dedupe: skip if same authenticated viewer already recorded a play for this video within 5 minutes
-  if (viewerUserId !== null) {
-    const [dupeRows]: any = await pool.execute(
-      `SELECT id FROM cardPromoVideoPlays
-       WHERE videoId = ? AND viewerUserId = ? AND playedAt > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-       LIMIT 1`,
-      [videoId, viewerUserId]
-    );
-    if (Array.isArray(dupeRows) && dupeRows.length > 0) return; // already recorded recently
-  }
-
-  // Atomically: validate video is active, look up owner, check subscription, decrement if eligible, record play
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    // 1. Get video owner — only proceed if video is currently active (eligible for public rotation)
+
+    // 1. Validate video is currently active (eligible for public rotation) — lock the row
     const [vidRows]: any = await conn.execute(
       `SELECT userId FROM cardPromoVideos WHERE id = ? AND isActive = 1 FOR UPDATE`,
       [videoId]
     );
     const vidList = Array.isArray(vidRows) ? vidRows : [];
-    let isSubscribed = false;
-    if (vidList.length > 0 && viewerUserId !== null) {
-      // Only decrement quota for authenticated viewers (unauthenticated plays count but don't consume guaranteed quota)
+    if (vidList.length === 0) {
+      await conn.rollback();
+      return; // Video not active or doesn't exist
+    }
+
+    // 2. Atomic INSERT IGNORE with 5-minute time-bucket key.
+    //    UNIQUE KEY uk_cpvp_dedupe (videoId, viewerUserId, timeBucket) ensures only one row
+    //    per authenticated viewer per video per 5-minute window at the DB level.
+    //    MySQL treats NULLs as distinct in UNIQUE indexes, so unauthenticated plays (NULL viewerUserId)
+    //    are always inserted but cannot drain subscription quota.
+    const [insertResult]: any = await conn.execute(
+      `INSERT IGNORE INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed, timeBucket)
+       VALUES (?, ?, 0, FLOOR(UNIX_TIMESTAMP() / 300))`,
+      [videoId, viewerUserId ?? null]
+    );
+    const res = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+    const affectedRows: number = res?.affectedRows ?? 0;
+    const insertId: number = res?.insertId ?? 0;
+
+    if (affectedRows === 0) {
+      // Dedupe: this viewer already triggered a play for this video within the current 5-min window
+      await conn.rollback();
+      return;
+    }
+
+    // 3. If authenticated viewer, check + decrement subscription quota atomically
+    if (viewerUserId !== null) {
       const ownerId = Number(vidList[0].userId);
-      // 2. Check + lock active subscription row with remaining plays
       const [subRows]: any = await conn.execute(
         `SELECT id FROM cardPromoSubscriptions
          WHERE userId = ? AND status = 'active' AND endDate > NOW() AND remainingPlays > 0
@@ -8349,23 +8369,18 @@ export async function recordCardPromoVideoPlay(videoId: number, viewerUserId: nu
       );
       const subList = Array.isArray(subRows) ? subRows : [];
       if (subList.length > 0) {
-        // 3. Decrement remaining plays
         await conn.execute(
           `UPDATE cardPromoSubscriptions SET remainingPlays = GREATEST(0, remainingPlays - 1) WHERE id = ?`,
           [subList[0].id]
         );
-        isSubscribed = true;
+        // Mark this play record as a subscribed (quota-consuming) play
+        await conn.execute(
+          `UPDATE cardPromoVideoPlays SET isSubscribed = 1 WHERE id = ?`,
+          [insertId]
+        );
       }
-    } else if (vidList.length === 0) {
-      // Video not active or doesn't exist — no-op, just rollback
-      await conn.rollback();
-      return;
     }
-    // 4. Record play event with server-derived isSubscribed flag
-    await conn.execute(
-      `INSERT INTO cardPromoVideoPlays (videoId, viewerUserId, isSubscribed) VALUES (?, ?, ?)`,
-      [videoId, viewerUserId ?? null, isSubscribed ? 1 : 0]
-    );
+
     await conn.commit();
   } catch (err) {
     await conn.rollback();
