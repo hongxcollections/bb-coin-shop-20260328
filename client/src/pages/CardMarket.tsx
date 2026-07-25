@@ -29,9 +29,10 @@ if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID))
   document.head.appendChild(s);
 }
 
-function PromoVideoPlayer({ video, onDismiss }: {
+function PromoVideoPlayer({ video, onClose, onNext }: {
   video: { id: number; userId: number; videoUrl: string; isSubscribed?: boolean };
-  onDismiss: () => void;
+  onClose: () => void; // user manually dismissed → permanently hide all
+  onNext: () => void;  // video auto-completed → advance to next video
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
@@ -44,17 +45,17 @@ function PromoVideoPlayer({ video, onDismiss }: {
   // Idempotency guard: only record once per video impression
   const playRecordedRef = useRef(false);
 
-  // Pause + dismiss (always a hard close)
+  // Pause + permanently close (user explicitly dismissed)
   function dismiss() {
     videoRef.current?.pause();
-    onDismiss();
+    onClose();
   }
 
-  // Dissolve then dismiss (used after full video ends)
+  // Dissolve then advance to next video (used after full video auto-ends)
   function dissolveAndDismiss() {
     videoRef.current?.pause();
     setDissolving(true);
-    setTimeout(() => onDismiss(), 950);
+    setTimeout(() => onNext(), 950);
   }
 
   useEffect(() => {
@@ -1803,7 +1804,10 @@ export default function CardMarket() {
   const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
   const isMerchant = !!isMerchantData;
   const promoVideos = promoVideosRaw as { id: number; userId: number; videoUrl: string; isSubscribed: boolean }[];
-  const activePromoVideo = !promoDismissed && promoVideos.length > 0 ? promoVideos[promoVideoIdx % promoVideos.length] : null;
+  // Hide when user explicitly closed OR when all videos have been cycled through
+  const activePromoVideo = !promoDismissed && promoVideos.length > 0 && promoVideoIdx < promoVideos.length
+    ? promoVideos[promoVideoIdx]
+    : null;
 
   const { data: communityData } = trpc.community.list.useQuery({
     intent: "all",
@@ -1953,7 +1957,8 @@ export default function CardMarket() {
       {activePromoVideo && createPortal(
         <PromoVideoPlayer
           video={activePromoVideo}
-          onDismiss={() => setPromoDismissed(true)}
+          onClose={() => setPromoDismissed(true)}
+          onNext={() => setPromoVideoIdx(i => i + 1)}
         />,
         document.body
       )}
