@@ -1032,6 +1032,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
     });
     if (!ok3) return;
     subscribeMut.mutate({ planId: selectedPlanId });
+    setShowSubInfo(false);
   }
 
   async function handleFileSelect(files: FileList | null) {
