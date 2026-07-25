@@ -982,6 +982,7 @@ type Tab = "active" | "sold" | "removed" | "wtb" | "video";
 // ── Promo Video Upload Panel ──────────────────────────────────────────────────
 function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
   const [showMerchantAlert, setShowMerchantAlert] = useState(false);
+  const [showSubInfo, setShowSubInfo] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [viewingUrl, setViewingUrl] = useState<string | null>(null);
@@ -1082,6 +1083,51 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Info notice */}
+      <div className="rounded-2xl px-4 py-3 flex flex-col gap-2" style={{ background: "linear-gradient(135deg,#eff6ff,#e0f2fe)", border: "1px solid #bae6fd" }}>
+        <p className="text-xs font-black" style={{ color: "#0369a1" }}>📢 推廣影片說明</p>
+        <p className="text-xs leading-relaxed" style={{ color: "#0c4a6e" }}>
+          系統會隨機在卡牌主頁播放您的推廣影片，讓更多買家認識您的商品。
+        </p>
+        <p className="text-xs leading-relaxed" style={{ color: "#0c4a6e" }}>
+          可以月費形式訂閱，保證指定播放次數。詳情請按以下按鈕。
+        </p>
+        <button
+          onClick={() => setShowSubInfo(true)}
+          className="self-start mt-1 px-3 py-1.5 rounded-full text-xs font-black"
+          style={{ background: "linear-gradient(90deg,#0ea5e9,#38bdf8)", color: "#fff", border: "none", cursor: "pointer" }}
+        >
+          訂閱詳情
+        </button>
+      </div>
+
+      {/* Subscription info popup */}
+      {showSubInfo && (
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: 9999, background: "rgba(0,0,0,0.45)" }}
+          onClick={() => setShowSubInfo(false)}
+        >
+          <div
+            className="rounded-2xl p-6 mx-6 flex flex-col gap-3"
+            style={{ background: "#fff", maxWidth: 320, width: "100%" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <p className="text-sm font-black" style={{ color: "#111827" }}>📋 訂閱推廣播放</p>
+            <p className="text-sm leading-relaxed" style={{ color: "#6b7280" }}>
+              功能仍然在開發中，敬請密切留意最新消息。
+            </p>
+            <button
+              onClick={() => setShowSubInfo(false)}
+              className="mt-1 py-2 rounded-xl text-sm font-bold"
+              style={{ background: "#f3f4f6", color: "#374151", border: "none", cursor: "pointer" }}
+            >
+              關閉
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Upload button */}
       <div
         className="flex flex-col items-center justify-center py-6 rounded-2xl cursor-pointer"
