@@ -29,10 +29,9 @@ if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID))
   document.head.appendChild(s);
 }
 
-function PromoVideoPlayer({ video, onClose, onNext }: {
+function PromoVideoPlayer({ video, onDismiss }: {
   video: { id: number; userId: number; videoUrl: string; isSubscribed?: boolean };
-  onClose: () => void; // user manually dismissed → permanently hide all
-  onNext: () => void;  // video auto-completed → advance to next video
+  onDismiss: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
@@ -45,17 +44,15 @@ function PromoVideoPlayer({ video, onClose, onNext }: {
   // Idempotency guard: only record once per video impression
   const playRecordedRef = useRef(false);
 
-  // Pause + permanently close (user explicitly dismissed)
   function dismiss() {
     videoRef.current?.pause();
-    onClose();
+    onDismiss();
   }
 
-  // Dissolve then advance to next video (used after full video auto-ends)
   function dissolveAndDismiss() {
     videoRef.current?.pause();
     setDissolving(true);
-    setTimeout(() => onNext(), 950);
+    setTimeout(() => onDismiss(), 950);
   }
 
   useEffect(() => {
@@ -1804,10 +1801,7 @@ export default function CardMarket() {
   const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
   const isMerchant = !!isMerchantData;
   const promoVideos = promoVideosRaw as { id: number; userId: number; videoUrl: string; isSubscribed: boolean }[];
-  // Hide when user explicitly closed OR when all videos have been cycled through
-  const activePromoVideo = !promoDismissed && promoVideos.length > 0 && promoVideoIdx < promoVideos.length
-    ? promoVideos[promoVideoIdx]
-    : null;
+  const activePromoVideo = !promoDismissed && promoVideos.length > 0 ? promoVideos[promoVideoIdx % promoVideos.length] : null;
 
   const { data: communityData } = trpc.community.list.useQuery({
     intent: "all",
@@ -1956,10 +1950,8 @@ export default function CardMarket() {
       {/* ── Promo Video Player (floating overlay top-right) ── */}
       {activePromoVideo && createPortal(
         <PromoVideoPlayer
-          key={activePromoVideo.id}
           video={activePromoVideo}
-          onClose={() => setPromoDismissed(true)}
-          onNext={() => setPromoVideoIdx(i => i + 1)}
+          onDismiss={() => setPromoDismissed(true)}
         />,
         document.body
       )}

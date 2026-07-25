@@ -8287,56 +8287,33 @@ export async function getActiveCardPromoVideos(limit = 10): Promise<{ id: number
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
 
-  // 1. Priority: subscribed videos with remaining guaranteed plays, sorted by urgency (remainingPlays / remainingDays)
-  const [subRows]: any = await pool.execute(`
-    SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+  // Single query: all active videos, LEFT JOIN subscription to detect isSubscribed.
+  // Dedupe by cpv.id (a merchant may have multiple subscriptions — take the best one via MAX).
+  // Final ORDER BY RAND() so free videos appear at index 0 sometimes (restores original random behaviour).
+  // Quota decrement is always server-side in recordCardPromoVideoPlay; display order does not affect correctness.
+  const [rows]: any = await pool.execute(`
+    SELECT
+      cpv.id,
+      cpv.userId,
+      cpv.videoUrl,
+      cpv.createdAt,
+      MAX(CASE WHEN cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0 THEN 1 ELSE 0 END) AS isSubscribed
     FROM cardPromoVideos cpv
-    INNER JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
-      AND cps.status = 'active' AND cps.endDate > NOW() AND cps.remainingPlays > 0
+    LEFT JOIN cardPromoSubscriptions cps ON cps.userId = cpv.userId
     WHERE cpv.isActive = 1
-    ORDER BY (cps.remainingPlays / GREATEST(1, DATEDIFF(cps.endDate, NOW()))) DESC
+    GROUP BY cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
+    ORDER BY RAND()
     LIMIT ?
   `, [limit]);
-  const subList = Array.isArray(subRows) ? subRows : [];
 
-  const result: { id: number; userId: number; videoUrl: string; createdAt: string; isSubscribed: boolean }[] = [];
-  const usedIds = new Set<number>();
-  for (const r of subList) {
-    result.push({
-      id: Number(r.id),
-      userId: Number(r.userId),
-      videoUrl: String(r.videoUrl),
-      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
-      isSubscribed: true,
-    });
-    usedIds.add(Number(r.id));
-  }
-
-  // 2. Fill remaining slots with random free videos
-  const remaining = limit - result.length;
-  if (remaining > 0) {
-    const excludeSql = usedIds.size > 0 ? `AND cpv.id NOT IN (${[...usedIds].map(() => '?').join(',')})` : '';
-    const excludeParams = usedIds.size > 0 ? [...usedIds] : [];
-    const [freeRows]: any = await pool.execute(`
-      SELECT cpv.id, cpv.userId, cpv.videoUrl, cpv.createdAt
-      FROM cardPromoVideos cpv
-      WHERE cpv.isActive = 1 ${excludeSql}
-      ORDER BY RAND()
-      LIMIT ?
-    `, [...excludeParams, remaining]);
-    const freeList = Array.isArray(freeRows) ? freeRows : [];
-    for (const r of freeList) {
-      result.push({
-        id: Number(r.id),
-        userId: Number(r.userId),
-        videoUrl: String(r.videoUrl),
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
-        isSubscribed: false,
-      });
-    }
-  }
-
-  return result;
+  const list = Array.isArray(rows) ? rows : [];
+  return list.map((r: any) => ({
+    id: Number(r.id),
+    userId: Number(r.userId),
+    videoUrl: String(r.videoUrl),
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    isSubscribed: Number(r.isSubscribed) === 1,
+  }));
 }
 
 export async function getMyCardPromoVideos(userId: number): Promise<{ id: number; videoUrl: string; isActive: boolean; createdAt: string; playCount: number }[]> {
