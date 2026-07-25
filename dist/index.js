@@ -1018,6 +1018,7 @@ __export(db_exports, {
   confirmProductOrder: () => confirmProductOrder,
   countBuyerAcceptedOffers: () => countBuyerAcceptedOffers,
   countBuyerPendingWonAuctions: () => countBuyerPendingWonAuctions,
+  countCardPromoVideosByUser: () => countCardPromoVideosByUser,
   countHiddenProductOrdersByBuyer: () => countHiddenProductOrdersByBuyer,
   countHiddenProductOrdersByMerchant: () => countHiddenProductOrdersByMerchant,
   countMerchantAuctionOrdersByStatus: () => countMerchantAuctionOrdersByStatus,
@@ -1028,6 +1029,7 @@ __export(db_exports, {
   countRecentBuyerOffersForProduct: () => countRecentBuyerOffersForProduct,
   createAuction: () => createAuction,
   createCardListing: () => createCardListing,
+  createCardPromoSubscriptionPlan: () => createCardPromoSubscriptionPlan,
   createCardPromoVideo: () => createCardPromoVideo,
   createCardWTB: () => createCardWTB,
   createDepositTopUpRequest: () => createDepositTopUpRequest,
@@ -1051,6 +1053,7 @@ __export(db_exports, {
   deleteAuction: () => deleteAuction,
   deleteAuctionImage: () => deleteAuctionImage,
   deleteBuyerOrder: () => deleteBuyerOrder,
+  deleteCardPromoSubscriptionPlan: () => deleteCardPromoSubscriptionPlan,
   deleteCardPromoVideo: () => deleteCardPromoVideo,
   deleteCoinAnalysisHistory: () => deleteCoinAnalysisHistory,
   deleteDepositTierPreset: () => deleteDepositTierPreset,
@@ -1101,6 +1104,7 @@ __export(db_exports, {
   getBuyerLockFromMerchant: () => getBuyerLockFromMerchant,
   getCardListingById: () => getCardListingById,
   getCardListings: () => getCardListings,
+  getCardPromoSubscriptionPlans: () => getCardPromoSubscriptionPlans,
   getCardWTBs: () => getCardWTBs,
   getChatRoomById: () => getChatRoomById,
   getDashboardStats: () => getDashboardStats,
@@ -1234,6 +1238,7 @@ __export(db_exports, {
   unassignGalleryImage: () => unassignGalleryImage,
   updateAuction: () => updateAuction,
   updateCardListing: () => updateCardListing,
+  updateCardPromoSubscriptionPlan: () => updateCardPromoSubscriptionPlan,
   updateCoinAnalysisHistoryImage: () => updateCoinAnalysisHistoryImage,
   updateFeaturedConfig: () => updateFeaturedConfig,
   updateMerchantProduct: () => updateMerchantProduct,
@@ -7707,6 +7712,17 @@ async function bootstrapCardTradingTables() {
       INDEX idx_cpv_isActive (isActive)
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardPromoSubscriptionPlans (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      monthlyFee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      guaranteedPlays INT NOT NULL DEFAULT 0,
+      isActive TINYINT(1) DEFAULT 1,
+      sortOrder INT DEFAULT 0,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
 }
 async function createCardPromoVideo(userId, videoUrl) {
   await bootstrapCardTradingTables();
@@ -7760,6 +7776,45 @@ async function deleteCardPromoVideo(id, userId) {
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   await pool.execute(`DELETE FROM cardPromoVideos WHERE id = ? AND userId = ?`, [id, userId]);
+}
+async function countCardPromoVideosByUser(userId) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(`SELECT COUNT(*) AS cnt FROM cardPromoVideos WHERE userId = ?`, [userId]);
+  const list = Array.isArray(rows) ? rows : [];
+  return Number(list[0]?.cnt ?? 0);
+}
+async function getCardPromoSubscriptionPlans() {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(`SELECT id, monthlyFee, guaranteedPlays, isActive, sortOrder FROM cardPromoSubscriptionPlans ORDER BY sortOrder ASC, id ASC`);
+  const list = Array.isArray(rows) ? rows : [];
+  return list.map((r) => ({
+    id: Number(r.id),
+    monthlyFee: Number(r.monthlyFee),
+    guaranteedPlays: Number(r.guaranteedPlays),
+    isActive: Number(r.isActive) === 1,
+    sortOrder: Number(r.sortOrder)
+  }));
+}
+async function createCardPromoSubscriptionPlan(monthlyFee, guaranteedPlays) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [res] = await pool.execute(
+    `INSERT INTO cardPromoSubscriptionPlans (monthlyFee, guaranteedPlays, isActive, sortOrder) VALUES (?, ?, 1, 0)`,
+    [monthlyFee, guaranteedPlays]
+  );
+  return { id: (Array.isArray(res) ? res[0] : res).insertId };
+}
+async function updateCardPromoSubscriptionPlan(id, monthlyFee, guaranteedPlays) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`UPDATE cardPromoSubscriptionPlans SET monthlyFee = ?, guaranteedPlays = ? WHERE id = ?`, [monthlyFee, guaranteedPlays, id]);
+}
+async function deleteCardPromoSubscriptionPlan(id) {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`DELETE FROM cardPromoSubscriptionPlans WHERE id = ?`, [id]);
 }
 async function getCardListings(opts) {
   await bootstrapCardTradingTables();
@@ -25832,10 +25887,18 @@ EXAMPLE OUTPUT (exact format):
         return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl };
       }),
       createPromoVideo: protectedProcedure.input(z2.object({ videoUrl: z2.string().url() })).mutation(async ({ input, ctx }) => {
-        const { getMerchantApplicationByUser: getMerchantApplicationByUser2, createCardPromoVideo: createCardPromoVideo2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const { getMerchantApplicationByUser: getMerchantApplicationByUser2, createCardPromoVideo: createCardPromoVideo2, countCardPromoVideosByUser: countCardPromoVideosByUser2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         const app = await getMerchantApplicationByUser2(ctx.user.id);
         if (app?.status !== "approved" && ctx.user.role !== "admin") {
           throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5DF2\u6279\u6838\u5546\u6236\u6703\u54E1\u624D\u53EF\u4E0A\u8F09\u63A8\u5EE3\u5F71\u7247" });
+        }
+        const maxStr = await getSiteSetting("maxPromoVideosPerMerchant");
+        const maxAllowed = maxStr ? parseInt(maxStr, 10) : 3;
+        if (!isNaN(maxAllowed) && maxAllowed > 0 && ctx.user.role !== "admin") {
+          const currentCount = await countCardPromoVideosByUser2(ctx.user.id);
+          if (currentCount >= maxAllowed) {
+            throw new TRPCError3({ code: "BAD_REQUEST", message: `\u6BCF\u4F4D\u5546\u6236\u6700\u591A\u4E0A\u8F09 ${maxAllowed} \u689D\u63A8\u5EE3\u5F71\u7247` });
+          }
         }
         const result = await createCardPromoVideo2(ctx.user.id, input.videoUrl);
         return { id: result.id };
@@ -25874,6 +25937,37 @@ EXAMPLE OUTPUT (exact format):
       getMyPromoVideos: protectedProcedure.query(async ({ ctx }) => {
         const { getMyCardPromoVideos: getMyCardPromoVideos2 } = await Promise.resolve().then(() => (init_db(), db_exports));
         return getMyCardPromoVideos2(ctx.user.id);
+      }),
+      // ── Promo Subscription Plans (admin CRUD + public read) ───────────────────
+      getPromoPlans: publicProcedure.query(async () => {
+        const { getCardPromoSubscriptionPlans: getCardPromoSubscriptionPlans2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const all = await getCardPromoSubscriptionPlans2();
+        return all.filter((p) => p.isActive);
+      }),
+      adminGetPromoPlans: adminProcedure.query(async () => {
+        const { getCardPromoSubscriptionPlans: getCardPromoSubscriptionPlans2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getCardPromoSubscriptionPlans2();
+      }),
+      adminCreatePromoPlan: adminProcedure.input(z2.object({
+        monthlyFee: z2.number().min(0),
+        guaranteedPlays: z2.number().int().min(1)
+      })).mutation(async ({ input }) => {
+        const { createCardPromoSubscriptionPlan: createCardPromoSubscriptionPlan2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return createCardPromoSubscriptionPlan2(input.monthlyFee, input.guaranteedPlays);
+      }),
+      adminUpdatePromoPlan: adminProcedure.input(z2.object({
+        id: z2.number().int(),
+        monthlyFee: z2.number().min(0),
+        guaranteedPlays: z2.number().int().min(1)
+      })).mutation(async ({ input }) => {
+        const { updateCardPromoSubscriptionPlan: updateCardPromoSubscriptionPlan2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await updateCardPromoSubscriptionPlan2(input.id, input.monthlyFee, input.guaranteedPlays);
+        return { ok: true };
+      }),
+      adminDeletePromoPlan: adminProcedure.input(z2.object({ id: z2.number().int() })).mutation(async ({ input }) => {
+        const { deleteCardPromoSubscriptionPlan: deleteCardPromoSubscriptionPlan2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        await deleteCardPromoSubscriptionPlan2(input.id);
+        return { ok: true };
       })
     });
   })()

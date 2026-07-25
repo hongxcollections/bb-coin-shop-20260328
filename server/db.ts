@@ -8182,6 +8182,17 @@ export async function bootstrapCardTradingTables() {
       INDEX idx_cpv_isActive (isActive)
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS cardPromoSubscriptionPlans (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      monthlyFee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      guaranteedPlays INT NOT NULL DEFAULT 0,
+      isActive TINYINT(1) DEFAULT 1,
+      sortOrder INT DEFAULT 0,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 export async function createCardPromoVideo(userId: number, videoUrl: string): Promise<{ id: number }> {
@@ -8241,6 +8252,50 @@ export async function deleteCardPromoVideo(id: number, userId: number): Promise<
   await bootstrapCardTradingTables();
   const pool = await getRawPool();
   await pool.execute(`DELETE FROM cardPromoVideos WHERE id = ? AND userId = ?`, [id, userId]);
+}
+
+export async function countCardPromoVideosByUser(userId: number): Promise<number> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(`SELECT COUNT(*) AS cnt FROM cardPromoVideos WHERE userId = ?`, [userId]);
+  const list = Array.isArray(rows) ? rows : [];
+  return Number(list[0]?.cnt ?? 0);
+}
+
+export async function getCardPromoSubscriptionPlans(): Promise<{ id: number; monthlyFee: number; guaranteedPlays: number; isActive: boolean; sortOrder: number }[]> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(`SELECT id, monthlyFee, guaranteedPlays, isActive, sortOrder FROM cardPromoSubscriptionPlans ORDER BY sortOrder ASC, id ASC`);
+  const list = Array.isArray(rows) ? rows : [];
+  return list.map((r: any) => ({
+    id: Number(r.id),
+    monthlyFee: Number(r.monthlyFee),
+    guaranteedPlays: Number(r.guaranteedPlays),
+    isActive: Number(r.isActive) === 1,
+    sortOrder: Number(r.sortOrder),
+  }));
+}
+
+export async function createCardPromoSubscriptionPlan(monthlyFee: number, guaranteedPlays: number): Promise<{ id: number }> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  const [res]: any = await pool.execute(
+    `INSERT INTO cardPromoSubscriptionPlans (monthlyFee, guaranteedPlays, isActive, sortOrder) VALUES (?, ?, 1, 0)`,
+    [monthlyFee, guaranteedPlays]
+  );
+  return { id: (Array.isArray(res) ? res[0] : res).insertId as number };
+}
+
+export async function updateCardPromoSubscriptionPlan(id: number, monthlyFee: number, guaranteedPlays: number): Promise<void> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`UPDATE cardPromoSubscriptionPlans SET monthlyFee = ?, guaranteedPlays = ? WHERE id = ?`, [monthlyFee, guaranteedPlays, id]);
+}
+
+export async function deleteCardPromoSubscriptionPlan(id: number): Promise<void> {
+  await bootstrapCardTradingTables();
+  const pool = await getRawPool();
+  await pool.execute(`DELETE FROM cardPromoSubscriptionPlans WHERE id = ?`, [id]);
 }
 
 export async function getCardListings(opts: {

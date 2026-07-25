@@ -14834,10 +14834,19 @@ EXAMPLE OUTPUT (exact format):
     createPromoVideo: protectedProcedure
       .input(z.object({ videoUrl: z.string().url() }))
       .mutation(async ({ input, ctx }) => {
-        const { getMerchantApplicationByUser, createCardPromoVideo } = await import('./db') as any;
+        const { getMerchantApplicationByUser, createCardPromoVideo, countCardPromoVideosByUser } = await import('./db') as any;
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '只有已批核商戶會員才可上載推廣影片' });
+        }
+        // Check max videos per merchant limit from site settings
+        const maxStr = await getSiteSetting('maxPromoVideosPerMerchant');
+        const maxAllowed = maxStr ? parseInt(maxStr, 10) : 3;
+        if (!isNaN(maxAllowed) && maxAllowed > 0 && ctx.user.role !== 'admin') {
+          const currentCount = await countCardPromoVideosByUser(ctx.user.id);
+          if (currentCount >= maxAllowed) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `每位商戶最多上載 ${maxAllowed} 條推廣影片` });
+          }
         }
         const result = await createCardPromoVideo(ctx.user.id, input.videoUrl);
         return { id: result.id };
@@ -14889,6 +14898,50 @@ EXAMPLE OUTPUT (exact format):
       .query(async ({ ctx }) => {
         const { getMyCardPromoVideos } = await import('./db') as any;
         return getMyCardPromoVideos(ctx.user.id);
+      }),
+
+    // ── Promo Subscription Plans (admin CRUD + public read) ───────────────────
+    getPromoPlans: publicProcedure
+      .query(async () => {
+        const { getCardPromoSubscriptionPlans } = await import('./db') as any;
+        const all = await getCardPromoSubscriptionPlans();
+        return (all as any[]).filter((p: any) => p.isActive);
+      }),
+
+    adminGetPromoPlans: adminProcedure
+      .query(async () => {
+        const { getCardPromoSubscriptionPlans } = await import('./db') as any;
+        return getCardPromoSubscriptionPlans();
+      }),
+
+    adminCreatePromoPlan: adminProcedure
+      .input(z.object({
+        monthlyFee: z.number().min(0),
+        guaranteedPlays: z.number().int().min(1),
+      }))
+      .mutation(async ({ input }) => {
+        const { createCardPromoSubscriptionPlan } = await import('./db') as any;
+        return createCardPromoSubscriptionPlan(input.monthlyFee, input.guaranteedPlays);
+      }),
+
+    adminUpdatePromoPlan: adminProcedure
+      .input(z.object({
+        id: z.number().int(),
+        monthlyFee: z.number().min(0),
+        guaranteedPlays: z.number().int().min(1),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateCardPromoSubscriptionPlan } = await import('./db') as any;
+        await updateCardPromoSubscriptionPlan(input.id, input.monthlyFee, input.guaranteedPlays);
+        return { ok: true };
+      }),
+
+    adminDeletePromoPlan: adminProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input }) => {
+        const { deleteCardPromoSubscriptionPlan } = await import('./db') as any;
+        await deleteCardPromoSubscriptionPlan(input.id);
+        return { ok: true };
       }),
   }); })(),
 });

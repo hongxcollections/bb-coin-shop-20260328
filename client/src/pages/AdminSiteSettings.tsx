@@ -16,7 +16,7 @@ import {
   Settings, Bell, Clock, ChevronLeft, Save, AlertCircle,
   MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles,
   Download, Upload, Package2, Plus, Trash2, Shuffle, Shield,
-  ChevronUp, ChevronDown, FolderOpen, Pencil, Check, X as XIcon, Users
+  ChevronUp, ChevronDown, FolderOpen, Pencil, Check, X as XIcon, Users, Video
 } from "lucide-react";
 
 export default function AdminSiteSettings() {
@@ -113,6 +113,25 @@ export default function AdminSiteSettings() {
   const [communityCategoryMerchantId, setCommunityCategoryMerchantId] = useState("");
   const { data: categoryMerchants = [] } = trpc.community.listMerchantsForCategorySelect.useQuery();
 
+  // 推廣影片設定
+  const [maxPromoVideosPerMerchant, setMaxPromoVideosPerMerchant] = useState("3");
+  const { data: promoPlansData, refetch: refetchPromoPlans } = trpc.cardTrading.adminGetPromoPlans.useQuery();
+  type PlanRow = { id?: number; monthlyFee: string; guaranteedPlays: string };
+  const [editingPlan, setEditingPlan] = useState<PlanRow | null>(null);
+  const [editingPlanId, setEditingPlanId] = useState<number | "new" | null>(null);
+  const createPromoPlanMut = trpc.cardTrading.adminCreatePromoPlan.useMutation({
+    onSuccess: () => { refetchPromoPlans(); setEditingPlanId(null); setEditingPlan(null); toast.success("計劃已新增"); },
+    onError: (e) => toast.error(e.message || "新增失敗"),
+  });
+  const updatePromoPlanMut = trpc.cardTrading.adminUpdatePromoPlan.useMutation({
+    onSuccess: () => { refetchPromoPlans(); setEditingPlanId(null); setEditingPlan(null); toast.success("計劃已更新"); },
+    onError: (e) => toast.error(e.message || "更新失敗"),
+  });
+  const deletePromoPlanMut = trpc.cardTrading.adminDeletePromoPlan.useMutation({
+    onSuccess: () => { refetchPromoPlans(); toast.success("計劃已刪除"); },
+    onError: (e) => toast.error(e.message || "刪除失敗"),
+  });
+
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
   const exportPackagesMut = trpc.users.adminExportPackages.useMutation();
@@ -194,6 +213,7 @@ export default function AdminSiteSettings() {
     if (s.otpIpMaxPerWindow) setOtpIpMaxPerWindow(s.otpIpMaxPerWindow);
     if (s.otpIpWindowMins) setOtpIpWindowMins(s.otpIpWindowMins);
     if (s.communityCategoryMerchantId !== undefined) setCommunityCategoryMerchantId(s.communityCategoryMerchantId);
+    if (s.maxPromoVideosPerMerchant) setMaxPromoVideosPerMerchant(s.maxPromoVideosPerMerchant);
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -1138,6 +1158,164 @@ export default function AdminSiteSettings() {
                     disabled={importLoading || importPackagesMut.isPending}
                   />
                 </label>
+              </CardContent>
+            </Card>
+
+            {/* 推廣影片設定 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Video className="w-5 h-5 text-sky-500" />
+                  <CardTitle className="text-lg">推廣影片設定</CardTitle>
+                </div>
+                <CardDescription>設定每位商戶最多可上載的推廣影片數量，以及月費訂閱計劃。</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 每商戶最多視頻數量 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">每位商戶最多上載推廣影片數量</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={maxPromoVideosPerMerchant}
+                      onChange={e => setMaxPromoVideosPerMerchant(e.target.value)}
+                      className="w-24 px-3 py-2 text-sm outline-none"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                    />
+                    <span className="text-sm text-muted-foreground">條（預設：3）</span>
+                    <SaveBtn onClick={() => save('maxPromoVideosPerMerchant', maxPromoVideosPerMerchant, () => {
+                      const n = parseInt(maxPromoVideosPerMerchant, 10);
+                      return (!Number.isFinite(n) || n < 1) ? "請輸入有效數字（最少 1）" : null;
+                    })} />
+                  </div>
+                </div>
+
+                {/* 月費訂閱計劃 */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">月費訂閱計劃</Label>
+                    <button
+                      onClick={() => { setEditingPlanId("new"); setEditingPlan({ monthlyFee: "", guaranteedPlays: "" }); }}
+                      disabled={editingPlanId !== null}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+                      style={{ background: "linear-gradient(90deg,#0ea5e9,#38bdf8)", border: "none", cursor: editingPlanId !== null ? "not-allowed" : "pointer", opacity: editingPlanId !== null ? 0.5 : 1 }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />新增計劃
+                    </button>
+                  </div>
+
+                  {/* Table header */}
+                  <div className="rounded-xl overflow-hidden border border-gray-100">
+                    <div className="grid grid-cols-[1fr_1fr_auto] gap-0 bg-gray-50 px-4 py-2 text-xs font-bold text-gray-500">
+                      <span>月費 (HKD)</span>
+                      <span>保證播放次數</span>
+                      <span className="w-16"></span>
+                    </div>
+
+                    {/* Existing plans */}
+                    {((promoPlansData as any[]) ?? []).map((plan: any) => (
+                      <div key={plan.id} className="grid grid-cols-[1fr_1fr_auto] gap-0 border-t border-gray-100 px-4 py-2.5 items-center">
+                        {editingPlanId === plan.id ? (
+                          <>
+                            <input
+                              type="number"
+                              min={0}
+                              value={editingPlan?.monthlyFee ?? ""}
+                              onChange={e => setEditingPlan(p => p ? { ...p, monthlyFee: e.target.value } : p)}
+                              className="w-24 px-2 py-1 text-sm mr-2 outline-none"
+                              style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "8px" }}
+                            />
+                            <input
+                              type="number"
+                              min={1}
+                              value={editingPlan?.guaranteedPlays ?? ""}
+                              onChange={e => setEditingPlan(p => p ? { ...p, guaranteedPlays: e.target.value } : p)}
+                              className="w-24 px-2 py-1 text-sm mr-2 outline-none"
+                              style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "8px" }}
+                            />
+                            <div className="flex gap-1 w-16">
+                              <button
+                                onClick={() => {
+                                  const fee = parseFloat(editingPlan?.monthlyFee ?? "0");
+                                  const plays = parseInt(editingPlan?.guaranteedPlays ?? "0", 10);
+                                  if (isNaN(fee) || isNaN(plays) || plays < 1) { toast.error("請填寫有效數值"); return; }
+                                  updatePromoPlanMut.mutate({ id: plan.id, monthlyFee: fee, guaranteedPlays: plays });
+                                }}
+                                className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50"
+                                title="儲存"
+                              ><Check className="w-4 h-4" /></button>
+                              <button onClick={() => { setEditingPlanId(null); setEditingPlan(null); }} className="p-1 rounded-lg text-gray-400 hover:bg-gray-100" title="取消"><XIcon className="w-4 h-4" /></button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm font-medium">HKD {Number(plan.monthlyFee).toFixed(0)}</span>
+                            <span className="text-sm text-muted-foreground">{plan.guaranteedPlays} 次</span>
+                            <div className="flex gap-1 w-16">
+                              <button
+                                onClick={() => { setEditingPlanId(plan.id); setEditingPlan({ id: plan.id, monthlyFee: String(plan.monthlyFee), guaranteedPlays: String(plan.guaranteedPlays) }); }}
+                                disabled={editingPlanId !== null}
+                                className="p-1 rounded-lg text-sky-600 hover:bg-sky-50 disabled:opacity-40"
+                                title="編輯"
+                              ><Pencil className="w-3.5 h-3.5" /></button>
+                              <button
+                                onClick={() => deletePromoPlanMut.mutate({ id: plan.id })}
+                                disabled={deletePromoPlanMut.isPending}
+                                className="p-1 rounded-lg text-red-400 hover:bg-red-50 disabled:opacity-40"
+                                title="刪除"
+                              ><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* New plan row */}
+                    {editingPlanId === "new" && (
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-0 border-t border-sky-100 bg-sky-50/40 px-4 py-2.5 items-center">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="月費"
+                          value={editingPlan?.monthlyFee ?? ""}
+                          onChange={e => setEditingPlan(p => p ? { ...p, monthlyFee: e.target.value } : p)}
+                          className="w-24 px-2 py-1 text-sm mr-2 outline-none"
+                          style={{ background: "#fff", border: "1px solid #bae6fd", borderRadius: "8px" }}
+                          autoFocus
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="播放次數"
+                          value={editingPlan?.guaranteedPlays ?? ""}
+                          onChange={e => setEditingPlan(p => p ? { ...p, guaranteedPlays: e.target.value } : p)}
+                          className="w-24 px-2 py-1 text-sm mr-2 outline-none"
+                          style={{ background: "#fff", border: "1px solid #bae6fd", borderRadius: "8px" }}
+                        />
+                        <div className="flex gap-1 w-16">
+                          <button
+                            onClick={() => {
+                              const fee = parseFloat(editingPlan?.monthlyFee ?? "0");
+                              const plays = parseInt(editingPlan?.guaranteedPlays ?? "0", 10);
+                              if (isNaN(fee) || isNaN(plays) || plays < 1) { toast.error("請填寫有效數值"); return; }
+                              createPromoPlanMut.mutate({ monthlyFee: fee, guaranteedPlays: plays });
+                            }}
+                            className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50"
+                            title="新增"
+                          ><Check className="w-4 h-4" /></button>
+                          <button onClick={() => { setEditingPlanId(null); setEditingPlan(null); }} className="p-1 rounded-lg text-gray-400 hover:bg-gray-100" title="取消"><XIcon className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    )}
+
+                    {((promoPlansData as any[]) ?? []).length === 0 && editingPlanId !== "new" && (
+                      <div className="border-t border-gray-100 px-4 py-4 text-xs text-center text-muted-foreground">尚未設定任何訂閱計劃</div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">商戶可從以上計劃中選擇一個訂閱，費用即時從保證金扣除。</p>
+                </div>
               </CardContent>
             </Card>
 
