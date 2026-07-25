@@ -40,6 +40,7 @@ function PromoVideoPlayer({ video, onDismiss }: {
   const [dissolving, setDissolving] = useState(false);
   const [countdown, setCountdown] = useState(PROMO_AUTO_STOP_SECS);
   const [idleCountdown, setIdleCountdown] = useState(PROMO_IDLE_CLOSE_SECS);
+  const [fullPlayRemaining, setFullPlayRemaining] = useState<number | null>(null);
   const recordPlayMut = trpc.cardTrading.recordPromoVideoPlay.useMutation();
   // Idempotency guard: only record once per video impression
   const playRecordedRef = useRef(false);
@@ -81,6 +82,20 @@ function PromoVideoPlayer({ video, onDismiss }: {
     return () => clearInterval(iv);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopped, playFull]);
+
+  // Full-play remaining time countdown
+  useEffect(() => {
+    if (!playFull) { setFullPlayRemaining(null); return; }
+    const el = videoRef.current;
+    if (!el) return;
+    const update = () => {
+      const rem = el.duration ? Math.max(0, Math.ceil(el.duration - el.currentTime)) : null;
+      setFullPlayRemaining(rem);
+    };
+    update();
+    const iv = setInterval(update, 500);
+    return () => clearInterval(iv);
+  }, [playFull]);
 
   // 8-second auto-stop + countdown (only while not in full-play mode)
   useEffect(() => {
@@ -198,6 +213,12 @@ function PromoVideoPlayer({ video, onDismiss }: {
           {!stopped && !playFull && (
             <span style={{ fontSize: 10, fontWeight: 900, color: "#FFDE00", minWidth: 24, textAlign: "right" }}>
               {countdown}s
+            </span>
+          )}
+          {/* During full play — remaining time countdown */}
+          {playFull && fullPlayRemaining != null && (
+            <span style={{ fontSize: 10, fontWeight: 900, color: "#FFDE00", minWidth: 24, textAlign: "right" }}>
+              {fullPlayRemaining}s
             </span>
           )}
           {/* After stop — 播放全部 shortcut in bottom bar */}
