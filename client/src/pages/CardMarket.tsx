@@ -148,7 +148,7 @@ function PromoVideoPlayer({ video, onDismiss, autoStopSecs }: {
           muted={muted}
           playsInline
           style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
-          onEnded={playFull ? dissolveAndDismiss : undefined}
+          onEnded={dissolveAndDismiss}
           onPlay={() => {
             // Record once per impression when playback actually begins (isSubscribed derived server-side)
             if (!playRecordedRef.current) {
