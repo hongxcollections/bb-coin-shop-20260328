@@ -1130,7 +1130,7 @@ function PromoVideoPanel({ isMerchant }: { isMerchant: boolean }) {
         </p>
         <button
           onClick={() => setShowSubInfo(true)}
-          className="self-start mt-1 px-3 py-1.5 rounded-full text-xs font-black"
+          className="w-full mt-1 px-3 py-2 rounded-xl text-xs font-black"
           style={{ background: "linear-gradient(90deg,#0ea5e9,#38bdf8)", color: "#fff", border: "none", cursor: "pointer" }}
         >
           訂閱詳情

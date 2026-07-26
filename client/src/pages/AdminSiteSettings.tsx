@@ -115,6 +115,8 @@ export default function AdminSiteSettings() {
 
   // 推廣影片設定
   const [maxPromoVideosPerMerchant, setMaxPromoVideosPerMerchant] = useState("3");
+  const [promoSubscribedStopSecs, setPromoSubscribedStopSecs] = useState("20");
+  const [promoFreeStopSecs, setPromoFreeStopSecs] = useState("8");
   const { data: promoPlansData, refetch: refetchPromoPlans } = trpc.cardTrading.adminGetPromoPlans.useQuery();
   type PlanRow = { id?: number; monthlyFee: string; guaranteedPlays: string };
   const [editingPlan, setEditingPlan] = useState<PlanRow | null>(null);
@@ -214,6 +216,8 @@ export default function AdminSiteSettings() {
     if (s.otpIpWindowMins) setOtpIpWindowMins(s.otpIpWindowMins);
     if (s.communityCategoryMerchantId !== undefined) setCommunityCategoryMerchantId(s.communityCategoryMerchantId);
     if (s.maxPromoVideosPerMerchant) setMaxPromoVideosPerMerchant(s.maxPromoVideosPerMerchant);
+    if (s.promoSubscribedStopSecs) setPromoSubscribedStopSecs(s.promoSubscribedStopSecs);
+    if (s.promoFreeStopSecs) setPromoFreeStopSecs(s.promoFreeStopSecs);
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -1189,6 +1193,55 @@ export default function AdminSiteSettings() {
                       const n = parseInt(maxPromoVideosPerMerchant, 10);
                       return (!Number.isFinite(n) || n < 1) ? "請輸入有效數字（最少 1）" : null;
                     })} />
+                  </div>
+                </div>
+
+                {/* 推廣影片播放秒數 */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">推廣影片自動停止秒數</Label>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-xs text-muted-foreground">訂閱影片（強制播放秒數，預設 20）</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={5}
+                            max={120}
+                            value={promoSubscribedStopSecs}
+                            onChange={e => setPromoSubscribedStopSecs(e.target.value)}
+                            className="w-24 px-3 py-2 text-sm outline-none"
+                            style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                          />
+                          <span className="text-sm text-muted-foreground">秒</span>
+                          <SaveBtn onClick={() => save('promoSubscribedStopSecs', promoSubscribedStopSecs, () => {
+                            const n = parseInt(promoSubscribedStopSecs, 10);
+                            return (!Number.isFinite(n) || n < 5) ? "請輸入至少 5 秒" : null;
+                          })} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-xs text-muted-foreground">隨機免費影片（自動停止秒數，預設 8）</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={3}
+                            max={60}
+                            value={promoFreeStopSecs}
+                            onChange={e => setPromoFreeStopSecs(e.target.value)}
+                            className="w-24 px-3 py-2 text-sm outline-none"
+                            style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                          />
+                          <span className="text-sm text-muted-foreground">秒</span>
+                          <SaveBtn onClick={() => save('promoFreeStopSecs', promoFreeStopSecs, () => {
+                            const n = parseInt(promoFreeStopSecs, 10);
+                            return (!Number.isFinite(n) || n < 3) ? "請輸入至少 3 秒" : null;
+                          })} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

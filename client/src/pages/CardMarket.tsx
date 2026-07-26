@@ -29,16 +29,17 @@ if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID))
   document.head.appendChild(s);
 }
 
-function PromoVideoPlayer({ video, onDismiss }: {
+function PromoVideoPlayer({ video, onDismiss, autoStopSecs }: {
   video: { id: number; userId: number; videoUrl: string; isSubscribed?: boolean };
   onDismiss: () => void;
+  autoStopSecs: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
   const [playFull, setPlayFull] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [dissolving, setDissolving] = useState(false);
-  const [countdown, setCountdown] = useState(PROMO_AUTO_STOP_SECS);
+  const [countdown, setCountdown] = useState(autoStopSecs);
   const [idleCountdown, setIdleCountdown] = useState(PROMO_IDLE_CLOSE_SECS);
   const [fullPlayRemaining, setFullPlayRemaining] = useState<number | null>(null);
   const recordPlayMut = trpc.cardTrading.recordPromoVideoPlay.useMutation();
@@ -61,7 +62,7 @@ function PromoVideoPlayer({ video, onDismiss }: {
     if (!el) return;
     el.currentTime = 0;
     el.muted = true;
-    setCountdown(PROMO_AUTO_STOP_SECS);
+    setCountdown(autoStopSecs);
     playRecordedRef.current = false; // reset idempotency guard for new video
     el.play().catch(() => {});
   }, [video.videoUrl]);
@@ -103,9 +104,9 @@ function PromoVideoPlayer({ video, onDismiss }: {
     const el = videoRef.current;
     if (!el) return;
     const check = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil(PROMO_AUTO_STOP_SECS - el.currentTime));
+      const remaining = Math.max(0, Math.ceil(autoStopSecs - el.currentTime));
       setCountdown(remaining);
-      if (el.currentTime >= PROMO_AUTO_STOP_SECS) {
+      if (el.currentTime >= autoStopSecs) {
         el.pause();
         setStopped(true);
         clearInterval(check);
@@ -1818,10 +1819,12 @@ export default function CardMarket() {
   const recentListings = listings;
   const wtbList = wtbs as WTB[];
 
-  const { data: promoVideosRaw = [] } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { refetchOnMount: "always", staleTime: 0 });
+  const { data: promoVideosRaw } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { refetchOnMount: "always", staleTime: 0 });
   const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
   const isMerchant = !!isMerchantData;
-  const promoVideos = promoVideosRaw as { id: number; userId: number; videoUrl: string; isSubscribed: boolean }[];
+  const promoVideos = (promoVideosRaw as any)?.videos ?? [] as { id: number; userId: number; videoUrl: string; isSubscribed: boolean }[];
+  const promoSubscribedStopSecs: number = (promoVideosRaw as any)?.subscribedStopSecs ?? 20;
+  const promoFreeStopSecs: number = (promoVideosRaw as any)?.freeStopSecs ?? 8;
   const activePromoVideo = !promoDismissed && promoVideos.length > 0 ? promoVideos[promoVideoIdx % promoVideos.length] : null;
 
   const { data: communityData } = trpc.community.list.useQuery({
@@ -1973,6 +1976,7 @@ export default function CardMarket() {
         <PromoVideoPlayer
           video={activePromoVideo}
           onDismiss={() => setPromoDismissed(true)}
+          autoStopSecs={activePromoVideo.isSubscribed ? promoSubscribedStopSecs : promoFreeStopSecs}
         />,
         document.body
       )}

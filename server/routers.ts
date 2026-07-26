@@ -14890,8 +14890,17 @@ EXAMPLE OUTPUT (exact format):
 
     getPromoVideos: publicProcedure
       .query(async () => {
-        const { getActiveCardPromoVideos } = await import('./db') as any;
-        return getActiveCardPromoVideos(10);
+        const { getActiveCardPromoVideos, getSiteSetting } = await import('./db') as any;
+        const [videos, sub, free] = await Promise.all([
+          getActiveCardPromoVideos(10),
+          getSiteSetting('promoSubscribedStopSecs'),
+          getSiteSetting('promoFreeStopSecs'),
+        ]);
+        return {
+          videos: videos as { id: number; userId: number; videoUrl: string; createdAt: string; isSubscribed: boolean }[],
+          subscribedStopSecs: parseInt(sub ?? '20', 10) || 20,
+          freeStopSecs: parseInt(free ?? '8', 10) || 8,
+        };
       }),
 
     getMyPromoVideos: protectedProcedure

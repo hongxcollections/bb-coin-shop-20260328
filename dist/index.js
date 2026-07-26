@@ -26219,8 +26219,17 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
       getPromoVideos: publicProcedure.query(async () => {
-        const { getActiveCardPromoVideos: getActiveCardPromoVideos2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-        return getActiveCardPromoVideos2(10);
+        const { getActiveCardPromoVideos: getActiveCardPromoVideos2, getSiteSetting: getSiteSetting3 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        const [videos, sub, free] = await Promise.all([
+          getActiveCardPromoVideos2(10),
+          getSiteSetting3("promoSubscribedStopSecs"),
+          getSiteSetting3("promoFreeStopSecs")
+        ]);
+        return {
+          videos,
+          subscribedStopSecs: parseInt(sub ?? "20", 10) || 20,
+          freeStopSecs: parseInt(free ?? "8", 10) || 8
+        };
       }),
       getMyPromoVideos: protectedProcedure.query(async ({ ctx }) => {
         const { getMyCardPromoVideos: getMyCardPromoVideos2 } = await Promise.resolve().then(() => (init_db(), db_exports));
