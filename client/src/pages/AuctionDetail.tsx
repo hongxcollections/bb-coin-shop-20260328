@@ -762,7 +762,7 @@ export default function AuctionDetail() {
                 </button>
               </div>
               {auction.description && (
-                <p className="text-muted-foreground text-sm leading-relaxed">{auction.description}</p>
+                <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">{auction.description}</p>
               )}
             </div>
 
