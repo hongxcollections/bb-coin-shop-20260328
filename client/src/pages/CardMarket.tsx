@@ -1608,7 +1608,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
               </div>
             </div>
             {photos.length > 1 && (
-              <div className="flex gap-1.5 mt-2">
+              <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                 {photos.map((p, i) => (
                   <button key={i} onClick={() => setPhotoIdx(i)} className="flex-shrink-0">
                     <img src={p} alt="" className="rounded-lg object-cover" style={{ width: 40, height: 40, border: i === photoIdx ? "2px solid #CC0000" : "2px solid #e5e7eb" }} />
