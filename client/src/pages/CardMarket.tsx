@@ -506,8 +506,8 @@ interface Listing {
   status: string; views: number; createdAt: string; sellerName: string | null;
 }
 
-function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }: {
-  photos: string[]; initialIndex: number; cardName: string; priceHKD: number; onClose: () => void;
+function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, priceUnit, onClose }: {
+  photos: string[]; initialIndex: number; cardName: string; priceHKD: number; priceUnit?: string | null; onClose: () => void;
 }) {
   const [lbImgIdx, setLbImgIdx] = useState(initialIndex);
   const [lbZoom, setLbZoom] = useState(1);
@@ -626,7 +626,10 @@ function CardPhotoLightbox({ photos, initialIndex, cardName, priceHKD, onClose }
         <div style={{ flex: 1, minWidth: 0 }}>
           <p className="text-sm font-bold leading-snug truncate" style={{ color: '#fff', marginBottom: 2 }}>{cardName}</p>
           {priceHKD > 0
-            ? <p className="text-base font-black" style={{ color: '#F97316', letterSpacing: '-0.3px' }}>HKD ${priceHKD.toLocaleString()}</p>
+            ? <div className="flex items-baseline gap-1.5">
+                <p className="text-base font-black" style={{ color: '#F97316', letterSpacing: '-0.3px' }}>HKD ${priceHKD.toLocaleString()}</p>
+                {priceUnit && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: priceUnit === '單張' ? "rgba(14,165,233,0.15)" : "rgba(249,115,22,0.15)", color: priceUnit === '單張' ? "#7dd3fc" : "#fdba74" }}>{priceUnit}</span>}
+              </div>
             : <p className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.45)' }}>HKD 價格面議</p>
           }
         </div>
@@ -1531,7 +1534,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
   const [, navigate] = useLocation();
   const [photoIdx, setPhotoIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [soldLb, setSoldLb] = useState<{ photos: string[]; cardName: string; priceHKD: number } | null>(null);
+  const [soldLb, setSoldLb] = useState<{ photos: string[]; cardName: string; priceHKD: number; priceUnit?: string | null } | null>(null);
   const [contacting, setContacting] = useState(false);
   const touchStartXRef = useRef(0);
   const photos = listing.photoUrls.length ? listing.photoUrls : (listing.officialImageUrl ? [listing.officialImageUrl] : []);
@@ -1725,7 +1728,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
                   const thumb = soldPhotos[0];
                   return (
                     <button key={l.id}
-                      onClick={() => { if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD }); }}
+                      onClick={() => { if (soldPhotos.length) setSoldLb({ photos: soldPhotos, cardName: l.cardName, priceHKD: l.priceHKD, priceUnit: l.priceUnit }); }}
                       className="flex-shrink-0 rounded-xl overflow-hidden relative"
                       style={{ width: 70, height: 95, background: "#e5e7eb" }}
                     >
@@ -1747,8 +1750,8 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
         )}
       </div>
 
-      {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} cardName={listing.cardName} priceHKD={listing.priceHKD} onClose={() => setLightboxOpen(false)} />}
-      {soldLb && <CardPhotoLightbox photos={soldLb.photos} initialIndex={0} cardName={soldLb.cardName} priceHKD={soldLb.priceHKD} onClose={() => setSoldLb(null)} />}
+      {lightboxOpen && <CardPhotoLightbox photos={photos} initialIndex={photoIdx} cardName={listing.cardName} priceHKD={listing.priceHKD} priceUnit={listing.priceUnit} onClose={() => setLightboxOpen(false)} />}
+      {soldLb && <CardPhotoLightbox photos={soldLb.photos} initialIndex={0} cardName={soldLb.cardName} priceHKD={soldLb.priceHKD} priceUnit={soldLb.priceUnit} onClose={() => setSoldLb(null)} />}
 
       <div className="flex-shrink-0 px-4 pt-3" style={{ background: "#fff", borderTop: "1px solid #f3f4f6", paddingBottom: 24 }}>
         <button
