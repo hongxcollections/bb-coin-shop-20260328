@@ -45,7 +45,7 @@ interface Listing {
   setName: string | null; setNumber: string | null;
   officialImageUrl: string | null; condition: string;
   isGraded: boolean; gradingOrg: string | null; gradeScore: string | null;
-  priceHKD: number; photoUrls: string[]; description: string | null;
+  priceHKD: number; priceUnit: string | null; photoUrls: string[]; description: string | null;
   deliveryMethod: string | null; privateNote: string | null;
   status: string; views: number; createdAt: string;
 }
@@ -108,6 +108,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
   const [lbIdx, setLbIdx] = useState<number | null>(null);
   const [gradeScore, setGradeScore] = useState(listing.gradeScore ?? "");
   const [priceStr, setPriceStr] = useState(String(listing.priceHKD));
+  const [priceUnit, setPriceUnit] = useState<'全部' | '單張'>((listing.priceUnit as '全部' | '單張') ?? '全部');
   const [desc, setDesc] = useState(listing.description ?? "");
   const [deliveryMethod, setDeliveryMethod] = useState(listing.deliveryMethod ?? "面交或郵寄");
   const [privateNote, setPrivateNote] = useState(listing.privateNote ?? "");
@@ -146,6 +147,7 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
         setName: setNameVal.trim() || null,
         setNumber: setNumberVal.trim() || null,
         priceHKD: price,
+        priceUnit,
         description: desc || null,
         condition,
         isGraded,
@@ -347,15 +349,29 @@ function EditPriceSheet({ listing, onClose, onSaved }: { listing: Listing; onClo
           {/* Price */}
           <div>
             <label className="text-xs font-bold mb-1.5 block" style={{ color: "#6b7280" }}>售價 (HKD)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "#9ca3af" }}>$</span>
-              <input
-                value={priceStr}
-                onChange={e => setPriceStr(e.target.value)}
-                inputMode="numeric"
-                className="w-full pl-7 pr-3 py-2.5 text-sm font-black"
-                style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#CC0000", outline: "none" }}
-              />
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "#9ca3af" }}>$</span>
+                <input
+                  value={priceStr}
+                  onChange={e => setPriceStr(e.target.value)}
+                  inputMode="numeric"
+                  className="w-full pl-7 pr-3 py-2.5 text-sm font-black"
+                  style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#CC0000", outline: "none" }}
+                />
+              </div>
+              <div className="flex rounded-xl overflow-hidden flex-shrink-0" style={{ border: "1px solid #e5e7eb" }}>
+                {(['全部', '單張'] as const).map(u => (
+                  <button key={u} type="button" onClick={() => setPriceUnit(u)}
+                    className="px-2.5 py-2 text-xs font-black transition-colors"
+                    style={{
+                      background: priceUnit === u ? "#CC0000" : "#f9fafb",
+                      color: priceUnit === u ? "#fff" : "#6b7280",
+                      borderRight: u === '全部' ? "1px solid #e5e7eb" : undefined,
+                    }}
+                  >{u}</button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -534,6 +550,7 @@ function ListingRow({ listing, onRefresh }: { listing: Listing; onRefresh: () =>
           {listing.setName && <p className="text-[10px] mt-0.5" style={{ color: "#9ca3af" }}>{listing.setName}</p>}
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</span>
+            {listing.priceUnit && <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: listing.priceUnit === '單張' ? "rgba(14,165,233,0.1)" : "rgba(249,115,22,0.1)", color: listing.priceUnit === '單張' ? "#0284c7" : "#ea580c" }}>{listing.priceUnit}</span>}
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: cond.color + "18", color: cond.color }}>
               {listing.isGraded && listing.gradeScore ? `${listing.gradingOrg} ${listing.gradeScore}` : cond.label}
             </span>

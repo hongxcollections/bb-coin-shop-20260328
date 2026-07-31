@@ -157,6 +157,7 @@ export default function CardMarketSell() {
   const [gradingOrg, setGradingOrg] = useState("PSA");
   const [gradeScore, setGradeScore] = useState("");
   const [priceStr, setPriceStr] = useState("");
+  const [priceUnit, setPriceUnit] = useState<'全部' | '單張'>('全部');
   const [description, setDescription] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("面交或郵寄");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -370,6 +371,7 @@ export default function CardMarketSell() {
         gradingOrg: isGraded ? gradingOrg : undefined,
         gradeScore: isGraded ? gradeScore : undefined,
         priceHKD: price,
+        priceUnit,
         photoUrls: photos,
         description: description || undefined,
         deliveryMethod,
@@ -982,16 +984,33 @@ export default function CardMarketSell() {
                 {/* Price */}
                 <div className="mb-4">
                   <label className="text-sm font-bold mb-2 block" style={{ color: "#6b7280" }}>售價 (HKD) *</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "#9ca3af" }}>$</span>
-                    <input
-                      value={priceStr}
-                      onChange={e => setPriceStr(e.target.value)}
-                      placeholder="0"
-                      inputMode="numeric"
-                      className="w-full pl-7 pr-3 py-3 text-lg font-black"
-                      style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#CC0000", outline: "none" }}
-                    />
+                  <div className="flex gap-2 items-center">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "#9ca3af" }}>$</span>
+                      <input
+                        value={priceStr}
+                        onChange={e => setPriceStr(e.target.value)}
+                        placeholder="0"
+                        inputMode="numeric"
+                        className="w-full pl-7 pr-3 py-3 text-lg font-black"
+                        style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", color: "#CC0000", outline: "none" }}
+                      />
+                    </div>
+                    <div className="flex rounded-xl overflow-hidden flex-shrink-0" style={{ border: "1px solid #e5e7eb" }}>
+                      {(['全部', '單張'] as const).map(u => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setPriceUnit(u)}
+                          className="px-3 py-2 text-xs font-black transition-colors"
+                          style={{
+                            background: priceUnit === u ? "#CC0000" : "#f9fafb",
+                            color: priceUnit === u ? "#fff" : "#6b7280",
+                            borderRight: u === '全部' ? "1px solid #e5e7eb" : undefined,
+                          }}
+                        >{u}</button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

@@ -501,7 +501,7 @@ interface Listing {
   setName: string | null; setNumber: string | null; rarity: string | null;
   officialImageUrl: string | null;
   condition: string; isGraded: boolean; gradingOrg: string | null; gradeScore: string | null;
-  priceHKD: number; photoUrls: string[]; description: string | null;
+  priceHKD: number; priceUnit: string | null; photoUrls: string[]; description: string | null;
   deliveryMethod: string | null;
   status: string; views: number; createdAt: string; sellerName: string | null;
 }
@@ -887,7 +887,10 @@ function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }
         <div className="absolute bottom-0 left-0 right-0 px-2 pb-2 pt-8" style={{ background: "linear-gradient(transparent,rgba(0,0,0,0.82))" }}>
           <p className="text-[10px] font-black text-white leading-tight line-clamp-2">{listing.cardName}</p>
           {listing.setName && <p className="text-[9px] mt-0.5 line-clamp-1" style={{ color: "rgba(255,255,255,0.45)" }}>{listing.setName}</p>}
-          <p className="text-xs font-black mt-0.5" style={{ color: "#FFDE00" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+          <div className="flex items-baseline gap-1 mt-0.5">
+            <p className="text-xs font-black" style={{ color: "#FFDE00" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+            {listing.priceUnit && <span className="text-[8px] font-bold" style={{ color: "rgba(255,222,0,0.6)" }}>/{listing.priceUnit}</span>}
+          </div>
         </div>
         <div className="absolute bottom-1.5 right-1.5" onClick={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
           <ListingShareDropdown listing={listing} />
@@ -934,7 +937,10 @@ function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => vo
       <div className="p-2">
         <p className="text-xs font-black leading-tight line-clamp-2 mb-1" style={{ color: "#111827" }}>{listing.cardName}</p>
         {listing.setName && <p className="text-[10px] line-clamp-1 mb-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
-        <p className="text-sm font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+        <div className="flex items-baseline gap-1">
+          <p className="text-sm font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+          {listing.priceUnit && <span className="text-[9px] font-bold" style={{ color: "#9ca3af" }}>/{listing.priceUnit}</span>}
+        </div>
         <div className="flex items-center justify-between mt-1">
           <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.sellerName ?? "賣家"}</span>
           <span className="text-[10px]" style={{ color: "#d1d5db" }}>{timeAgo(listing.createdAt)}</span>
@@ -1626,7 +1632,10 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
               )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <p className="text-xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-xl font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
+                {listing.priceUnit && <span className="text-xs font-bold px-1.5 py-0.5 rounded-md" style={{ background: listing.priceUnit === '單張' ? "rgba(14,165,233,0.1)" : "rgba(249,115,22,0.1)", color: listing.priceUnit === '單張' ? "#0284c7" : "#ea580c" }}>{listing.priceUnit}</span>}
+              </div>
             </div>
           </div>
           {/* 第2行：卡牌名稱 */}

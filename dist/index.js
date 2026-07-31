@@ -7646,6 +7646,10 @@ async function bootstrapCardTradingTables() {
     await pool.execute(`ALTER TABLE cardListings ADD COLUMN privateNote TEXT`);
   } catch {
   }
+  try {
+    await pool.execute(`ALTER TABLE cardListings ADD COLUMN priceUnit VARCHAR(10) DEFAULT '\u5168\u90E8'`);
+  } catch {
+  }
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS cardWantToBuy (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8184,8 +8188,8 @@ async function createCardListing(data) {
   const [res] = await pool.execute(
     `INSERT INTO cardListings
      (userId, game, cardApiId, cardName, cardNameJa, setName, setNumber, rarity, officialImageUrl,
-      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod, privateNote)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      \`condition\`, isGraded, gradingOrg, gradeScore, priceHKD, photoUrlsJson, description, deliveryMethod, privateNote, priceUnit)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       data.userId,
       data.game,
@@ -8204,7 +8208,8 @@ async function createCardListing(data) {
       JSON.stringify(data.photoUrls),
       data.description ?? null,
       data.deliveryMethod ?? null,
-      data.privateNote ?? null
+      data.privateNote ?? null,
+      data.priceUnit ?? "\u5168\u90E8"
     ]
   );
   return { id: (Array.isArray(res) ? res[0] : res).insertId };
@@ -8265,6 +8270,10 @@ async function updateCardListing(id, userId, updates) {
   if (updates.privateNote !== void 0) {
     sets.push("privateNote = ?");
     params.push(updates.privateNote);
+  }
+  if (updates.priceUnit !== void 0) {
+    sets.push("priceUnit = ?");
+    params.push(updates.priceUnit ?? "\u5168\u90E8");
   }
   if (!sets.length) return;
   params.push(id, userId);
@@ -25727,6 +25736,7 @@ EXAMPLE OUTPUT (exact format):
         gradingOrg: z2.string().max(20).optional(),
         gradeScore: z2.string().max(10).optional(),
         priceHKD: z2.number().int().min(1),
+        priceUnit: z2.enum(["\u5168\u90E8", "\u55AE\u5F35"]).default("\u5168\u90E8"),
         photoUrls: z2.array(z2.string()).max(10),
         description: z2.string().max(1e3).optional(),
         deliveryMethod: z2.string().max(50).optional(),
@@ -25751,6 +25761,7 @@ EXAMPLE OUTPUT (exact format):
           gradingOrg: input.gradingOrg ?? null,
           gradeScore: input.gradeScore ?? null,
           priceHKD: input.priceHKD,
+          priceUnit: input.priceUnit,
           photoUrls: input.photoUrls,
           description: input.description ?? null,
           deliveryMethod: input.deliveryMethod ?? null,
@@ -25813,6 +25824,7 @@ EXAMPLE OUTPUT (exact format):
         setName: z2.string().max(200).nullable().optional(),
         setNumber: z2.string().max(100).nullable().optional(),
         priceHKD: z2.number().int().min(1).optional(),
+        priceUnit: z2.enum(["\u5168\u90E8", "\u55AE\u5F35"]).optional(),
         description: z2.string().max(1e3).nullable().optional(),
         photoUrls: z2.array(z2.string()).max(10).optional(),
         condition: z2.enum(["NM", "LP", "MP", "HP", "DMG"]).optional(),
@@ -25828,6 +25840,7 @@ EXAMPLE OUTPUT (exact format):
           setName: input.setName,
           setNumber: input.setNumber,
           priceHKD: input.priceHKD,
+          priceUnit: input.priceUnit,
           description: input.description,
           photoUrls: input.photoUrls,
           condition: input.condition,
