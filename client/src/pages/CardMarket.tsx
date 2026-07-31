@@ -892,7 +892,7 @@ function HotCard({ listing, onClick }: { listing: Listing; onClick: () => void }
           {listing.setName && <p className="text-[9px] mt-0.5 line-clamp-1" style={{ color: "rgba(255,255,255,0.45)" }}>{listing.setName}</p>}
           <div className="flex items-baseline gap-1 mt-0.5">
             <p className="text-xs font-black" style={{ color: "#FFDE00" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
-            {listing.priceUnit && <span className="text-[8px] font-bold" style={{ color: "rgba(255,222,0,0.6)" }}>/{listing.priceUnit}</span>}
+            {listing.priceUnit && <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,222,0,0.85)" }}>{listing.priceUnit}</span>}
           </div>
         </div>
         <div className="absolute bottom-1.5 right-1.5" onClick={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
@@ -942,7 +942,7 @@ function ListingCard({ listing, onClick }: { listing: Listing; onClick: () => vo
         {listing.setName && <p className="text-[10px] line-clamp-1 mb-1" style={{ color: "#9ca3af" }}>{listing.setName}{listing.setNumber ? ` #${listing.setNumber}` : ""}</p>}
         <div className="flex items-baseline gap-1">
           <p className="text-sm font-black" style={{ color: "#CC0000" }}>HKD ${listing.priceHKD.toLocaleString()}</p>
-          {listing.priceUnit && <span className="text-[9px] font-bold" style={{ color: "#9ca3af" }}>/{listing.priceUnit}</span>}
+          {listing.priceUnit && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: listing.priceUnit === '單張' ? "rgba(14,165,233,0.1)" : "rgba(249,115,22,0.1)", color: listing.priceUnit === '單張' ? "#0284c7" : "#ea580c" }}>{listing.priceUnit}</span>}
         </div>
         <div className="flex items-center justify-between mt-1">
           <span className="text-[10px]" style={{ color: "#9ca3af" }}>{listing.sellerName ?? "賣家"}</span>
