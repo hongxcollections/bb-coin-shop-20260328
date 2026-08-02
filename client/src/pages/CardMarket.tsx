@@ -25,13 +25,18 @@ if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID))
       40%  { opacity: 0.7; transform: scale(1.05) translateY(-6px);  filter: blur(2px);  }
       100% { opacity: 0;   transform: scale(0.85) translateY(-18px); filter: blur(12px); }
     }
+    @keyframes promoSlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
   `;
   document.head.appendChild(s);
 }
 
-function PromoVideoPlayer({ video, onDismiss, autoStopSecs }: {
+function PromoVideoPlayer({ video, onDismiss, onHideToday, autoStopSecs }: {
   video: { id: number; userId: number; videoUrl: string; isSubscribed?: boolean };
   onDismiss: () => void;
+  onHideToday: () => void;
   autoStopSecs: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -192,9 +197,9 @@ function PromoVideoPlayer({ video, onDismiss, autoStopSecs }: {
             : <Volume2 style={{ width: 11, height: 11, color: "#fff" }} />}
         </button>
 
-        {/* 8s pause overlay — 播放全部 + ✕ 取消 + 5s idle countdown */}
+        {/* 8s pause overlay — 播放全部 + ✕ 取消 + 今日不再顯示 + 5s idle countdown */}
         {stopped && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
             <button
               onClick={handlePlayFull}
               style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 999, fontSize: 11, fontWeight: 900, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none", cursor: "pointer" }}
@@ -207,7 +212,14 @@ function PromoVideoPlayer({ video, onDismiss, autoStopSecs }: {
             >
               <X style={{ width: 10, height: 10 }} />取消
             </button>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+            {/* 方向5：今日不再顯示 */}
+            <button
+              onClick={onHideToday}
+              style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", padding: "2px 4px", textDecoration: "underline" }}
+            >
+              今日不再顯示
+            </button>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>
               {idleCountdown}s 後自動關閉
             </span>
           </div>
@@ -1790,6 +1802,9 @@ export default function CardMarket() {
   const [qrOpen, setQrOpen] = useState(false);
   const [promoVideoIdx, setPromoVideoIdx] = useState(0);
   const [promoDismissed, setPromoDismissed] = useState(() => {
+    // 方向5：今日不再顯示
+    const hideUntil = localStorage.getItem('promoHideUntil');
+    if (hideUntil && Date.now() < parseInt(hideUntil, 10)) return true;
     // 方向3：30分鐘冷卻
     const last = localStorage.getItem('promoLastDismiss');
     if (last && Date.now() - parseInt(last, 10) < 30 * 60 * 1000) return true;
@@ -1797,6 +1812,7 @@ export default function CardMarket() {
     if (sessionStorage.getItem('promoVideoShown') === '1') return true;
     return false;
   });
+  const [promoExpanded, setPromoExpanded] = useState(false);
   const promoSessionMarkedRef = useRef(false);
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
@@ -2010,15 +2026,53 @@ export default function CardMarket() {
 
       {/* ── Promo Video Player (floating overlay top-right) ── */}
       {activePromoVideo && createPortal(
-        <PromoVideoPlayer
-          video={activePromoVideo}
-          onDismiss={() => {
-            setPromoDismissed(true);
-            // 方向3：記錄關閉時間，30分鐘冷卻
-            localStorage.setItem('promoLastDismiss', String(Date.now()));
-          }}
-          autoStopSecs={activePromoVideo.isSubscribed ? promoSubscribedStopSecs : promoFreeStopSecs}
-        />,
+        promoExpanded
+          ? <PromoVideoPlayer
+              video={activePromoVideo}
+              onDismiss={() => {
+                setPromoDismissed(true);
+                setPromoExpanded(false);
+                localStorage.setItem('promoLastDismiss', String(Date.now()));
+              }}
+              onHideToday={() => {
+                setPromoDismissed(true);
+                setPromoExpanded(false);
+                const end = new Date(); end.setHours(23, 59, 59, 999);
+                localStorage.setItem('promoHideUntil', String(end.getTime()));
+              }}
+              autoStopSecs={activePromoVideo.isSubscribed ? promoSubscribedStopSecs : promoFreeStopSecs}
+            />
+          : /* 方向4：底部 banner，點擊才展開播放 */
+            <div style={{
+              position: "fixed", bottom: 72, left: 12, right: 12, zIndex: 200,
+              borderRadius: 14, background: "rgba(10,10,10,0.88)",
+              backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              boxShadow: "0 -4px 28px rgba(0,0,0,0.45)",
+              display: "flex", alignItems: "center", padding: "10px 12px", gap: 10,
+              animation: "promoSlideUp 0.35s ease-out",
+            }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>🎬</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 11, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>推廣影片</p>
+                <p style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", margin: 0, marginTop: 2 }}>點擊觀看</p>
+              </div>
+              <button
+                onClick={() => setPromoExpanded(true)}
+                style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 999, fontSize: 10, fontWeight: 900, background: "linear-gradient(90deg,#FFDE00,#FFB800)", color: "#111827", border: "none", cursor: "pointer", flexShrink: 0 }}
+              >
+                <Play style={{ width: 10, height: 10 }} />觀看
+              </button>
+              <button
+                onClick={() => {
+                  setPromoDismissed(true);
+                  localStorage.setItem('promoLastDismiss', String(Date.now()));
+                }}
+                style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              >
+                <X style={{ width: 11, height: 11, color: "rgba(255,255,255,0.7)" }} />
+              </button>
+            </div>,
         document.body
       )}
 
