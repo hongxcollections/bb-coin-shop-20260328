@@ -147,7 +147,15 @@ function PromoVideoPlayer({ video, onDismiss, autoStopSecs }: {
           src={video.videoUrl}
           muted={muted}
           playsInline
-          style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
+          style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block", cursor: "pointer" }}
+          onClick={() => {
+            // 方向2：點擊影片畫面切換靜音
+            const el = videoRef.current;
+            if (!el) return;
+            const n = !muted;
+            el.muted = n;
+            setMuted(n);
+          }}
           onEnded={dissolveAndDismiss}
           onPlay={() => {
             // Record once per impression when playback actually begins (isSubscribed derived server-side)
@@ -1781,7 +1789,15 @@ export default function CardMarket() {
   const [riskOpen, setRiskOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [promoVideoIdx, setPromoVideoIdx] = useState(0);
-  const [promoDismissed, setPromoDismissed] = useState(false);
+  const [promoDismissed, setPromoDismissed] = useState(() => {
+    // 方向3：30分鐘冷卻
+    const last = localStorage.getItem('promoLastDismiss');
+    if (last && Date.now() - parseInt(last, 10) < 30 * 60 * 1000) return true;
+    // 方向1：同一session只播一次
+    if (sessionStorage.getItem('promoVideoShown') === '1') return true;
+    return false;
+  });
+  const promoSessionMarkedRef = useRef(false);
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
@@ -1832,6 +1848,15 @@ export default function CardMarket() {
   const wtbList = wtbs as WTB[];
 
   const { data: promoVideosRaw } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { refetchOnMount: "always", staleTime: 0 });
+
+  // 方向1：影片資料載入後，標記此session已顯示過
+  useEffect(() => {
+    const videos = (promoVideosRaw as any)?.videos ?? [];
+    if (!promoSessionMarkedRef.current && videos.length > 0 && !promoDismissed) {
+      promoSessionMarkedRef.current = true;
+      sessionStorage.setItem('promoVideoShown', '1');
+    }
+  }, [promoVideosRaw, promoDismissed]);
   const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60000 });
   const isMerchant = !!isMerchantData;
   const promoVideos = (promoVideosRaw as any)?.videos ?? [] as { id: number; userId: number; videoUrl: string; isSubscribed: boolean }[];
@@ -1987,7 +2012,11 @@ export default function CardMarket() {
       {activePromoVideo && createPortal(
         <PromoVideoPlayer
           video={activePromoVideo}
-          onDismiss={() => setPromoDismissed(true)}
+          onDismiss={() => {
+            setPromoDismissed(true);
+            // 方向3：記錄關閉時間，30分鐘冷卻
+            localStorage.setItem('promoLastDismiss', String(Date.now()));
+          }}
           autoStopSecs={activePromoVideo.isSubscribed ? promoSubscribedStopSecs : promoFreeStopSecs}
         />,
         document.body
