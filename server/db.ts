@@ -8692,6 +8692,26 @@ export async function getCardListingById(id: number) {
   };
 }
 
+export async function getCardCategoryAuctions(limit = 10) {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.query(
+    `SELECT a.id, a.title, a.currentPrice, a.startingPrice, a.category, a.endTime,
+            (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) AS coverImage
+     FROM auctions a
+     WHERE a.status = 'active'
+       AND (a.archived = 0 OR a.archived IS NULL)
+       AND a.category LIKE ?
+     ORDER BY a.createdAt DESC
+     LIMIT ?`,
+    ['%卡牌%', limit]
+  );
+  return (Array.isArray(rows[0]) ? rows[0] : rows) as Array<{
+    id: number; title: string; currentPrice: number | null;
+    startingPrice: number; category: string | null;
+    endTime: string | null; coverImage: string | null;
+  }>;
+}
+
 export async function createCardListing(data: {
   userId: number; game: string; cardApiId?: string | null;
   cardName: string; cardNameJa?: string | null; setName?: string | null;

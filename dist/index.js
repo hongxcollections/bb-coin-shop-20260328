@@ -1104,6 +1104,7 @@ __export(db_exports, {
   getBidHistory: () => getBidHistory,
   getBiddersForAuction: () => getBiddersForAuction,
   getBuyerLockFromMerchant: () => getBuyerLockFromMerchant,
+  getCardCategoryAuctions: () => getCardCategoryAuctions,
   getCardListingById: () => getCardListingById,
   getCardListings: () => getCardListings,
   getCardPromoSubscriptionPlans: () => getCardPromoSubscriptionPlans,
@@ -8181,6 +8182,21 @@ async function getCardListingById(id) {
       }
     })()
   };
+}
+async function getCardCategoryAuctions(limit = 10) {
+  const pool = await getRawPool();
+  const [rows] = await pool.query(
+    `SELECT a.id, a.title, a.currentPrice, a.startingPrice, a.category, a.endTime,
+            (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) AS coverImage
+     FROM auctions a
+     WHERE a.status = 'active'
+       AND (a.archived = 0 OR a.archived IS NULL)
+       AND a.category LIKE ?
+     ORDER BY a.createdAt DESC
+     LIMIT ?`,
+    ["%\u5361\u724C%", limit]
+  );
+  return Array.isArray(rows[0]) ? rows[0] : rows;
 }
 async function createCardListing(data) {
   await bootstrapCardTradingTables();
@@ -26326,6 +26342,10 @@ EXAMPLE OUTPUT (exact format):
         } catch (err) {
           throw new TRPCError3({ code: "BAD_REQUEST", message: err.message || "\u8A02\u95B1\u5931\u6557\uFF0C\u8ACB\u91CD\u8A66" });
         }
+      }),
+      getCardAuctions: publicProcedure.query(async () => {
+        const { getCardCategoryAuctions: getCardCategoryAuctions2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        return getCardCategoryAuctions2(10);
       })
     });
   })()

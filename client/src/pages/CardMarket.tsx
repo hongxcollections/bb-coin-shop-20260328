@@ -29,6 +29,10 @@ if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID))
       from { opacity: 0; transform: translateY(20px); }
       to   { opacity: 1; transform: translateY(0); }
     }
+    @keyframes tickerSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
   `;
   document.head.appendChild(s);
 }
@@ -254,6 +258,48 @@ function PromoVideoPlayer({ video, onDismiss, onHideToday, autoStopSecs }: {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Auction Ticker Banner ─────────────────────────────────────────────────────
+type CardAuction = { id: number; title: string; currentPrice: number | null; startingPrice: number; coverImage: string | null };
+
+function AuctionTickerBanner({ items }: { items: CardAuction[] }) {
+  const [idx, setIdx] = useState(0);
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const iv = setInterval(() => setIdx(i => (i + 1) % items.length), 5000);
+    return () => clearInterval(iv);
+  }, [items.length]);
+  if (!items.length) return null;
+  const item = items[idx % items.length];
+  const price = item.currentPrice ?? item.startingPrice;
+  return (
+    <button
+      key={idx}
+      type="button"
+      onClick={() => navigate(`/auctions/${item.id}`)}
+      className="w-full flex items-center gap-2 px-2.5"
+      style={{
+        height: 36, borderRadius: 8, cursor: "pointer", border: "none",
+        background: "linear-gradient(90deg, rgba(204,0,0,0.07) 0%, rgba(255,222,0,0.07) 100%)",
+        outline: "1px solid rgba(204,0,0,0.14)",
+        animation: "tickerSlideIn 0.35s ease-out",
+        overflow: "hidden",
+      }}
+    >
+      <span style={{ fontSize: 9, fontWeight: 900, padding: "2px 5px", borderRadius: 4, background: "#CC0000", color: "#fff", flexShrink: 0, lineHeight: 1.4 }}>拍賣</span>
+      {item.coverImage && (
+        <img src={item.coverImage} alt="" style={{ width: 22, height: 22, borderRadius: 4, objectFit: "cover", flexShrink: 0 }} />
+      )}
+      <span style={{ flex: 1, fontSize: 10, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>{item.title}</span>
+      <span style={{ fontSize: 10, fontWeight: 900, color: "#CC0000", flexShrink: 0 }}>HKD ${price.toLocaleString()}</span>
+      {items.length > 1 && (
+        <span style={{ fontSize: 8, color: "#9ca3af", flexShrink: 0 }}>{idx + 1}/{items.length}</span>
+      )}
+      <ChevronRight style={{ width: 10, height: 10, color: "#9ca3af", flexShrink: 0 }} />
+    </button>
   );
 }
 
@@ -1814,6 +1860,7 @@ export default function CardMarket() {
   });
   const [promoExpanded, setPromoExpanded] = useState(false);
   const promoSessionMarkedRef = useRef(false);
+  const [auctionBannerPos] = useState(() => Math.random() < 0.5 ? 2 : 4);
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
@@ -1864,6 +1911,8 @@ export default function CardMarket() {
   const wtbList = wtbs as WTB[];
 
   const { data: promoVideosRaw } = trpc.cardTrading.getPromoVideos.useQuery(undefined, { refetchOnMount: "always", staleTime: 0 });
+  const { data: cardAuctionsRaw = [] } = trpc.cardTrading.getCardAuctions.useQuery(undefined, { staleTime: 60000 });
+  const cardAuctions = cardAuctionsRaw as CardAuction[];
 
   // 方向1：影片資料載入後，標記此session已顯示過
   useEffect(() => {
@@ -2160,9 +2209,14 @@ export default function CardMarket() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
-              {recentListings.map(l => (
-                <ListingCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />
-              ))}
+              {recentListings.flatMap((l, i) => {
+                const card = <ListingCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />;
+                const insertAfter = Math.min(auctionBannerPos, recentListings.length) - 1;
+                if (i === insertAfter && cardAuctions.length > 0) {
+                  return [card, <div key="auction-ticker" className="col-span-2"><AuctionTickerBanner items={cardAuctions} /></div>];
+                }
+                return [card];
+              })}
             </div>
           )}
         </div>

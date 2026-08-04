@@ -15019,6 +15019,10 @@ EXAMPLE OUTPUT (exact format):
           throw new TRPCError({ code: 'BAD_REQUEST', message: err.message || '訂閱失敗，請重試' });
         }
       }),
+    getCardAuctions: publicProcedure.query(async () => {
+      const { getCardCategoryAuctions } = await import('./db');
+      return getCardCategoryAuctions(10);
+    }),
   }); })(),
 });
 export type AppRouter = typeof appRouter;
