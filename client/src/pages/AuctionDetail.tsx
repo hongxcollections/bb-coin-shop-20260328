@@ -88,7 +88,7 @@ function SessionAwareBack({ auctionId: _auctionId }: { auctionId: number; mercha
     return (
       <div className="flex items-center gap-2 mb-4 text-sm">
         <Link
-          href="/card-market"
+          href="/cardzx/market"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
           style={{ background: "linear-gradient(90deg,#0369a1,#0ea5e9)", color: "#fff", boxShadow: "0 1px 6px rgba(3,105,161,0.25)" }}
         >
