@@ -57,12 +57,17 @@ function SessionAwareBack({ auctionId: _auctionId }: { auctionId: number; mercha
   // SPA navigation 唔會 update document.referrer，改用 sessionStorage：
   // MerchantSessionPublic onClick 時 set；呢度讀完保留（refresh 仍 valid，去其他 page 時清）
   const [from, setFrom] = useState<{ merchantUserId: number; slug: string; title: string; merchantName?: string } | null>(null);
+  const [fromCardMarket, setFromCardMarket] = useState(false);
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("bb_auction_from_session");
       if (raw) {
         setFrom(JSON.parse(raw));
-        sessionStorage.removeItem("bb_auction_from_session"); // 一次性，避免之後從別處入嚟見到舊值
+        sessionStorage.removeItem("bb_auction_from_session");
+      }
+      if (sessionStorage.getItem("bb_from_card_market")) {
+        setFromCardMarket(true);
+        sessionStorage.removeItem("bb_from_card_market");
       }
     } catch {}
   }, []);
@@ -75,6 +80,19 @@ function SessionAwareBack({ auctionId: _auctionId }: { auctionId: number; mercha
           onClick={() => { try { sessionStorage.removeItem("bb_auction_from_session"); } catch {} }}
         >
           <ChevronLeft className="w-4 h-4" /> 返回 {from.merchantName ?? '商戶'} 專場 「{from.title}」
+        </Link>
+      </div>
+    );
+  }
+  if (fromCardMarket) {
+    return (
+      <div className="flex items-center gap-2 mb-4 text-sm">
+        <Link
+          href="/card-market"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+          style={{ background: "linear-gradient(90deg,#0369a1,#0ea5e9)", color: "#fff", boxShadow: "0 1px 6px rgba(3,105,161,0.25)" }}
+        >
+          <ChevronLeft className="w-3.5 h-3.5" /> 返回卡牌交易頁面
         </Link>
       </div>
     );

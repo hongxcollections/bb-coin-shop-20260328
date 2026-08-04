@@ -33,6 +33,10 @@ if (typeof document !== "undefined" && !document.getElementById(PROMO_STYLE_ID))
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
+    @keyframes scannerSweep {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(300%); }
+    }
   `;
   document.head.appendChild(s);
 }
@@ -279,26 +283,40 @@ function AuctionTickerBanner({ items }: { items: CardAuction[] }) {
     <button
       key={idx}
       type="button"
-      onClick={() => navigate(`/auctions/${item.id}`)}
+      onClick={() => {
+        try { sessionStorage.setItem("bb_from_card_market", "1"); } catch {}
+        navigate(`/auctions/${item.id}`);
+      }}
       className="w-full flex items-center gap-2 px-2.5"
       style={{
-        height: 36, borderRadius: 8, cursor: "pointer", border: "none",
-        background: "linear-gradient(90deg, rgba(204,0,0,0.07) 0%, rgba(255,222,0,0.07) 100%)",
-        outline: "1px solid rgba(204,0,0,0.14)",
+        height: 40, borderRadius: 10, cursor: "pointer", border: "none",
+        background: "linear-gradient(90deg, #0369a1 0%, #0ea5e9 55%, #38bdf8 100%)",
+        boxShadow: "0 2px 8px rgba(3,105,161,0.25)",
         animation: "tickerSlideIn 0.35s ease-out",
         overflow: "hidden",
+        position: "relative",
       }}
     >
-      <span style={{ fontSize: 9, fontWeight: 900, padding: "2px 5px", borderRadius: 4, background: "#CC0000", color: "#fff", flexShrink: 0, lineHeight: 1.4 }}>拍賣</span>
+      {/* scanner sweep shimmer */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)",
+          animation: "scannerSweep 2.2s linear infinite",
+          pointerEvents: "none",
+        }}
+      />
+      <span style={{ fontSize: 9, fontWeight: 900, padding: "2px 5px", borderRadius: 4, background: "rgba(255,255,255,0.25)", color: "#fff", flexShrink: 0, lineHeight: 1.4, border: "1px solid rgba(255,255,255,0.4)", position: "relative" }}>拍賣</span>
       {item.coverImage && (
-        <img src={item.coverImage} alt="" style={{ width: 22, height: 22, borderRadius: 4, objectFit: "cover", flexShrink: 0 }} />
+        <img src={item.coverImage} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: "cover", flexShrink: 0, position: "relative", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
       )}
-      <span style={{ flex: 1, fontSize: 10, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>{item.title}</span>
-      <span style={{ fontSize: 10, fontWeight: 900, color: "#CC0000", flexShrink: 0 }}>HKD ${price.toLocaleString()}</span>
+      <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left", position: "relative", textShadow: "0 1px 2px rgba(0,0,0,0.2)" }}>{item.title}</span>
+      <span style={{ fontSize: 10, fontWeight: 900, color: "#fef08a", flexShrink: 0, position: "relative", textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>HKD ${price.toLocaleString()}</span>
       {items.length > 1 && (
-        <span style={{ fontSize: 8, color: "#9ca3af", flexShrink: 0 }}>{idx + 1}/{items.length}</span>
+        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.7)", flexShrink: 0, position: "relative" }}>{idx + 1}/{items.length}</span>
       )}
-      <ChevronRight style={{ width: 10, height: 10, color: "#9ca3af", flexShrink: 0 }} />
+      <ChevronRight style={{ width: 11, height: 11, color: "rgba(255,255,255,0.85)", flexShrink: 0, position: "relative" }} />
     </button>
   );
 }
@@ -1860,7 +1878,7 @@ export default function CardMarket() {
   });
   const [promoExpanded, setPromoExpanded] = useState(false);
   const promoSessionMarkedRef = useRef(false);
-  const [auctionBannerPos] = useState(() => Math.random() < 0.5 ? 2 : 4);
+  const [auctionBannerPos] = useState(() => { const pick = [2, 4, 6]; return pick[Math.floor(Math.random() * pick.length)]; });
   const contactWTBMut = trpc.cardTrading.openRoomWithWTBBuyer.useMutation();
 
   async function handleContactWTBBuyer(wtbId: number) {
