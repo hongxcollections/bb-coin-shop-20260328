@@ -9,6 +9,7 @@ import { Search, Plus, ShoppingBag, Eye, ChevronRight, Flame, Loader2, Clipboard
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
+import { useSeoMeta } from "@/lib/useSeoMeta";
 
 // ── Promo Video Player (fixed overlay, top-right) ────────────────────────────
 const PROMO_AUTO_STOP_SECS = 8;
@@ -1853,6 +1854,12 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
 }
 
 export default function CardMarket() {
+  useSeoMeta({
+    title: "卡牌交易市場 · Pokémon · 遊戲王 · MTG",
+    description: "香港最大卡牌買賣平台，放售、尋卡、即時交易。Pokémon、遊戲王、MTG、球星卡等一站式交易。",
+    ogImage: "https://hongxcollections.com/ads/og-card-market.jpg",
+    ogUrl: "https://hongxcollections.com/cardzx/market",
+  });
   const [, navigate] = useLocation();
   const searchStr = useSearch();
   const { isAuthenticated, user } = useAuth();
