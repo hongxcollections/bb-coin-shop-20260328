@@ -21,6 +21,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import ImageLightbox from "@/components/ImageLightbox";
 import ChatButton from "@/components/ChatButton";
 import { AuctionCardFb } from "@/components/AuctionCardFb";
+import { trackViewContent } from "@/lib/fbPixel";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -219,6 +220,18 @@ export default function AuctionDetail() {
     ogUrl: `${window.location.origin}/auctions/${auctionId}`,
     ogType: "article",
   });
+
+  // Facebook Pixel: ViewContent 當拍賣資料載入後觸發一次
+  useEffect(() => {
+    if (!auction) return;
+    trackViewContent({
+      content_name: auction.title,
+      content_category: (auction as { category?: string }).category ?? "拍賣",
+      content_ids: [String(auctionId)],
+      value: Number(auction.currentPrice ?? auction.startingPrice),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auctionId, !!auction]);
 
   // 偵測其他用戶出價導致的價格變動，主動提示 B 用戶
   useEffect(() => {

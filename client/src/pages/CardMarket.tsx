@@ -10,6 +10,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 import { useSeoMeta } from "@/lib/useSeoMeta";
+import { trackViewContent, trackSearch } from "@/lib/fbPixel";
 
 // ── Promo Video Player (fixed overlay, top-right) ────────────────────────────
 const PROMO_AUTO_STOP_SECS = 8;
@@ -1860,6 +1861,10 @@ export default function CardMarket() {
     ogImage: "https://hongxcollections.com/ads/og-card-market.jpg",
     ogUrl: "https://hongxcollections.com/cardzx/market",
   });
+  // Facebook Pixel: 進入卡牌交易頁
+  useEffect(() => {
+    trackViewContent({ content_name: "卡牌交易市場", content_category: "卡牌" });
+  }, []);
   const [, navigate] = useLocation();
   const searchStr = useSearch();
   const { isAuthenticated, user } = useAuth();
