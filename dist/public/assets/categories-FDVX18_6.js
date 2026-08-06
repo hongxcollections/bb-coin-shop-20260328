@@ -1,0 +1,1 @@
+const t=["人民幣 1,2,3版","人民幣 4,5版","港鈔/港幣","紀念鈔/幣","金銀幣/章","古錢/古幣","外國鈔/幣","古董/雜件","錯體鈔/幣","其它"];function a(e){if(e?.productCategories)try{const r=JSON.parse(e.productCategories);if(Array.isArray(r)&&r.length>0)return r}catch{}return t}export{t as D,a as p};
