@@ -1,6 +1,13 @@
 import { trpc } from "@/lib/trpc";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// After a new deployment, old lazy-loaded chunk hashes disappear.
+// Automatically reload the page so the browser fetches the new index.html
+// and re-resolves the correct chunk filenames.
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload();
+});
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
