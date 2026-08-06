@@ -12516,12 +12516,12 @@ var init_context = __esm({
 });
 
 // server/_core/index.ts
-import "dotenv/config";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import { drizzle as drizzle2 } from "drizzle-orm/mysql2";
 import { createPool as createPool2 } from "mysql2/promise";
 import path4 from "path";
 import express2 from "express";
+import helmet from "helmet";
 import compression from "compression";
 import { createServer } from "http";
 import net from "net";
@@ -26977,6 +26977,7 @@ import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path2 from "node:path";
 import { defineConfig } from "vite";
+import { visualizer } from "rollup-plugin-visualizer";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 var PROJECT_ROOT = import.meta.dirname;
 var LOG_DIR = path2.join(PROJECT_ROOT, ".manus-logs");
@@ -27086,7 +27087,7 @@ function vitePluginManusDebugCollector() {
   };
 }
 var isProd = process.env.NODE_ENV === "production";
-var plugins = isProd ? [react(), tailwindcss()] : [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+var plugins = isProd ? [react(), tailwindcss(), visualizer({ filename: "dist/stats.html", open: false, gzipSize: true, brotliSize: true })] : [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 var vite_config_default = defineConfig({
   plugins,
   resolve: {
@@ -27101,7 +27102,28 @@ var vite_config_default = defineConfig({
   publicDir: path2.resolve(import.meta.dirname, "client", "public"),
   build: {
     outDir: path2.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/scheduler/")) {
+            return "vendor-react";
+          }
+          if (id.includes("node_modules/@trpc/") || id.includes("node_modules/@tanstack/")) {
+            return "vendor-trpc";
+          }
+          if (id.includes("node_modules/@radix-ui/")) {
+            return "vendor-radix";
+          }
+          if (id.includes("node_modules/lucide-react/")) {
+            return "vendor-icons";
+          }
+          if (id.includes("node_modules/")) {
+            return "vendor-misc";
+          }
+        }
+      }
+    }
   },
   server: {
     host: true,
@@ -29321,6 +29343,82 @@ async function startServer() {
     console.warn("[Bootstrap] cardTrading tables skipped:", e.message);
   }
   bootstrapDone = true;
+  const isProd2 = process.env.NODE_ENV === "production";
+  app.use(
+    helmet({
+      // Content-Security-Policy
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            // Vite HMR + inline React hydration in dev
+            "'unsafe-eval'",
+            // Vite dev only; safe to keep: no sensitive data in JS
+            "https://connect.facebook.net",
+            // Facebook Pixel
+            "https://www.googletagmanager.com",
+            // Google Tag Manager / GA4
+            "https://www.google-analytics.com",
+            "https://ssl.google-analytics.com"
+          ],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'"
+            // Tailwind / inline styles from Radix UI
+          ],
+          imgSrc: [
+            "'self'",
+            "data:",
+            // base64 inline images (QR codes etc.)
+            "blob:",
+            "https:",
+            // CDN images (S3, Cloudflare, picsum, etc.)
+            "https://www.facebook.com",
+            "https://www.google-analytics.com"
+          ],
+          mediaSrc: [
+            "'self'",
+            "https:",
+            // S3 video/audio CDN
+            "blob:"
+          ],
+          connectSrc: [
+            "'self'",
+            "wss:",
+            // WebSocket (auction chat)
+            "ws:",
+            "https://www.google-analytics.com",
+            "https://analytics.google.com",
+            "https://www.facebook.com",
+            "https://*.amazonaws.com",
+            // S3 presigned uploads
+            "https://generativelanguage.googleapis.com",
+            "https://openrouter.ai"
+          ],
+          fontSrc: ["'self'", "data:", "https:"],
+          objectSrc: ["'none'"],
+          frameSrc: [
+            "'self'",
+            "https://www.facebook.com"
+          ],
+          frameAncestors: ["'self'"],
+          // X-Frame-Options: SAMEORIGIN equivalent
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          upgradeInsecureRequests: isProd2 ? [] : null
+        }
+      },
+      // HSTS — 只在 production 啟用，避免 dev HTTPS 問題
+      hsts: isProd2 ? { maxAge: 31536e3, includeSubDomains: true, preload: true } : false,
+      // X-Frame-Options: SAMEORIGIN（防 clickjacking）
+      frameguard: { action: "sameorigin" },
+      // 其他預設開啟：X-Content-Type-Options, X-XSS-Protection, Referrer-Policy 等
+      crossOriginEmbedderPolicy: false
+      // 關閉：會阻斷 S3 CORS 圖片載入
+    })
+  );
   app.use(compression());
   app.use(express2.json({ limit: "50mb" }));
   app.use(express2.urlencoded({ limit: "50mb", extended: true }));

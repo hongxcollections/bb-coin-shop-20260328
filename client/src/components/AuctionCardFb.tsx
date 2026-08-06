@@ -77,13 +77,13 @@ function FbPhotoGrid({ images, bidCount, onPhotoClick }: {
   return (
     <div className="relative cursor-pointer" onClick={onPhotoClick}>
       {count === 1 && (
-        <img src={images[0].imageUrl} alt="" className="w-full max-h-80 object-cover" />
+        <img src={images[0].imageUrl} alt="" className="w-full max-h-80 object-cover" loading="lazy" decoding="async" width={800} height={320} />
       )}
       {count === 2 && (
         <div className="grid grid-cols-2 gap-px bg-white">
           {images.slice(0, 2).map((img, i) => (
             <div key={i} className="h-52 overflow-hidden">
-              <img src={img.imageUrl} alt="" className={imgCls} />
+              <img src={img.imageUrl} alt="" className={imgCls} loading="lazy" decoding="async" width={400} height={208} />
             </div>
           ))}
         </div>
@@ -91,12 +91,12 @@ function FbPhotoGrid({ images, bidCount, onPhotoClick }: {
       {count === 3 && (
         <div className="flex flex-col gap-px bg-white">
           <div className="h-52 overflow-hidden">
-            <img src={images[0].imageUrl} alt="" className={imgCls} />
+            <img src={images[0].imageUrl} alt="" className={imgCls} loading="lazy" decoding="async" width={800} height={208} />
           </div>
           <div className="grid grid-cols-2 gap-px">
             {images.slice(1, 3).map((img, i) => (
               <div key={i} className="h-36 overflow-hidden">
-                <img src={img.imageUrl} alt="" className={imgCls} />
+                <img src={img.imageUrl} alt="" className={imgCls} loading="lazy" decoding="async" width={400} height={144} />
               </div>
             ))}
           </div>
@@ -106,7 +106,7 @@ function FbPhotoGrid({ images, bidCount, onPhotoClick }: {
         <div className="grid grid-cols-2 gap-px bg-white">
           {images.slice(0, 4).map((img, i) => (
             <div key={i} className="h-44 overflow-hidden">
-              <img src={img.imageUrl} alt="" className={imgCls} />
+              <img src={img.imageUrl} alt="" className={imgCls} loading="lazy" decoding="async" width={400} height={176} />
             </div>
           ))}
         </div>
@@ -116,14 +116,14 @@ function FbPhotoGrid({ images, bidCount, onPhotoClick }: {
           <div className="grid grid-cols-2 gap-px">
             {images.slice(0, 2).map((img, i) => (
               <div key={i} className="h-44 overflow-hidden">
-                <img src={img.imageUrl} alt="" className={imgCls} />
+                <img src={img.imageUrl} alt="" className={imgCls} loading="lazy" decoding="async" width={400} height={176} />
               </div>
             ))}
           </div>
           <div className="grid grid-cols-3 gap-px">
             {images.slice(2, 5).map((img, i) => (
               <div key={i} className="h-32 overflow-hidden relative">
-                <img src={img.imageUrl} alt="" className={imgCls} />
+                <img src={img.imageUrl} alt="" className={imgCls} loading="lazy" decoding="async" width={267} height={128} />
                 {i === 2 && extra > 0 && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                     <span className="text-white font-bold text-2xl">+{extra}</span>
@@ -224,7 +224,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-base shrink-0 overflow-hidden">
             {sellerPhotoUrl
-              ? <img src={sellerPhotoUrl} alt={sellerName ?? "商戶"} className="w-full h-full object-cover" />
+              ? <img src={sellerPhotoUrl} alt={sellerName ?? "商戶"} className="w-full h-full object-cover" loading="lazy" decoding="async" width={40} height={40} />
               : initials
             }
           </div>

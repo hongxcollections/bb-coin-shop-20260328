@@ -168,7 +168,7 @@ export function AuctionCard({
         <div className="flex gap-3">
           <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
             {imageUrl ? (
-              <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+              <img src={imageUrl} alt={title} className="w-full h-full object-cover" loading="lazy" decoding="async" width={80} height={80} />
             ) : (
               <span className="text-3xl">🪙</span>
             )}

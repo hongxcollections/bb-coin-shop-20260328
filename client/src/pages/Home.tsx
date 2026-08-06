@@ -129,6 +129,9 @@ function HeroSlide({ auction }: { auction: any }) {
             alt={auction.title}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             style={{ objectPosition: "center" }}
+            decoding="async"
+            width={800}
+            height={260}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-400 via-orange-400 to-yellow-300">
@@ -269,7 +272,11 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
       {thumb ? (
         <img src={thumb} alt={product.title}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          style={{ objectPosition: "center" }} />
+          style={{ objectPosition: "center" }}
+          decoding="async"
+          width={800}
+          height={260}
+        />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-300">
           <span className="text-8xl opacity-55">🏪</span>
@@ -336,7 +343,11 @@ function GalleryHeroSlide({ gallery }: { gallery: any }) {
         {gallery.thumbUrl ? (
           <img src={gallery.thumbUrl} alt={gallery.title}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            style={{ objectPosition: "center" }} />
+            style={{ objectPosition: "center" }}
+            decoding="async"
+            width={800}
+            height={260}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-400 via-purple-400 to-indigo-300">
             <span className="text-8xl opacity-55">🖼️</span>
@@ -677,6 +688,10 @@ function _REMOVED_FeaturedProductSideCard({ products, onBuy, currentUserId }: { 
             alt={product.title}
             className="w-full h-full object-cover"
             style={{ objectPosition: "center" }}
+            loading="lazy"
+            decoding="async"
+            width={220}
+            height={173}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-300">
@@ -979,7 +994,7 @@ function RecentSalesFader() {
             {/* 縮圖 */}
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-green-50 flex items-center justify-center shrink-0 shadow-inner border border-green-100">
               {thumb ? (
-                <img src={thumb} alt={item.title} className="w-full h-full object-cover" />
+                <img src={thumb} alt={item.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width={56} height={56} />
               ) : (
                 <span className="text-2xl">🪙</span>
               )}
@@ -1064,7 +1079,7 @@ function MerchantProductsStrip() {
                   >
                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-purple-50 flex items-center justify-center shrink-0 shadow-inner">
                       {item.thumbUrl ? (
-                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" />
+                        <img src={item.thumbUrl} alt={item.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width={40} height={40} />
                       ) : (
                         <span className="text-xl">🖼️</span>
                       )}
@@ -1092,7 +1107,7 @@ function MerchantProductsStrip() {
                 >
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-50 flex items-center justify-center shrink-0 shadow-inner">
                     {thumb ? (
-                      <img src={thumb} alt={item.title} className="w-full h-full object-cover" />
+                      <img src={thumb} alt={item.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width={40} height={40} />
                     ) : (
                       <span className="text-xl">🪙</span>
                     )}
@@ -1176,6 +1191,10 @@ function RotatingMerchantBadge() {
           src={m.merchantIcon}
           alt={m.merchantName}
           className="w-5 h-5 rounded-full object-cover border border-amber-200 shrink-0"
+          loading="lazy"
+          decoding="async"
+          width={20}
+          height={20}
         />
       ) : (
         <span className="w-5 h-5 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
@@ -1542,7 +1561,7 @@ export default function Home() {
                       >
                         <div className="shrink-0 w-7 h-7 rounded overflow-hidden bg-amber-100">
                           {g.thumbUrl
-                            ? <img src={g.thumbUrl} alt="" className="w-full h-full object-cover" />
+                            ? <img src={g.thumbUrl} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" width={28} height={28} />
                             : <div className="w-full h-full flex items-center justify-center text-amber-400"><LayoutGrid className="w-3.5 h-3.5" /></div>
                           }
                         </div>
@@ -1777,6 +1796,10 @@ export default function Home() {
                             src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
                             alt={auction.title}
                             className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            width={40}
+                            height={40}
                           />
                         ) : (
                           <span className="text-xl">🪙</span>

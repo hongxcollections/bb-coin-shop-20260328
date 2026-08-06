@@ -284,6 +284,10 @@ export default function Merchants() {
                         className={`w-14 h-14 rounded-2xl object-cover shadow-sm ${
                           isTop ? "ring-2 ring-amber-300 ring-offset-1" : "border border-gray-100"
                         }`}
+                        loading="lazy"
+                        decoding="async"
+                        width={56}
+                        height={56}
                       />
                     ) : (
                       <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center shadow-sm ${
@@ -387,7 +391,7 @@ export default function Merchants() {
                             >
                               {/* 封面縮圖 */}
                               {s.coverImage ? (
-                                <img src={s.coverImage} alt="" className="w-11 h-11 rounded-lg object-cover border border-amber-200 shrink-0 shadow-sm" />
+                                <img src={s.coverImage} alt="" className="w-11 h-11 rounded-lg object-cover border border-amber-200 shrink-0 shadow-sm" loading="lazy" decoding="async" width={44} height={44} />
                               ) : (
                                 <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-300 to-amber-500 flex items-center justify-center shrink-0 shadow-sm">
                                   <CalendarClock className="w-5 h-5 text-white" />
@@ -428,7 +432,7 @@ export default function Merchants() {
                         className="relative flex-1 min-w-0 aspect-square rounded-lg overflow-hidden bg-amber-50 border border-amber-100 block hover:border-amber-300 transition-colors"
                         style={{ maxWidth: 64 }}
                       >
-                        <img src={t.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        <img src={t.url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" width={64} height={64} />
                         <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold leading-tight py-0.5 ${
                           t.type === 'auction' ? 'bg-amber-700/85 text-white' : 'bg-amber-500/85 text-white'
                         }`}>
