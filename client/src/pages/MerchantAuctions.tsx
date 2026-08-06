@@ -346,17 +346,18 @@ function AuctionCard({
   const isDraft = tab === "草稿";
   const [broadcastOpen, setBroadcastOpen] = useState(false);
 
+  const isArchive = tab === "封存";
   return (
-    <div className={`rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : "bg-card hover:bg-accent/5"}`}>
+    <div className={`rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : isArchive && selected ? "border-red-300 bg-red-50/40" : "bg-card hover:bg-accent/5"}`}>
 
       {/* ① 商品名稱 18px — 獨立一行，圖片上方 */}
       <div className="flex items-start gap-2 px-2 pt-2 pb-1">
-        {isDraft && onToggleSelect && (
+        {(isDraft || isArchive) && onToggleSelect && (
           <div className="flex items-center flex-shrink-0 pt-0.5">
             <Checkbox
               checked={selected ?? false}
               onCheckedChange={() => onToggleSelect(auction.id)}
-              className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+              className={isDraft ? "border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500" : "border-red-400 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"}
             />
           </div>
         )}
@@ -578,6 +579,7 @@ export default function MerchantAuctions() {
 
   // Batch publish
   const [selectedDrafts, setSelectedDrafts] = useState<Set<number>>(new Set());
+  const [selectedArchived, setSelectedArchived] = useState<Set<number>>(new Set());
   const [batchPublishOpen, setBatchPublishOpen] = useState(false);
   const [batchEndTime, setBatchEndTime] = useState("");
 
@@ -856,7 +858,7 @@ export default function MerchantAuctions() {
   const relistMutation = trpc.merchants.relistAuction.useMutation({
     onSuccess: () => {
       toast.success("已建立重新刊登草稿！請前往草稿頁設定結束時間並發佈");
-      setTab("草稿"); refetchDrafts(); refetchActive(); refetchArchived();
+      refetchDrafts(); refetchActive(); refetchArchived();
     },
     onError: (err) => toast.error(err.message || "重新刊登失敗"),
   });
@@ -1167,6 +1169,40 @@ export default function MerchantAuctions() {
     batchPublishMutation.mutate({ ids: Array.from(selectedDrafts), endTime: new Date(batchEndTime) });
   };
 
+  const toggleSelectArchived = (id: number) => {
+    setSelectedArchived((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const handleSelectAllArchived = () => {
+    if (selectedArchived.size === archivedAuctions.length) {
+      setSelectedArchived(new Set());
+    } else {
+      setSelectedArchived(new Set(archivedAuctions.filter(a => !a.highestBidderId).map(a => a.id)));
+    }
+  };
+  const handleBulkDeleteArchived = async () => {
+    const deletable = archivedAuctions.filter(a => selectedArchived.has(a.id) && !a.highestBidderId);
+    const skipped = selectedArchived.size - deletable.length;
+    if (deletable.length === 0) { toast.error("所選商品均有成交記錄，無法永久刪除"); return; }
+    const ok = await confirm({
+      title: "批量永久刪除",
+      description: `確定要永久刪除 ${deletable.length} 件封存商品？${skipped > 0 ? `（${skipped} 件有成交記錄將跳過）` : ""}此操作無法還原。`,
+      confirmText: "確定刪除",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    let done = 0;
+    for (const a of deletable) {
+      try { await permanentDeleteMutation.mutateAsync({ id: a.id }); done++; } catch {}
+    }
+    setSelectedArchived(new Set());
+    toast.success(`已永久刪除 ${done} 件封存商品${skipped > 0 ? `，${skipped} 件跳過` : ""}`);
+    refetchArchived();
+  };
+
   const toggleSelectDraft = (id: number) => {
     setSelectedDrafts((prev) => {
       const next = new Set(prev);
@@ -1225,6 +1261,9 @@ export default function MerchantAuctions() {
 
   const allDraftSelected = draftAuctions.length > 0 && selectedDrafts.size === draftAuctions.length;
   const someDraftSelected = selectedDrafts.size > 0;
+  const deletableArchived = archivedAuctions.filter(a => !a.highestBidderId);
+  const allArchiveSelected = deletableArchived.length > 0 && selectedArchived.size === deletableArchived.length;
+  const someArchiveSelected = selectedArchived.size > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -1276,7 +1315,7 @@ export default function MerchantAuctions() {
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => { setTab(t.key); if (t.key !== "草稿") setSelectedDrafts(new Set()); }}
+              onClick={() => { setTab(t.key); if (t.key !== "草稿") setSelectedDrafts(new Set()); if (t.key !== "封存") setSelectedArchived(new Set()); }}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${tab === t.key ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"}`}
             >
               {t.label}
@@ -1340,6 +1379,43 @@ export default function MerchantAuctions() {
           </div>
         )}
 
+        {/* ── 封存 Tab 批量刪除欄 ── */}
+        {tab === "封存" && deletableArchived.length > 0 && (
+          <div className="flex items-center gap-2 px-1 py-1">
+            <button
+              onClick={handleSelectAllArchived}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-600 transition-colors"
+            >
+              {allArchiveSelected
+                ? <CheckSquare className="w-3.5 h-3.5 text-red-500" />
+                : <Square className="w-3.5 h-3.5" />}
+              {allArchiveSelected ? "取消全選" : "全選（可刪除）"}
+            </button>
+            {someArchiveSelected && (
+              <>
+                <span className="text-xs text-muted-foreground">已選 {selectedArchived.size} 個</span>
+                <Button
+                  size="sm"
+                  className="h-7 px-2.5 text-xs gap-1 bg-red-600 hover:bg-red-700 text-white border-0"
+                  onClick={handleBulkDeleteArchived}
+                  disabled={permanentDeleteMutation.isPending}
+                >
+                  <Trash2 className="w-3 h-3" />
+                  批量永久刪除（{selectedArchived.size}）
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setSelectedArchived(new Set())}
+                >
+                  清除
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* 列表 — 移除 Card 外框，直接列出卡片節省空間 */}
         {isLoading ? (
           <div className="space-y-1.5 px-1">
@@ -1357,8 +1433,8 @@ export default function MerchantAuctions() {
             {currentList.map((a) => (
               <AuctionCard
                 key={a.id} auction={a} tab={tab}
-                selected={selectedDrafts.has(a.id)}
-                onToggleSelect={tab === "草稿" ? toggleSelectDraft : undefined}
+                selected={tab === "草稿" ? selectedDrafts.has(a.id) : tab === "封存" ? selectedArchived.has(a.id) : false}
+                onToggleSelect={tab === "草稿" ? toggleSelectDraft : tab === "封存" ? toggleSelectArchived : undefined}
                 onEdit={openEdit}
                 onDelete={(id, title) => setDeleteConfirm({ id, title })}
                 onPublish={openPublish}
