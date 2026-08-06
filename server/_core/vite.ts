@@ -1281,7 +1281,15 @@ export function serveStatic(app: Express) {
     res.end();
   });
 
-  app.use(express.static(distPath));
+  // Hashed asset files (JS/CSS chunks) — cache 1 year, immutable
+  app.use('/assets', express.static(path.join(distPath, 'assets'), {
+    maxAge: '1y',
+    immutable: true,
+    etag: false,
+    lastModified: false,
+  }));
+  // Everything else (favicon, robots.txt, etc.) — short cache
+  app.use(express.static(distPath, { maxAge: '1h' }));
 
   // For all non-API routes, serve index.html to support React Router client-side routing
   app.use(async (req, res, next) => {

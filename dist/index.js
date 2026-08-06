@@ -8748,9 +8748,9 @@ var init_sdk = __esm({
         }
         const sessionUserId = session.openId;
         const now = Date.now();
-        const cached = _userCache.get(sessionUserId);
-        if (cached && cached.expiresAt > now) {
-          return cached.user;
+        const cached2 = _userCache.get(sessionUserId);
+        if (cached2 && cached2.expiresAt > now) {
+          return cached2.user;
         }
         const signedInAt = /* @__PURE__ */ new Date();
         const user = await getUserByOpenId(sessionUserId);
@@ -13238,8 +13238,44 @@ function sanitizeUserText(input) {
 init_auctions();
 init_db();
 init_storage();
-init_community();
 import { eq as eq8, sql as sql6, and as and6, desc as desc5 } from "drizzle-orm";
+
+// server/imageUtils.ts
+async function convertToWebP(input, originalMime) {
+  if (originalMime === "image/gif") {
+    return { buffer: input, mimeType: originalMime };
+  }
+  try {
+    const sharp2 = (await import("sharp")).default;
+    const buffer = await sharp2(input).webp({ quality: 85, effort: 4 }).toBuffer();
+    return { buffer, mimeType: "image/webp" };
+  } catch (err) {
+    console.warn("[imageUtils] WebP conversion failed, using original:", err);
+    return { buffer: input, mimeType: originalMime };
+  }
+}
+function toWebPFilename(fileName) {
+  return fileName.replace(/\.(jpe?g|png|webp|gif)$/i, ".webp");
+}
+
+// server/serverCache.ts
+var store4 = /* @__PURE__ */ new Map();
+async function cached(key, ttlMs, fetcher) {
+  const now = Date.now();
+  const entry = store4.get(key);
+  if (entry && entry.expiresAt > now) {
+    return entry.value;
+  }
+  const value = await fetcher();
+  store4.set(key, { value, expiresAt: now + ttlMs });
+  return value;
+}
+function invalidate(key) {
+  store4.delete(key);
+}
+
+// server/routers.ts
+init_community();
 
 // server/dailyChallenge.ts
 init_db();
@@ -13912,8 +13948,10 @@ var appRouter = router({
         if (buffer.length > 5 * 1024 * 1024) {
           throw new TRPCError3({ code: "BAD_REQUEST", message: "Image size exceeds 5MB limit" });
         }
-        const fileKey = `auctions/${input.auctionId}/${Date.now()}-${input.fileName}`;
-        const { url } = await storagePut(fileKey, buffer, input.mimeType);
+        const { buffer: uploadBuffer, mimeType: uploadMime } = await convertToWebP(buffer, input.mimeType);
+        const uploadFileName = uploadMime === "image/webp" ? toWebPFilename(input.fileName) : input.fileName;
+        const fileKey = `auctions/${input.auctionId}/${Date.now()}-${uploadFileName}`;
+        const { url } = await storagePut(fileKey, uploadBuffer, uploadMime);
         await addAuctionImage({
           auctionId: input.auctionId,
           imageUrl: url,
@@ -15008,6 +15046,7 @@ var appRouter = router({
       if (input.userId === ctx.user.id) throw new TRPCError3({ code: "BAD_REQUEST", message: "\u4E0D\u80FD\u64A4\u92B7\u81EA\u5DF1\u7684\u5546\u6236\u8CC7\u683C" });
       const result = await revokeMerchantStatus(input.userId);
       if (!result.success) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: result.error ?? "\u64A4\u92B7\u5931\u6557" });
+      invalidate("merchants:approved");
       return { success: true };
     }),
     // Admin: export deposit tier presets + subscription plans as JSON
@@ -15747,7 +15786,9 @@ var appRouter = router({
     })
   }),
   siteSettings: router({
-    getAll: publicProcedure.query(async () => getAllSiteSettings()),
+    getAll: publicProcedure.query(
+      async () => cached("siteSettings:all", 6e4, () => getAllSiteSettings())
+    ),
     set: protectedProcedure.input(z2.object({ key: z2.string(), value: z2.string() })).mutation(async ({ input, ctx }) => {
       const MERCHANT_ALLOWED_KEYS = /* @__PURE__ */ new Set(["noBidMessage", "noBidEnabled"]);
       const isAdmin = ctx.user.role === "admin";
@@ -15760,6 +15801,7 @@ var appRouter = router({
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only admins can change this setting" });
       }
       const result = await setSiteSetting(input.key, input.value);
+      invalidate("siteSettings:all");
       if (["otpCooldownSecs", "otpMaxPerHour", "otpIpMaxPerWindow", "otpIpWindowMins"].includes(input.key)) {
         const { updateOtpConfig: updateOtpConfig2 } = await Promise.resolve().then(() => (init_otpStore(), otpStore_exports));
         const { updateIpOtpConfig: updateIpOtpConfig2 } = await Promise.resolve().then(() => (init_authRoutes(), authRoutes_exports));
@@ -16036,6 +16078,7 @@ var appRouter = router({
     })).mutation(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError3({ code: "FORBIDDEN" });
       await reviewMerchantApplication(input.id, input.status, input.adminNote);
+      invalidate("merchants:approved");
       return { success: true };
     }),
     // 管理員：T1 一鍵批核 onboarding（同時開通商戶 + 訂閱 + 保證金）
@@ -16903,9 +16946,9 @@ var appRouter = router({
     }),
     // ── 商戶市集 ─────────────────────────────────────────────────────────────
     /** 公開：取得所有已批准商戶列表 */
-    listApprovedMerchants: publicProcedure.query(async () => {
-      return listApprovedMerchants();
-    }),
+    listApprovedMerchants: publicProcedure.query(
+      async () => cached("merchants:approved", 12e4, () => listApprovedMerchants())
+    ),
     /** 公開：取得單一已批准商戶資料 */
     getPublicMerchant: publicProcedure.input(z2.object({ userId: z2.number().int() })).query(async ({ input }) => {
       const db = await getDb();
@@ -19090,9 +19133,9 @@ var appRouter = router({
   // ── 主打商品付費刊登 ──────────────────────────────────────────────────
   featuredListings: router({
     /** 公開：取首頁正在進行的主打（含商品詳情） */
-    getActive: publicProcedure.query(async () => {
-      return getActiveFeaturedListings();
-    }),
+    getActive: publicProcedure.query(
+      async () => cached("featured:active", 3e4, () => getActiveFeaturedListings())
+    ),
     /** 公開：查看主打位狀態（幾個 active、幾個 queued、上限）*/
     slotStatus: publicProcedure.query(async () => {
       return getFeaturedSlotStatus();
@@ -19126,12 +19169,14 @@ var appRouter = router({
         input.tier
       );
       if (!result.ok) throw new TRPCError3({ code: "BAD_REQUEST", message: result.error ?? "\u7533\u8ACB\u5931\u6557" });
+      invalidate("featured:active");
       return result;
     }),
     /** 商戶：取消自己的主打（排隊中全額退費，進行中按比例）*/
     cancelMine: protectedProcedure.input(z2.object({ id: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
       const result = await cancelFeaturedListing(input.id, ctx.user.id, true, ctx.user.id);
       if (!result.ok) throw new TRPCError3({ code: "BAD_REQUEST", message: result.error });
+      invalidate("featured:active");
       return result;
     }),
     /** 管理員：取所有主打記錄 */
@@ -19144,11 +19189,13 @@ var appRouter = router({
       if (ctx.user.role !== "admin") throw new TRPCError3({ code: "FORBIDDEN" });
       const result = await cancelFeaturedListing(input.id, ctx.user.id);
       if (!result.ok) throw new TRPCError3({ code: "BAD_REQUEST", message: result.error });
+      invalidate("featured:active");
       return result;
     }),
     /** 管理員：一鍵清除所有進行中及排隊中的主打（維護重置用） */
     adminPurge: protectedProcedure.mutation(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError3({ code: "FORBIDDEN" });
+      invalidate("featured:active");
       return purgeActiveFeaturedListings();
     }),
     /** 公開：取各時段收費資訊及主打上限（動態讀取 siteSettings） */
@@ -25527,8 +25574,8 @@ EXAMPLE OUTPUT (exact format):
         game: z2.enum(["pokemon", "yugioh", "mtg", "digimon", "lorcana"])
       })).query(async ({ input }) => {
         const cacheKey = `sets:${input.game}`;
-        const cached = _getCached(cacheKey);
-        if (cached) return cached;
+        const cached2 = _getCached(cacheKey);
+        if (cached2) return cached2;
         try {
           let result = [];
           if (input.game === "pokemon") {
@@ -25618,8 +25665,8 @@ EXAMPLE OUTPUT (exact format):
       })).query(async ({ input }) => {
         const pageSize = 30;
         const cacheKey = `setCards:${input.game}:${input.setId}:${input.page}`;
-        const cached = _getCached(cacheKey);
-        if (cached) return cached;
+        const cached2 = _getCached(cacheKey);
+        if (cached2) return cached2;
         try {
           let result = { cards: [], hasMore: false, total: 0 };
           if (input.game === "pokemon") {
@@ -28145,7 +28192,13 @@ function serveStatic(app) {
     res.write(content);
     res.end();
   });
-  app.use(express.static(distPath));
+  app.use("/assets", express.static(path3.join(distPath, "assets"), {
+    maxAge: "1y",
+    immutable: true,
+    etag: false,
+    lastModified: false
+  }));
+  app.use(express.static(distPath, { maxAge: "1h" }));
   app.use(async (req, res, next) => {
     if (req.path.startsWith("/api")) {
       return next();

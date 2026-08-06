@@ -13,6 +13,8 @@ import { eq, sql, and, desc } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, getRecentRegistrations, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, deleteUserSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetMerchantBroadcastAll, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, approveOnboardingApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, setMerchantEndedAuctionVisibility, getEndedAuctionsByMerchant, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, autoDeductGroupAuctionCommission, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, adminSetSubscriptionEndDate, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, computeTierSwitchDiff, requestTierChange, listMyTierChangeRequests, listAllTierChangeRequests, reviewTierChangeRequest, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, deleteMerchantOrder, getHiddenProductOrdersByBuyer, getHiddenProductOrdersByMerchant, restoreBuyerOrder, restoreMerchantOrder, countHiddenProductOrdersByBuyer, countHiddenProductOrdersByMerchant, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setAutoGenerateCover, setAutoGenerateProductCover, setMerchantCategories, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel, getRecentlyEndedForMainPage, setMainPageEndedDisplay, setShowUnsoldEnded } from "./db";
 import { storagePut, storageSignPut } from "./storage";
+import { convertToWebP, toWebPFilename } from "./imageUtils";
+import { cached, invalidate } from "./serverCache";
 import {
   createCollectionPost,
   listCollectionPosts,
@@ -338,8 +340,11 @@ export const appRouter = router({
             throw new TRPCError({ code: 'BAD_REQUEST', message: 'Image size exceeds 5MB limit' });
           }
 
-          const fileKey = `auctions/${input.auctionId}/${Date.now()}-${input.fileName}`;
-          const { url } = await storagePut(fileKey, buffer, input.mimeType);
+          // 自動轉 WebP 減少存儲體積（GIF 原樣保留）
+          const { buffer: uploadBuffer, mimeType: uploadMime } = await convertToWebP(buffer, input.mimeType);
+          const uploadFileName = uploadMime === 'image/webp' ? toWebPFilename(input.fileName) : input.fileName;
+          const fileKey = `auctions/${input.auctionId}/${Date.now()}-${uploadFileName}`;
+          const { url } = await storagePut(fileKey, uploadBuffer, uploadMime);
 
           await addAuctionImage({
             auctionId: input.auctionId,
@@ -1696,6 +1701,7 @@ export const appRouter = router({
         if (input.userId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '不能撤銷自己的商戶資格' });
         const result = await revokeMerchantStatus(input.userId);
         if (!result.success) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: result.error ?? '撤銷失敗' });
+        invalidate('merchants:approved');
         return { success: true };
       }),
 
@@ -2612,7 +2618,9 @@ export const appRouter = router({
   }),
 
   siteSettings: router({
-    getAll: publicProcedure.query(async () => getAllSiteSettings()),
+    getAll: publicProcedure.query(async () =>
+      cached('siteSettings:all', 60_000, () => getAllSiteSettings())
+    ),
     set: protectedProcedure
       .input(z.object({ key: z.string(), value: z.string() }))
       .mutation(async ({ input, ctx }) => {
@@ -2628,6 +2636,7 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change this setting' });
         }
         const result = await setSiteSetting(input.key, input.value);
+        invalidate('siteSettings:all'); // 清除緩存，讓下次讀取取最新值
         // 即時套用 OTP 速率限制設定到記憶體 config
         if (['otpCooldownSecs', 'otpMaxPerHour', 'otpIpMaxPerWindow', 'otpIpWindowMins'].includes(input.key)) {
           const { updateOtpConfig } = await import('./_core/otpStore');
@@ -2949,6 +2958,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         await reviewMerchantApplication(input.id, input.status, input.adminNote);
+        invalidate('merchants:approved');
         return { success: true };
       }),
 
@@ -3972,9 +3982,9 @@ export const appRouter = router({
     // ── 商戶市集 ─────────────────────────────────────────────────────────────
 
     /** 公開：取得所有已批准商戶列表 */
-    listApprovedMerchants: publicProcedure.query(async () => {
-      return listApprovedMerchants();
-    }),
+    listApprovedMerchants: publicProcedure.query(async () =>
+      cached('merchants:approved', 120_000, () => listApprovedMerchants())
+    ),
 
     /** 公開：取得單一已批准商戶資料 */
     getPublicMerchant: publicProcedure
@@ -6627,9 +6637,9 @@ export const appRouter = router({
   // ── 主打商品付費刊登 ──────────────────────────────────────────────────
   featuredListings: router({
     /** 公開：取首頁正在進行的主打（含商品詳情） */
-    getActive: publicProcedure.query(async () => {
-      return getActiveFeaturedListings();
-    }),
+    getActive: publicProcedure.query(async () =>
+      cached('featured:active', 30_000, () => getActiveFeaturedListings())
+    ),
 
     /** 公開：查看主打位狀態（幾個 active、幾個 queued、上限）*/
     slotStatus: publicProcedure.query(async () => {
@@ -6668,6 +6678,7 @@ export const appRouter = router({
           input.tier,
         );
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error ?? '申請失敗' });
+        invalidate('featured:active');
         return result; // { ok, queued, queuePosition, listing }
       }),
 
@@ -6677,6 +6688,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const result = await cancelFeaturedListing(input.id, ctx.user.id, true, ctx.user.id);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        invalidate('featured:active');
         return result;
       }),
 
@@ -6695,6 +6707,7 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const result = await cancelFeaturedListing(input.id, ctx.user.id);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        invalidate('featured:active');
         return result;
       }),
 
@@ -6702,6 +6715,7 @@ export const appRouter = router({
     adminPurge: protectedProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        invalidate('featured:active');
         return purgeActiveFeaturedListings();
       }),
 
