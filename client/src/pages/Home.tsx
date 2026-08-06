@@ -1398,10 +1398,12 @@ export default function Home() {
   const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
   const activeCount = activeAuctions.length + (homeLiveRounds ?? []).length;
 
-  // 精選拍品：選最快結標的前三件
-  const heroAuctions = [...activeAuctions]
-    .sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime())
-    .slice(0, 3);
+  // 精選拍品：隨機揀 3 件（每次重新整頁重新洗牌）
+  const heroAuctions = useMemo(() => {
+    const shuffled = [...activeAuctions].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAuctions.length]);
 
   const filtered = (auctions ?? []).filter((a) => {
     const isEnded = new Date(a.endTime).getTime() <= Date.now() || a.status === 'ended';
