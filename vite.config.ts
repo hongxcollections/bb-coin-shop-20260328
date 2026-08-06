@@ -4,7 +4,6 @@ import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin, type ViteDevServer } from "vite";
-import { visualizer } from "rollup-plugin-visualizer";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 // =============================================================================
@@ -158,7 +157,7 @@ function vitePluginManusDebugCollector(): Plugin {
 // (2) jsxLocPlugin adds data-loc attributes useful only for the Manus IDE.
 const isProd = process.env.NODE_ENV === "production";
 const plugins = isProd
-  ? [react(), tailwindcss(), visualizer({ filename: "dist/stats.html", open: false, gzipSize: true, brotliSize: true })]
+  ? [react(), tailwindcss()]
   : [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 
 export default defineConfig({
@@ -176,32 +175,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // React core — loaded on every page, tiny, cache well
-          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/scheduler/")) {
-            return "vendor-react";
-          }
-          // tRPC + React Query — data-fetching layer used everywhere
-          if (id.includes("node_modules/@trpc/") || id.includes("node_modules/@tanstack/")) {
-            return "vendor-trpc";
-          }
-          // Radix UI primitives (large, shared across many components)
-          if (id.includes("node_modules/@radix-ui/")) {
-            return "vendor-radix";
-          }
-          // Lucide icons — icon set
-          if (id.includes("node_modules/lucide-react/")) {
-            return "vendor-icons";
-          }
-          // All remaining node_modules go into a generic vendor chunk
-          if (id.includes("node_modules/")) {
-            return "vendor-misc";
-          }
-        },
-      },
-    },
   },
   server: {
     host: true,

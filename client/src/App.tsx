@@ -10,90 +10,88 @@ import BottomNav from "./components/BottomNav";
 import { AutoPushSubscribe } from "./components/AutoPushSubscribe";
 import { PushForegroundHandler } from "./components/PushForegroundHandler";
 import { trpc } from "@/lib/trpc";
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { ShoppingBag } from "lucide-react";
 import AdBanner from "./components/AdBanner";
 import AdminPendingNotice from "./components/AdminPendingNotice";
 import AdminRecentSignupsAutoPopup from "./components/AdminRecentSignupsAutoPopup";
-
-// ── Lazy page imports ──────────────────────────────────────────────────────────
-const Home = lazy(() => import("./pages/Home"));
-const Auctions = lazy(() => import("./pages/Auctions"));
-const AuctionDetail = lazy(() => import("./pages/AuctionDetail"));
-const Profile = lazy(() => import("./pages/Profile"));
-const BidHistory = lazy(() => import("./pages/BidHistory"));
-const AdminAuctions = lazy(() => import("./pages/AdminAuctions"));
-const AdminDrafts = lazy(() => import("./pages/AdminDrafts"));
-const AdminArchive = lazy(() => import("./pages/AdminArchive"));
-const UserProfile = lazy(() => import("./pages/UserProfile"));
-const AdminNotifications = lazy(() => import("./pages/AdminNotifications"));
-const AdminUsers = lazy(() => import("./pages/AdminUsers"));
-const AdminSessions = lazy(() => import("./pages/AdminSessions"));
-const AdminAnonymousBids = lazy(() => import("./pages/AdminAnonymousBids"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const AdminExportBids = lazy(() => import("./pages/AdminExportBids"));
-const AdminSiteSettings = lazy(() => import("./pages/AdminSiteSettings"));
-const AdminWonOrders = lazy(() => import("./pages/AdminWonOrders"));
-const AdminProductOrders = lazy(() => import("./pages/AdminProductOrders"));
-const AdminDeposits = lazy(() => import("./pages/AdminDeposits"));
-const AdminSubscriptions = lazy(() => import("./pages/AdminSubscriptions"));
-const AdminMerchantCenter = lazy(() => import("./pages/AdminMerchantCenter"));
-const AdminLoyalty = lazy(() => import("./pages/AdminLoyalty"));
-const AdminDailyChallenge = lazy(() => import("./pages/AdminDailyChallenge"));
-const AdminCommunitySeeder = lazy(() => import("./pages/AdminCommunitySeeder"));
-const AdminRefundRequests = lazy(() => import("./pages/AdminRefundRequests"));
-const AdminAuctionRecords = lazy(() => import("./pages/AdminAuctionRecords"));
-const AdminBackup = lazy(() => import("./pages/AdminBackup"));
-const AdminSystemTest = lazy(() => import("./pages/AdminSystemTest"));
-const AdminFeaturedListings = lazy(() => import("./pages/AdminFeaturedListings"));
-const AdminAds = lazy(() => import("./pages/AdminAds"));
-const AdminPm001Scraper = lazy(() => import("./pages/AdminPm001Scraper"));
-const DailyChallenge = lazy(() => import("./pages/DailyChallenge"));
-const SubscriptionPlans = lazy(() => import("./pages/SubscriptionPlans"));
-const Login = lazy(() => import("./pages/Login"));
-const Favorites = lazy(() => import("./pages/Favorites"));
-const CollectionSquare = lazy(() => import("./pages/CollectionSquare"));
-const CollectionPostNew = lazy(() => import("./pages/CollectionPostNew"));
-const CollectionPostDetail = lazy(() => import("./pages/CollectionPostDetail"));
-const MemberBenefits = lazy(() => import("./pages/MemberBenefits"));
-const WebhookSetup = lazy(() => import("./pages/WebhookSetup"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
-const About = lazy(() => import("./pages/About"));
-const MerchantJournal = lazy(() => import("./pages/MerchantJournal"));
-const MerchantApply = lazy(() => import("./pages/MerchantApply"));
-const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
-const MerchantAuctions = lazy(() => import("./pages/MerchantAuctions"));
-const MerchantOrders = lazy(() => import("./pages/MerchantOrders"));
-const MerchantSettings = lazy(() => import("./pages/MerchantSettings"));
-const MerchantRefundRequests = lazy(() => import("./pages/MerchantRefundRequests"));
-const MerchantProducts = lazy(() => import("./pages/MerchantProducts"));
-const MerchantSessions = lazy(() => import("./pages/MerchantSessions"));
-const MerchantSessionEdit = lazy(() => import("./pages/MerchantSessionEdit"));
-const MerchantSessionPublic = lazy(() => import("./pages/MerchantSessionPublic"));
-const MerchantSessionPrint = lazy(() => import("./pages/MerchantSessionPrint"));
-const MerchantStore = lazy(() => import("./pages/MerchantStore"));
-const MerchantProductDetail = lazy(() => import("./pages/MerchantProductDetail"));
-const MerchantGallery = lazy(() => import("./pages/MerchantGallery"));
-const GroupAuctionList = lazy(() => import("./pages/GroupAuctionList"));
-const GroupAuctionEdit = lazy(() => import("./pages/GroupAuctionEdit"));
-const GroupAuctionBidPage = lazy(() => import("./pages/GroupAuctionBidPage"));
-const GroupAuctionFlyer = lazy(() => import("./pages/GroupAuctionFlyer"));
-const AuctionSearch = lazy(() => import("./pages/AuctionSearch"));
-const Merchants = lazy(() => import("./pages/Merchants"));
-const VirtualStore = lazy(() => import("./pages/VirtualStore"));
-const CoinAnalysis = lazy(() => import("./pages/CoinAnalysis"));
-const CardZzz = lazy(() => import("./pages/PokeLover"));
-const PokeCollection = lazy(() => import("./pages/PokeCollection"));
-const CardMarket = lazy(() => import("./pages/CardMarket"));
-const CardMarketBrowse = lazy(() => import("./pages/CardMarketBrowse"));
-const CardMarketSell = lazy(() => import("./pages/CardMarketSell"));
-const CardMarketMy = lazy(() => import("./pages/CardMarketMy"));
-const Messages = lazy(() => import("./pages/Messages"));
-const ChatRoom = lazy(() => import("./pages/ChatRoom"));
-const PublicGallery = lazy(() => import("./pages/PublicGallery"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+import Home from "./pages/Home";
+import Auctions from "./pages/Auctions";
+import AuctionDetail from "./pages/AuctionDetail";
+import Profile from "./pages/Profile";
+import BidHistory from "./pages/BidHistory";
+import AdminAuctions from "./pages/AdminAuctions";
+import AdminDrafts from "./pages/AdminDrafts";
+import AdminArchive from "./pages/AdminArchive";
+import UserProfile from "./pages/UserProfile";
+import AdminNotifications from "./pages/AdminNotifications";
+import AdminUsers from "./pages/AdminUsers";
+import AdminSessions from "./pages/AdminSessions";
+import AdminAnonymousBids from "./pages/AdminAnonymousBids";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminExportBids from "./pages/AdminExportBids";
+import AdminSiteSettings from "./pages/AdminSiteSettings";
+import AdminWonOrders from "./pages/AdminWonOrders";
+import AdminProductOrders from "./pages/AdminProductOrders";
+import AdminDeposits from "./pages/AdminDeposits";
+import AdminSubscriptions from "./pages/AdminSubscriptions";
+import AdminMerchantCenter from "./pages/AdminMerchantCenter";
+import AdminLoyalty from "./pages/AdminLoyalty";
+import AdminDailyChallenge from "./pages/AdminDailyChallenge";
+import AdminCommunitySeeder from "./pages/AdminCommunitySeeder";
+import AdminRefundRequests from "./pages/AdminRefundRequests";
+import AdminAuctionRecords from "./pages/AdminAuctionRecords";
+import AdminBackup from "./pages/AdminBackup";
+import AdminSystemTest from "./pages/AdminSystemTest";
+import AdminFeaturedListings from "./pages/AdminFeaturedListings";
+import AdminAds from "./pages/AdminAds";
+import AdminPm001Scraper from "./pages/AdminPm001Scraper";
+import DailyChallenge from "./pages/DailyChallenge";
+import SubscriptionPlans from "./pages/SubscriptionPlans";
+import Login from "./pages/Login";
+import Favorites from "./pages/Favorites";
+import CollectionSquare from "./pages/CollectionSquare";
+import CollectionPostNew from "./pages/CollectionPostNew";
+import CollectionPostDetail from "./pages/CollectionPostDetail";
+import MemberBenefits from "./pages/MemberBenefits";
+import WebhookSetup from "./pages/WebhookSetup";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import About from "./pages/About";
+import MerchantJournal from "./pages/MerchantJournal";
+import MerchantApply from "./pages/MerchantApply";
+import MerchantDashboard from "./pages/MerchantDashboard";
+import MerchantAuctions from "./pages/MerchantAuctions";
+import MerchantOrders from "./pages/MerchantOrders";
+import MerchantSettings from "./pages/MerchantSettings";
+import MerchantRefundRequests from "./pages/MerchantRefundRequests";
+import MerchantProducts from "./pages/MerchantProducts";
+import MerchantSessions from "./pages/MerchantSessions";
+import MerchantSessionEdit from "./pages/MerchantSessionEdit";
+import MerchantSessionPublic from "./pages/MerchantSessionPublic";
+import MerchantSessionPrint from "./pages/MerchantSessionPrint";
+import MerchantStore from "./pages/MerchantStore";
+import MerchantProductDetail from "./pages/MerchantProductDetail";
+import MerchantGallery from "./pages/MerchantGallery";
+import GroupAuctionList from "./pages/GroupAuctionList";
+import GroupAuctionEdit from "./pages/GroupAuctionEdit";
+import GroupAuctionBidPage from "./pages/GroupAuctionBidPage";
+import GroupAuctionFlyer from "./pages/GroupAuctionFlyer";
+import AuctionSearch from "./pages/AuctionSearch";
+import Merchants from "./pages/Merchants";
+import VirtualStore from "./pages/VirtualStore";
+import CoinAnalysis from "./pages/CoinAnalysis";
+import CardZzz from "./pages/PokeLover";
+import PokeCollection from "./pages/PokeCollection";
+import CardMarket from "./pages/CardMarket";
+import CardMarketBrowse from "./pages/CardMarketBrowse";
+import CardMarketSell from "./pages/CardMarketSell";
+import CardMarketMy from "./pages/CardMarketMy";
+import Messages from "./pages/Messages";
+import ChatRoom from "./pages/ChatRoom";
+import PublicGallery from "./pages/PublicGallery";
+import NotFound from "./pages/NotFound";
 
 function MerchantPendingOrdersNotice() {
   const { isAuthenticated } = useAuth();
@@ -192,8 +190,7 @@ function PageLoader() {
 
 function Router() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Switch>
+    <Switch>
         <Route path={"/"} component={Home} />
         <Route path={"/auctions"} component={Auctions} />
         <Route path={"/auctions/:id"} component={AuctionDetail} />
@@ -276,7 +273,6 @@ function Router() {
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />
       </Switch>
-    </Suspense>
   );
 }
 

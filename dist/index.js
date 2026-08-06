@@ -26977,7 +26977,6 @@ import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path2 from "node:path";
 import { defineConfig } from "vite";
-import { visualizer } from "rollup-plugin-visualizer";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 var PROJECT_ROOT = import.meta.dirname;
 var LOG_DIR = path2.join(PROJECT_ROOT, ".manus-logs");
@@ -27087,7 +27086,7 @@ function vitePluginManusDebugCollector() {
   };
 }
 var isProd = process.env.NODE_ENV === "production";
-var plugins = isProd ? [react(), tailwindcss(), visualizer({ filename: "dist/stats.html", open: false, gzipSize: true, brotliSize: true })] : [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+var plugins = isProd ? [react(), tailwindcss()] : [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 var vite_config_default = defineConfig({
   plugins,
   resolve: {
@@ -27102,28 +27101,7 @@ var vite_config_default = defineConfig({
   publicDir: path2.resolve(import.meta.dirname, "client", "public"),
   build: {
     outDir: path2.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/scheduler/")) {
-            return "vendor-react";
-          }
-          if (id.includes("node_modules/@trpc/") || id.includes("node_modules/@tanstack/")) {
-            return "vendor-trpc";
-          }
-          if (id.includes("node_modules/@radix-ui/")) {
-            return "vendor-radix";
-          }
-          if (id.includes("node_modules/lucide-react/")) {
-            return "vendor-icons";
-          }
-          if (id.includes("node_modules/")) {
-            return "vendor-misc";
-          }
-        }
-      }
-    }
+    emptyOutDir: true
   },
   server: {
     host: true,
