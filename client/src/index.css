@@ -911,3 +911,29 @@
   animation: fly-up-fade 0.85s ease-out forwards;
   z-index: 50;
 }
+
+/* 影印機掃描閃光效果（有出價的拍賣框） */
+@keyframes scannerSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.scanner-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  z-index: 1;
+}
+.scanner-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  animation: scannerSweep 2.8s ease-in-out infinite;
+}

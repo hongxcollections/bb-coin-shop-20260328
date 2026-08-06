@@ -217,7 +217,8 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
   const hasBids = bidCount > 0;
 
   return (
-    <div className={`${hasBids ? "bg-amber-50" : "bg-white"} border-b border-gray-200 mb-0.5`}>
+    <div className={`${hasBids ? "bg-amber-50" : "bg-white"} border-b border-gray-200 mb-0.5 relative overflow-hidden`}>
+      {hasBids && <div className="scanner-shimmer" />}
       {/* Header */}
       <div className="flex items-start justify-between px-3 pt-3 pb-1.5">
         <div className="flex items-center gap-2">

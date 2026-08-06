@@ -149,7 +149,8 @@ export function AuctionCard({
 
   return (
     <Link href={`/auctions/${auctionId}`} onClick={onLinkClick}>
-      <div className={`auction-list-item flex flex-col gap-2 p-3 rounded-xl cursor-pointer transition-all border ${cardBg}`}>
+      <div className={`auction-list-item flex flex-col gap-2 p-3 rounded-xl cursor-pointer transition-all border relative overflow-hidden ${cardBg}`}>
+        {hasBids && <div className="scanner-shimmer" />}
         {/* Row 1: 商品名稱 + badges 全寬 */}
         <div className="flex items-center gap-1.5 min-w-0">
           <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{title}</h3>
