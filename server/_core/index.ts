@@ -1306,59 +1306,9 @@ async function startServer() {
   const isProd = process.env.NODE_ENV === "production";
   app.use(
     helmet({
-      // Content-Security-Policy
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: [
-            "'self'",
-            "'unsafe-inline'",   // Vite HMR + inline React hydration in dev
-            "'unsafe-eval'",     // Vite dev only; safe to keep: no sensitive data in JS
-            "https://connect.facebook.net",         // Facebook Pixel
-            "https://www.googletagmanager.com",     // Google Tag Manager / GA4
-            "https://www.google-analytics.com",
-            "https://ssl.google-analytics.com",
-          ],
-          styleSrc: [
-            "'self'",
-            "'unsafe-inline'",   // Tailwind / inline styles from Radix UI
-          ],
-          imgSrc: [
-            "'self'",
-            "data:",             // base64 inline images (QR codes etc.)
-            "blob:",
-            "https:",            // CDN images (S3, Cloudflare, picsum, etc.)
-            "https://www.facebook.com",
-            "https://www.google-analytics.com",
-          ],
-          mediaSrc: [
-            "'self'",
-            "https:",            // S3 video/audio CDN
-            "blob:",
-          ],
-          connectSrc: [
-            "'self'",
-            "wss:",              // WebSocket (auction chat)
-            "ws:",
-            "https://www.google-analytics.com",
-            "https://analytics.google.com",
-            "https://www.facebook.com",
-            "https://*.amazonaws.com",   // S3 presigned uploads
-            "https://generativelanguage.googleapis.com",
-            "https://openrouter.ai",
-          ],
-          fontSrc: ["'self'", "data:", "https:"],
-          objectSrc: ["'none'"],
-          frameSrc: [
-            "'self'",
-            "https://www.facebook.com",
-          ],
-          frameAncestors: ["'self'"],  // X-Frame-Options: SAMEORIGIN equivalent
-          baseUri: ["'self'"],
-          formAction: ["'self'"],
-          upgradeInsecureRequests: isProd ? [] : null,
-        },
-      },
+      // CSP 暫時停用：code splitting 動態 chunk 需要更仔細的 nonce/hash 設定
+      // 保留其他安全標頭（HSTS, X-Frame-Options, X-Content-Type-Options 等）
+      contentSecurityPolicy: false,
       // HSTS — 只在 production 啟用，避免 dev HTTPS 問題
       hsts: isProd
         ? { maxAge: 31536000, includeSubDomains: true, preload: true }
