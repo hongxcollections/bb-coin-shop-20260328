@@ -22,6 +22,7 @@ import ImageLightbox from "@/components/ImageLightbox";
 import ChatButton from "@/components/ChatButton";
 import { AuctionCardFb } from "@/components/AuctionCardFb";
 import { trackViewContent } from "@/lib/fbPixel";
+import { useJsonLd } from "@/lib/useJsonLd";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -220,6 +221,36 @@ export default function AuctionDetail() {
     ogUrl: `${window.location.origin}/auctions/${auctionId}`,
     ogType: "article",
   });
+
+  // Schema.org JSON-LD — Product + Offer（令 Google 搜尋顯示價格、結標時間）
+  const _isActive = auction?.status === "active" && new Date((auction as { endTime?: string })?.endTime ?? 0).getTime() > Date.now();
+  useJsonLd(
+    auction
+      ? {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: auction.title,
+          description: _seoDesc ?? undefined,
+          image: (auction.images as Array<{ imageUrl: string }> | undefined)?.map((i) => i.imageUrl) ?? [],
+          url: `https://hongxcollections.com/auctions/${auctionId}`,
+          offers: {
+            "@type": "Offer",
+            url: `https://hongxcollections.com/auctions/${auctionId}`,
+            priceCurrency: (auction as { currency?: string }).currency ?? "HKD",
+            price: Number(auction.currentPrice ?? auction.startingPrice),
+            availability: _isActive
+              ? "https://schema.org/InStock"
+              : "https://schema.org/SoldOut",
+            availabilityEnds: (auction as { endTime?: string }).endTime ?? undefined,
+            seller: {
+              "@type": "Organization",
+              name: (auction as { sellerName?: string }).sellerName ?? "大BB錢幣店",
+            },
+          },
+        }
+      : null,
+    "jsonld-auction"
+  );
 
   // Facebook Pixel: ViewContent 當拍賣資料載入後觸發一次
   useEffect(() => {

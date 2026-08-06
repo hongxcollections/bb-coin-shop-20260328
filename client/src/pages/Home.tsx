@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useJsonLd } from "@/lib/useJsonLd";
 import ImageLightbox from "@/components/ImageLightbox";
 import {
   DropdownMenu,
@@ -1200,6 +1201,39 @@ export default function Home() {
   const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
   // 隨機索引在 mount 時固定，避免重新 render 時跳字
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
+
+  // Schema.org JSON-LD — WebSite + Organization（提升 Google 品牌搜尋結果）
+  useJsonLd(
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "大BB錢幣店",
+      alternateName: "hongxcollections",
+      url: "https://hongxcollections.com",
+      description: "香港最具規模的錢幣網上拍賣平台，買賣古幣、紀念幣、評級幣，免費登記立即出價。",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: "https://hongxcollections.com/auctions?q={search_term_string}",
+        },
+        "query-input": "required name=search_term_string",
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "大BB錢幣店",
+        url: "https://hongxcollections.com",
+        logo: {
+          "@type": "ImageObject",
+          url: "https://hongxcollections.com/og-default.jpg",
+        },
+        sameAs: [
+          "https://www.facebook.com/profile.php?id=61566403702061",
+        ],
+      },
+    },
+    "jsonld-website"
+  );
   // 商品落單彈窗
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   // 商戶申請流程彈窗

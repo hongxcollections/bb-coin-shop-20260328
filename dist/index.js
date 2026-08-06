@@ -30364,7 +30364,8 @@ Output ONLY the JSON, nothing else.`;
         { loc: `${base}/merchants`, changefreq: "daily", priority: "0.7", lastmod: now },
         { loc: `${base}/plans`, changefreq: "monthly", priority: "0.5", lastmod: now },
         { loc: `${base}/collection-square`, changefreq: "daily", priority: "0.7", lastmod: now },
-        { loc: `${base}/daily-challenge`, changefreq: "daily", priority: "0.5", lastmod: now }
+        { loc: `${base}/daily-challenge`, changefreq: "daily", priority: "0.5", lastmod: now },
+        { loc: `${base}/cardzx/market`, changefreq: "hourly", priority: "0.8", lastmod: now }
       ];
       const toEntry = (loc, lastmod, changefreq, priority) => `  <url>
     <loc>${loc}</loc>
