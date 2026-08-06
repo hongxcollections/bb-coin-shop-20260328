@@ -1,4 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
+import { trackContact } from "@/lib/fbPixel";
 import ChatRoomDialog from "@/components/ChatRoomDialog";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -734,6 +735,7 @@ export default function MerchantStore() {
     e.preventDefault(); e.stopPropagation();
     if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
     if (user.id === userId) { toast.info("唔可以同自己開對話", { className: "bb-toast-info" }); return; }
+    trackContact();
     setStoreOpening(true);
     storeOpenRoom.mutate({ merchantId: userId, productTitle: "" });
   };
@@ -1070,11 +1072,13 @@ export default function MerchantStore() {
               const handleWa = (e: React.MouseEvent) => {
                 e.preventDefault();
                 if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; }
+                trackContact();
                 window.open(waLink, "_blank", "noopener,noreferrer");
               };
               const handleMsn = (e: React.MouseEvent) => {
                 e.preventDefault();
                 if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; }
+                trackContact();
                 handleMessenger(e as React.MouseEvent<HTMLAnchorElement>);
               };
               return (

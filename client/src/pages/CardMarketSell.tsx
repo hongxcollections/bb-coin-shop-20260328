@@ -289,8 +289,8 @@ export default function CardMarketSell() {
         canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
         canvas.toBlob(blob => {
           if (!blob) { reject(new Error("compress failed")); return; }
-          resolve({ blob, mimeType: "image/jpeg" });
-        }, "image/jpeg", quality);
+          resolve({ blob, mimeType: "image/webp" });
+        }, "image/webp", 0.85);
       };
       img.onerror = reject;
       img.src = url;
@@ -313,7 +313,7 @@ export default function CardMarketSell() {
       const urls = await Promise.all(toUpload.map(async file => {
         const { blob, mimeType } = await compressImage(file);
         const { uploadUrl, finalUrl } = await signUploadMut.mutateAsync({
-          mimeType, fileName: file.name.replace(/\.[^.]+$/, ".jpg"),
+          mimeType, fileName: file.name.replace(/\.[^.]+$/, ".webp"),
         });
         await fetch(uploadUrl, { method: "PUT", body: blob, headers: { "Content-Type": mimeType } });
         return finalUrl;
@@ -334,7 +334,7 @@ export default function CardMarketSell() {
         const { blob, mimeType } = await compressImage(file);
         const { uploadUrl, finalUrl } = await signUploadMut.mutateAsync({
           mimeType,
-          fileName: file.name.replace(/\.[^.]+$/, ".jpg"),
+          fileName: file.name.replace(/\.[^.]+$/, ".webp"),
         });
         await fetch(uploadUrl, { method: "PUT", body: blob, headers: { "Content-Type": mimeType } });
         newUrls.push(finalUrl);

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { trackSearch } from "@/lib/fbPixel";
 import { createPortal } from "react-dom";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -469,6 +470,7 @@ export default function CardMarketBrowse() {
   async function handleSearch() {
     if (!searchQuery.trim() || !game) return;
     setIsSearching(true);
+    trackSearch(searchQuery.trim());
     try {
       const results = await utils.cardTrading.searchCards.fetch({ game: game as BrowsableGame, query: searchQuery.trim() });
       setSearchResults(results as CardResult[]);

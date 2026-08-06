@@ -10,7 +10,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 import { useSeoMeta } from "@/lib/useSeoMeta";
-import { trackViewContent, trackSearch } from "@/lib/fbPixel";
+import { trackViewContent, trackSearch, trackContact } from "@/lib/fbPixel";
 
 // ── Promo Video Player (fixed overlay, top-right) ────────────────────────────
 const PROMO_AUTO_STOP_SECS = 8;
@@ -1639,6 +1639,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
     setContacting(true);
     try {
       const room = await openRoomMut.mutateAsync({ sellerId: listing.userId, listingId: listing.id });
+      trackContact();
       navigate(`/messages/${room.roomId}?from=${encodeURIComponent(window.location.pathname + `?listing=${listing.id}`)}`);
     } catch {
       toast.error("開啟對話失敗，請稍後再試");
@@ -1897,6 +1898,7 @@ export default function CardMarket() {
     if (!isAuthenticated) { navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search + '#wtb-' + wtbId)}`); return; }
     try {
       const { roomId } = await contactWTBMut.mutateAsync({ wtbId });
+      trackContact();
       navigate(`/messages/${roomId}?from=${encodeURIComponent(window.location.pathname + window.location.search + '#wtb-' + wtbId)}`);
     } catch (err: any) {
       toast.error(err?.message ?? "聯絡失敗");
@@ -1969,7 +1971,9 @@ export default function CardMarket() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    setSearch(searchInput.trim());
+    const q = searchInput.trim();
+    setSearch(q);
+    if (q) trackSearch(q);
   }
 
   const GAME_TAB_ACTIVE: Record<string, React.CSSProperties> = {

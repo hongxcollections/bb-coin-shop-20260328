@@ -21,7 +21,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import ImageLightbox from "@/components/ImageLightbox";
 import ChatButton from "@/components/ChatButton";
 import { AuctionCardFb } from "@/components/AuctionCardFb";
-import { trackViewContent } from "@/lib/fbPixel";
+import { trackViewContent, trackAddToWishlist } from "@/lib/fbPixel";
 import { useJsonLd } from "@/lib/useJsonLd";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
@@ -814,6 +814,7 @@ export default function AuctionDetail() {
                   onClick={() => {
                     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
                     toggleFavoriteMutation.mutate({ auctionId });
+                    if (!isFavorited) trackAddToWishlist({ content_name: auction?.title ?? '', content_ids: [String(auctionId)] });
                   }}
                   className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
                     isFavorited ? "bg-rose-100 hover:bg-rose-200" : "bg-gray-100 hover:bg-rose-50"

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { trackSearch } from "@/lib/fbPixel";
 import { trpc } from "@/lib/trpc";
 import { Search, X, ExternalLink, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -154,6 +155,7 @@ export default function AuctionSearch() {
     const t = setTimeout(() => {
       setKeyword(inputVal);
       setOffset(0);
+      if (inputVal.trim()) trackSearch(inputVal.trim());
     }, 350);
     return () => clearTimeout(t);
   }, [inputVal]);

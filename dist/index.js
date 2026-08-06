@@ -14790,9 +14790,10 @@ var appRouter = router({
       if (buffer.length > 2 * 1024 * 1024) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5716\u7247\u4E0D\u80FD\u8D85\u904E 2MB" });
       }
-      const ext = input.mimeType.split("/")[1];
+      const { buffer: wpAvaBuf, mimeType: wpAvaMime } = await convertToWebP(buffer, input.mimeType);
+      const ext = wpAvaMime === "image/webp" ? "webp" : input.mimeType.split("/")[1];
       const key = `avatars/user_${ctx.user.id}_${Date.now()}.${ext}`;
-      const { url } = await storagePut(key, buffer, input.mimeType);
+      const { url } = await storagePut(key, wpAvaBuf, wpAvaMime);
       const ok = await updateUserPhotoUrl(ctx.user.id, url);
       if (!ok) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Failed to save avatar" });
       return { photoUrl: url };
@@ -15651,10 +15652,11 @@ var appRouter = router({
       base64: z2.string(),
       filename: z2.string()
     })).mutation(async ({ input, ctx }) => {
-      const buffer = Buffer.from(input.base64, "base64");
-      const ext = input.filename.split(".").pop() || "jpg";
+      const rawPayBuf = Buffer.from(input.base64, "base64");
+      const { buffer: wpPayBuf, mimeType: wpPayMime } = await convertToWebP(rawPayBuf, "image/jpeg");
+      const ext = wpPayMime === "image/webp" ? "webp" : "jpg";
       const key = `payment-proofs/${ctx.user.id}/${Date.now()}.${ext}`;
-      const { url } = await storagePut(key, buffer, `image/${ext}`);
+      const { url } = await storagePut(key, wpPayBuf, wpPayMime);
       return { url };
     }),
     // ── Admin: Get all plans (including inactive) ──
@@ -15943,8 +15945,10 @@ var appRouter = router({
       if (buffer.length > 8 * 1024 * 1024) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5716\u7247\u4E0D\u53EF\u8D85\u904E 8MB" });
       }
-      const fileKey = `merchant-applications/${ctx.user.id}/${Date.now()}-${input.fileName}`;
-      const { url } = await storagePut(fileKey, buffer, input.mimeType);
+      const { buffer: wpAppBuf, mimeType: wpAppMime } = await convertToWebP(buffer, input.mimeType);
+      const wpAppFileName = wpAppMime === "image/webp" ? toWebPFilename(input.fileName) : input.fileName;
+      const fileKey = `merchant-applications/${ctx.user.id}/${Date.now()}-${wpAppFileName}`;
+      const { url } = await storagePut(fileKey, wpAppBuf, wpAppMime);
       return { url };
     }),
     // 提交申請（新版：可選 3-in-1 onboarding，揀 plan + 保證金 tier + 上載收據）
@@ -16158,9 +16162,10 @@ var appRouter = router({
           size: wmSettings.watermarkSize
         });
       }
-      const ext = input.mimeType === "image/png" ? "png" : input.mimeType === "image/gif" ? "gif" : input.mimeType === "image/webp" ? "webp" : "jpg";
+      const { buffer: wpAucBuf, mimeType: wpAucMime } = await convertToWebP(buffer, input.mimeType);
+      const ext = wpAucMime === "image/webp" ? "webp" : input.mimeType === "image/gif" ? "gif" : input.mimeType === "image/png" ? "png" : "jpg";
       const key = `auctions/${input.auctionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { url: imageUrl } = await storagePut(key, buffer, input.mimeType);
+      const { url: imageUrl } = await storagePut(key, wpAucBuf, wpAucMime);
       await addAuctionImage({ auctionId: input.auctionId, imageUrl, displayOrder: input.displayOrder });
       return { success: true, imageUrl };
     }),
@@ -16183,10 +16188,11 @@ var appRouter = router({
           size: wmSettings2.watermarkSize
         });
       }
-      const ext = input.mimeType === "image/png" ? "png" : input.mimeType === "image/webp" ? "webp" : "jpg";
+      const { buffer: wpPreBuf, mimeType: wpPreMime } = await convertToWebP(buffer, input.mimeType);
+      const ext = wpPreMime === "image/webp" ? "webp" : input.mimeType === "image/png" ? "png" : "jpg";
       const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const key = `temp/${ctx.user.id}/${uid}.${ext}`;
-      const { url } = await storagePut(key, buffer, "image/jpeg");
+      const { url } = await storagePut(key, wpPreBuf, wpPreMime);
       return { key, url };
     }),
     /** 批量關聯預先上傳的圖片 URL 到草稿（無需重新上傳） */
@@ -17212,8 +17218,10 @@ var appRouter = router({
           size: wmSettingsProd.watermarkSize
         });
       }
-      const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
-      const { url } = await storagePut(fileKey, buffer, mimeToUse);
+      const { buffer: wpProdBuf, mimeType: wpProdMime } = await convertToWebP(buffer, mimeToUse);
+      const wpProdFileName = wpProdMime === "image/webp" ? toWebPFilename(input.fileName) : input.fileName;
+      const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${wpProdFileName}`;
+      const { url } = await storagePut(fileKey, wpProdBuf, wpProdMime);
       return { url };
     }),
     /** 商戶／會員：取得本月影片配額狀態（用於上傳前顯示剩餘條數及秒數上限） */
@@ -18732,9 +18740,10 @@ var appRouter = router({
         try {
           const imgRes = await fetch(imageUrls[0]);
           if (imgRes.ok) {
-            const buf = Buffer.from(await imgRes.arrayBuffer());
-            const key = `auction-records/spink-${Date.now()}.jpg`;
-            const { url: s3Url } = await storagePut(key, buf, "image/jpeg");
+            const rawSpinkBuf = Buffer.from(await imgRes.arrayBuffer());
+            const { buffer: wpSpinkBuf, mimeType: wpSpinkMime } = await convertToWebP(rawSpinkBuf, "image/jpeg");
+            const key = `auction-records/spink-${Date.now()}.${wpSpinkMime === "image/webp" ? "webp" : "jpg"}`;
+            const { url: s3Url } = await storagePut(key, wpSpinkBuf, wpSpinkMime);
             storedImageUrl = s3Url;
           }
         } catch (e) {
@@ -19737,10 +19746,11 @@ Reply in JSON. All fields are REQUIRED \u2014 if uncertain, provide your best ex
       imageBase64: z2.string(),
       mimeType: z2.string().default("image/jpeg")
     })).mutation(async ({ input }) => {
-      const buf = Buffer.from(input.imageBase64, "base64");
-      const ext = input.mimeType.includes("png") ? "png" : "jpg";
+      const rawCoinBuf = Buffer.from(input.imageBase64, "base64");
+      const { buffer: wpCoinBuf, mimeType: wpCoinMime } = await convertToWebP(rawCoinBuf, input.mimeType);
+      const ext = wpCoinMime === "image/webp" ? "webp" : input.mimeType.includes("png") ? "png" : "jpg";
       const key = `coin-analysis/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const result = await storagePut(key, buf, input.mimeType);
+      const result = await storagePut(key, wpCoinBuf, wpCoinMime);
       return { url: result.url };
     }),
     // 搜尋相關拍賣
@@ -20399,13 +20409,15 @@ ${kb}`;
       if (ended) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u62CD\u8CE3\u5DF2\u7D50\u675F\uFF0C\u5462\u500B\u5C0D\u8A71\u5DF2\u5C01\u5B58\uFF0C\u53EA\u53EF\u700F\u89BD\u6B77\u53F2\u8A0A\u606F" });
       }
-      const buffer = Buffer.from(input.imageData, "base64");
-      if (buffer.length > 5 * 1024 * 1024) {
+      const rawChatBuf = Buffer.from(input.imageData, "base64");
+      if (rawChatBuf.length > 5 * 1024 * 1024) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5716\u7247\u5927\u5C0F\u4E0D\u53EF\u8D85\u904E 5MB" });
       }
+      const { buffer: wpChatBuf, mimeType: wpChatMime } = await convertToWebP(rawChatBuf, input.mimeType);
       const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-      const key = `chat/${input.roomId}/${Date.now()}-${ctx.user.id}-${safeName}`;
-      const { url } = await storagePut(key, buffer, input.mimeType);
+      const safeNameFinal = wpChatMime === "image/webp" ? toWebPFilename(safeName) : safeName;
+      const key = `chat/${input.roomId}/${Date.now()}-${ctx.user.id}-${safeNameFinal}`;
+      const { url } = await storagePut(key, wpChatBuf, wpChatMime);
       return { url };
     }),
     /** 商戶廣播訊息畀某拍賣所有曾出價買家 (1/小時 rate limit)；若商戶有 allowBroadcastAll 權限可廣播全站用戶 */
@@ -21143,13 +21155,14 @@ ${kb}`;
       if (!allowedMimes.includes(mime)) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: `\u4E0D\u652F\u63F4\u6B64\u5716\u7247\u683C\u5F0F\uFF08${mime}\uFF09` });
       }
-      const buffer = Buffer.from(input.imageData, "base64");
-      if (buffer.length > 8 * 1024 * 1024) {
+      const rawDcBuf = Buffer.from(input.imageData, "base64");
+      if (rawDcBuf.length > 8 * 1024 * 1024) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5716\u7247\u4E0D\u53EF\u8D85\u904E 8MB" });
       }
+      const { buffer: wpDcBuf, mimeType: wpDcMime } = await convertToWebP(rawDcBuf, mime);
       const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-      const key = `daily-challenge/${Date.now()}-${safeName}`;
-      const { url } = await storagePut(key, buffer, mime);
+      const key = `daily-challenge/${Date.now()}-${wpDcMime === "image/webp" ? toWebPFilename(safeName) : safeName}`;
+      const { url } = await storagePut(key, wpDcBuf, wpDcMime);
       return { url };
     }),
     options: publicProcedure.query(() => ({ countries: CHALLENGE_COUNTRIES, categories: CHALLENGE_CATEGORIES })),
@@ -21501,9 +21514,10 @@ EXAMPLE OUTPUT (exact format):
       const buf = Buffer.from(b64, "base64");
       if (buf.length < 1e3) throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5716\u7247\u592A\u7D30" });
       if (buf.length > 5 * 1024 * 1024) throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5716\u7247\u8D85\u904E 5MB" });
-      const ext = input.mimeType === "image/png" ? "png" : input.mimeType === "image/webp" ? "webp" : "jpg";
+      const { buffer: wpSeedBuf, mimeType: wpSeedMime } = await convertToWebP(buf, input.mimeType);
+      const ext = wpSeedMime === "image/webp" ? "webp" : input.mimeType === "image/png" ? "png" : "jpg";
       const key = `community-seeder/manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { url } = await storagePut(key, buf, input.mimeType);
+      const { url } = await storagePut(key, wpSeedBuf, wpSeedMime);
       return { url };
     }),
     /** 為 draft 搵更多圖片 (admin 揀 query 揾建議) */
@@ -22176,8 +22190,8 @@ EXAMPLE OUTPUT (exact format):
       let outMime = mime;
       try {
         const sharpMod = (await import("sharp")).default;
-        outBuffer = await sharpMod(rawBuffer, { failOn: "none" }).rotate().resize({ width: 1200, height: 1200, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 80, progressive: true }).toBuffer();
-        outMime = "image/jpeg";
+        outBuffer = await sharpMod(rawBuffer, { failOn: "none" }).rotate().resize({ width: 1200, height: 1200, fit: "inside", withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+        outMime = "image/webp";
       } catch {
       }
       const ext = outMime.split("/")[1] ?? "jpg";
@@ -24367,10 +24381,10 @@ EXAMPLE OUTPUT (exact format):
       }
       const finalBuf = await sharp2({
         create: { width: W, height: H, channels: 3, background: { r: 20, g: 20, b: 24 } }
-      }).composite(composites).jpeg({ quality: 90 }).toBuffer();
+      }).composite(composites).webp({ quality: 85 }).toBuffer();
       const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const key = `merchant-galleries/${ctx.user.id}/cover-${uid}.jpg`;
-      const { url: coverUrl } = await storagePut(key, finalBuf, "image/jpeg");
+      const key = `merchant-galleries/${ctx.user.id}/cover-${uid}.webp`;
+      const { url: coverUrl } = await storagePut(key, finalBuf, "image/webp");
       await updateProductGallery2(input.galleryId, { coverImageUrl: coverUrl });
       return { coverImageUrl: coverUrl };
     }),
@@ -25316,10 +25330,10 @@ EXAMPLE OUTPUT (exact format):
       }
       const finalBuf = await sharp2({
         create: { width: W, height: H, channels: 3, background: { r: 20, g: 20, b: 24 } }
-      }).composite(composites).jpeg({ quality: 90 }).toBuffer();
+      }).composite(composites).webp({ quality: 85 }).toBuffer();
       const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const key = `user-galleries/${ctx.user.id}/cover-${uid}.jpg`;
-      const { url: coverUrl } = await storagePut(key, finalBuf, "image/jpeg");
+      const key = `user-galleries/${ctx.user.id}/cover-${uid}.webp`;
+      const { url: coverUrl } = await storagePut(key, finalBuf, "image/webp");
       await updateProductGallery2(input.galleryId, { coverImageUrl: coverUrl });
       return { coverImageUrl: coverUrl };
     }),
@@ -26483,9 +26497,10 @@ async function fetchAndMirrorCommunityImages(query, targetCount = 2) {
       const ab = await imgResp.arrayBuffer();
       const buf = Buffer.from(ab);
       if (buf.length < 5e3 || buf.length > 5e6) return null;
-      const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+      const { buffer: wpAiBuf, mimeType: wpAiMime } = await convertToWebP(buf, ct);
+      const ext = wpAiMime === "image/webp" ? "webp" : ct === "image/png" ? "png" : "jpg";
       const key = `community-seeder/ai-${Date.now()}-${idx}-${safeStem}.${ext}`;
-      const { url } = await storagePut(key, buf, ct);
+      const { url } = await storagePut(key, wpAiBuf, wpAiMime);
       return url;
     } catch {
       return null;
@@ -26668,10 +26683,11 @@ async function fetchAndExtractFromUrl(targetUrl) {
             const ct = contentType.split(";")[0].trim().toLowerCase();
             if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(ct)) return null;
             if (buf.length < 5e3) return null;
-            const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
-            const key = `community-seeder/url-${Date.now()}-${idx}-${safeStem2}.${ext}`;
             const ctNorm = ct === "image/jpg" ? "image/jpeg" : ct;
-            const { url } = await storagePut(key, buf, ctNorm);
+            const { buffer: wpUrlBuf, mimeType: wpUrlMime } = await convertToWebP(buf, ctNorm);
+            const ext = wpUrlMime === "image/webp" ? "webp" : ct === "image/png" ? "png" : "jpg";
+            const key = `community-seeder/url-${Date.now()}-${idx}-${safeStem2}.${ext}`;
+            const { url } = await storagePut(key, wpUrlBuf, wpUrlMime);
             return url;
           } catch {
             return null;
@@ -26884,9 +26900,10 @@ async function fetchAndMirrorChallengeImages(s, targetCount = 4) {
       const ab = await imgResp.arrayBuffer();
       const buf = Buffer.from(ab);
       if (buf.length < 5e3 || buf.length > 5e6) return null;
-      const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+      const { buffer: wpChalBuf, mimeType: wpChalMime } = await convertToWebP(buf, ct);
+      const ext = wpChalMime === "image/webp" ? "webp" : ct === "image/png" ? "png" : "jpg";
       const key = `daily-challenge/ai-${Date.now()}-${idx}-${safeStem}.${ext}`;
-      const { url } = await storagePut(key, buf, ct);
+      const { url } = await storagePut(key, wpChalBuf, wpChalMime);
       return url;
     } catch {
       return null;
