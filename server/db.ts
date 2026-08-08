@@ -1696,6 +1696,7 @@ async function ensureDepositTables() {
       `);
     } catch {}
     try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN facebook VARCHAR(500)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN auctionClosingMessage TEXT`); } catch {}
     // proxyBids: 加 unique constraint 防止 setProxyBid 重複插入（onDuplicateKeyUpdate 需要 unique key 才能 upsert）
     try { await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`); } catch {}
     // auctions.category: 從 ENUM 改為 VARCHAR(500)，以支援可設定的商品分類
@@ -3283,7 +3284,7 @@ export async function createMerchantApplication(data: InsertMerchantApplication)
 
 export async function updateMerchantProfile(
   userId: number,
-  data: { merchantName: string; selfIntro: string; whatsapp: string; facebook?: string | null; merchantIcon?: string | null }
+  data: { merchantName: string; selfIntro: string; whatsapp: string; facebook?: string | null; merchantIcon?: string | null; auctionClosingMessage?: string | null }
 ) {
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
@@ -3294,6 +3295,7 @@ export async function updateMerchantProfile(
       whatsapp: data.whatsapp,
       ...(data.facebook !== undefined ? { facebook: data.facebook } : {}),
       ...(data.merchantIcon !== undefined ? { merchantIcon: data.merchantIcon } : {}),
+      ...(data.auctionClosingMessage !== undefined ? { auctionClosingMessage: data.auctionClosingMessage } : {}),
     })
     .where(and(eq(merchantApplications.userId, userId), eq(merchantApplications.status, 'approved')));
 }
@@ -5770,7 +5772,8 @@ export async function getMerchantAuctionOrders(merchantId: number, status?: stri
             (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) AS thumbUrl,
             u.name AS buyerName, u.phone AS buyerPhone,
             (SELECT isAnonymous FROM bids WHERE auctionId = a.id AND userId = a.highestBidderId ORDER BY id DESC LIMIT 1) AS buyerIsAnonymous,
-            TIMESTAMPDIFF(DAY, a.endTime, NOW()) AS pendingDays
+            TIMESTAMPDIFF(DAY, a.endTime, NOW()) AS pendingDays,
+            (SELECT ma2.auctionClosingMessage FROM merchantApplications ma2 WHERE ma2.userId = a.createdBy AND ma2.status = 'approved' LIMIT 1) AS merchantClosingMessage
      FROM auctions a
      LEFT JOIN users u ON u.id = a.highestBidderId
      WHERE ${where.join(' AND ')}

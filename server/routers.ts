@@ -2916,6 +2916,7 @@ export const appRouter = router({
         whatsapp: z.string().min(1).max(50),
         facebook: z.string().max(500).nullable().optional(),
         merchantIcon: z.string().url().nullable().optional(),
+        auctionClosingMessage: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
@@ -2928,6 +2929,7 @@ export const appRouter = router({
           whatsapp: input.whatsapp,
           facebook: input.facebook ?? null,
           merchantIcon: input.merchantIcon ?? null,
+          auctionClosingMessage: input.auctionClosingMessage ?? null,
         });
         return { success: true };
       }),

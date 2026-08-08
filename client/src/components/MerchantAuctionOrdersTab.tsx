@@ -2,7 +2,27 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon, RotateCcw } from "lucide-react";
+import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon, RotateCcw, Copy } from "lucide-react";
+
+const DEFAULT_CLOSING = "煩請待回覆 相約交收地點及時間 多謝支持!";
+
+function buildAuctionMessage(o: any, closingMessage: string) {
+  const winningPrice = parseFloat(String(o.currentPrice ?? 0));
+  const d = new Date(o.endTime);
+  const endStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  const link = `${window.location.origin}/auctions/${o.auctionId}`;
+  return [
+    `你好 ${o.buyerName ?? ""}，我係大BB錢幣店商戶。`,
+    ``,
+    `恭喜你喺以下拍賣中標：`,
+    `📦 ${o.title}`,
+    `💰 得標價：${o.currency} $${winningPrice.toLocaleString()}`,
+    `🕐 結束時間：${endStr}`,
+    `🔗 ${link}`,
+    ``,
+    closingMessage || DEFAULT_CLOSING,
+  ].join('\n');
+}
 
 const STATUS_LABELS: Record<string, string> = { pending: "待確認", confirmed: "已確認", cancelled: "已取消" };
 const STATUS_COLORS: Record<string, string> = {
@@ -212,23 +232,7 @@ export function MerchantAuctionOrdersTab() {
                       <span className="text-gray-400">電話</span>
                       <span className="ml-1 font-medium">{o.buyerPhone}</span>
                       <a
-                        href={(() => {
-                          const phone = String(o.buyerPhone).replace(/[^0-9]/g, '');
-                          const link = `${window.location.origin}/auctions/${o.auctionId}`;
-                          const endStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-                          const lines = [
-                            `你好 ${o.buyerName ?? ""}，我係大BB錢幣店商戶。`,
-                            ``,
-                            `恭喜你喺以下拍賣中標：`,
-                            `📦 ${o.title}`,
-                            `💰 得標價：${o.currency} $${winningPrice.toLocaleString()}`,
-                            `🕐 結束時間：${endStr}`,
-                            `🔗 ${link}`,
-                            ``,
-                            `想同你約交收時間／地點，麻煩覆我，多謝！`,
-                          ];
-                          return `https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`;
-                        })()}
+                        href={`https://wa.me/${String(o.buyerPhone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(buildAuctionMessage(o, o.merchantClosingMessage))}`}
                         target="_blank" rel="noopener noreferrer"
                         className="ml-1"
                         title="WhatsApp 聯絡買家（自動填入中標資料）"
@@ -243,21 +247,35 @@ export function MerchantAuctionOrdersTab() {
                 </div>
 
                 {o.status === "pending" && (
-                  <div className="flex gap-2 pt-1">
+                  <div className="space-y-2 pt-1">
                     <button
-                      onClick={() => setActionDialog({ row: o, type: "confirm" })}
-                      disabled={confirm.isPending || cancel.isPending}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold py-2 rounded-xl transition-colors disabled:opacity-60"
+                      onClick={() => {
+                        const msg = buildAuctionMessage(o, o.merchantClosingMessage);
+                        navigator.clipboard.writeText(msg).then(
+                          () => toast.success("訊息已複製"),
+                          () => toast.error("複製失敗，請手動複製")
+                        );
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 text-xs font-medium py-1.5 rounded-xl transition-colors"
                     >
-                      <CheckCircle2 className="w-4 h-4" />確認交收
+                      <Copy className="w-3.5 h-3.5" />複製中標訊息
                     </button>
-                    <button
-                      onClick={() => setActionDialog({ row: o, type: "cancel" })}
-                      disabled={confirm.isPending || cancel.isPending}
-                      className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-500 text-sm font-medium py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
-                    >
-                      <XCircle className="w-4 h-4" />取消訂單
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setActionDialog({ row: o, type: "confirm" })}
+                        disabled={confirm.isPending || cancel.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold py-2 rounded-xl transition-colors disabled:opacity-60"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />確認交收
+                      </button>
+                      <button
+                        onClick={() => setActionDialog({ row: o, type: "cancel" })}
+                        disabled={confirm.isPending || cancel.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-500 text-sm font-medium py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
+                      >
+                        <XCircle className="w-4 h-4" />取消訂單
+                      </button>
+                    </div>
                   </div>
                 )}
                 {o.status === "confirmed" && o.confirmedAt && (

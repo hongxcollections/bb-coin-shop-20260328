@@ -133,6 +133,7 @@ export default function MerchantSettings() {
   const [profileSelfIntro, setProfileSelfIntro] = useState("");
   const [profileWhatsapp, setProfileWhatsapp] = useState("");
   const [profileFacebook, setProfileFacebook] = useState("");
+  const [profileAuctionClosingMessage, setProfileAuctionClosingMessage] = useState("煩請待回覆 相約交收地點及時間 多謝支持!");
   const [profileIcon, setProfileIcon] = useState<string | null>(null);
   const [profileInitialized, setProfileInitialized] = useState(false);
   const [iconUploading, setIconUploading] = useState(false);
@@ -144,6 +145,7 @@ export default function MerchantSettings() {
       setProfileSelfIntro(myApp.selfIntro ?? "");
       setProfileWhatsapp(myApp.whatsapp ?? "");
       setProfileFacebook((myApp as any).facebook ?? "");
+      setProfileAuctionClosingMessage((myApp as any).auctionClosingMessage ?? "煩請待回覆 相約交收地點及時間 多謝支持!");
       setProfileIcon(myApp.merchantIcon ?? null);
       setProfileInitialized(true);
     }
@@ -184,6 +186,7 @@ export default function MerchantSettings() {
       whatsapp: profileWhatsapp.trim(),
       facebook: profileFacebook.trim() || null,
       merchantIcon: profileIcon,
+      auctionClosingMessage: profileAuctionClosingMessage.trim() || null,
     });
   };
 
@@ -482,6 +485,20 @@ export default function MerchantSettings() {
                     placeholder="例：https://m.me/yourname（個人）或 https://m.me/yourpage（專頁）"
                   />
                   <p className="text-xs text-muted-foreground">個人帳號或專頁均可。填寫後，商品詳情頁會顯示 Messenger 聯絡按鈕</p>
+                </div>
+
+                {/* 拍賣訂單結尾訊息 */}
+                <div className="space-y-2">
+                  <Label htmlFor="profileAuctionClosingMessage">拍賣訂單聯絡結尾訊息</Label>
+                  <Textarea
+                    id="profileAuctionClosingMessage"
+                    value={profileAuctionClosingMessage}
+                    onChange={(e) => setProfileAuctionClosingMessage(e.target.value)}
+                    maxLength={500}
+                    rows={2}
+                    placeholder="例：煩請待回覆 相約交收地點及時間 多謝支持!"
+                  />
+                  <p className="text-xs text-muted-foreground">此訊息會附於拍賣訂單 WhatsApp 聯絡訊息末端，可自行修改</p>
                 </div>
 
                 {/* 商戶簡介 */}

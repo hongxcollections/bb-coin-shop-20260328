@@ -425,6 +425,7 @@ var init_schema = __esm({
       selfIntro: text("selfIntro").notNull(),
       whatsapp: varchar("whatsapp", { length: 30 }).notNull(),
       facebook: varchar("facebook", { length: 500 }),
+      auctionClosingMessage: text("auctionClosingMessage"),
       yearsExperience: varchar("yearsExperience", { length: 20 }),
       merchantIcon: varchar("merchantIcon", { length: 500 }),
       categories: text("categories"),
@@ -2519,6 +2520,10 @@ async function ensureDepositTables() {
     } catch {
     }
     try {
+      await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN auctionClosingMessage TEXT`);
+    } catch {
+    }
+    try {
       await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`);
     } catch {
     }
@@ -3775,7 +3780,8 @@ async function updateMerchantProfile(userId, data) {
     selfIntro: data.selfIntro,
     whatsapp: data.whatsapp,
     ...data.facebook !== void 0 ? { facebook: data.facebook } : {},
-    ...data.merchantIcon !== void 0 ? { merchantIcon: data.merchantIcon } : {}
+    ...data.merchantIcon !== void 0 ? { merchantIcon: data.merchantIcon } : {},
+    ...data.auctionClosingMessage !== void 0 ? { auctionClosingMessage: data.auctionClosingMessage } : {}
   }).where(and(eq(merchantApplications.userId, userId), eq(merchantApplications.status, "approved")));
 }
 async function getMerchantApplicationByUser(userId) {
@@ -5698,7 +5704,8 @@ async function getMerchantAuctionOrders(merchantId, status) {
             (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) AS thumbUrl,
             u.name AS buyerName, u.phone AS buyerPhone,
             (SELECT isAnonymous FROM bids WHERE auctionId = a.id AND userId = a.highestBidderId ORDER BY id DESC LIMIT 1) AS buyerIsAnonymous,
-            TIMESTAMPDIFF(DAY, a.endTime, NOW()) AS pendingDays
+            TIMESTAMPDIFF(DAY, a.endTime, NOW()) AS pendingDays,
+            (SELECT ma2.auctionClosingMessage FROM merchantApplications ma2 WHERE ma2.userId = a.createdBy AND ma2.status = 'approved' LIMIT 1) AS merchantClosingMessage
      FROM auctions a
      LEFT JOIN users u ON u.id = a.highestBidderId
      WHERE ${where.join(" AND ")}
@@ -16166,7 +16173,8 @@ var appRouter = router({
       selfIntro: z2.string().max(1e3).default(""),
       whatsapp: z2.string().min(1).max(50),
       facebook: z2.string().max(500).nullable().optional(),
-      merchantIcon: z2.string().url().nullable().optional()
+      merchantIcon: z2.string().url().nullable().optional(),
+      auctionClosingMessage: z2.string().max(500).nullable().optional()
     })).mutation(async ({ input, ctx }) => {
       const app = await getMerchantApplicationByUser(ctx.user.id);
       if (!app || app.status !== "approved") {
@@ -16177,7 +16185,8 @@ var appRouter = router({
         selfIntro: sanitizeUserText(input.selfIntro),
         whatsapp: input.whatsapp,
         facebook: input.facebook ?? null,
-        merchantIcon: input.merchantIcon ?? null
+        merchantIcon: input.merchantIcon ?? null,
+        auctionClosingMessage: input.auctionClosingMessage ?? null
       });
       return { success: true };
     }),
