@@ -94,6 +94,9 @@ const Messages = lazy(() => import("./pages/Messages"));
 const ChatRoom = lazy(() => import("./pages/ChatRoom"));
 const PublicGallery = lazy(() => import("./pages/PublicGallery"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Guides = lazy(() => import("./pages/Guides"));
+const GuideDetail = lazy(() => import("./pages/GuideDetail"));
+const AdminArticles = lazy(() => import("./pages/AdminArticles"));
 
 function MerchantPendingOrdersNotice() {
   const { isAuthenticated } = useAuth();
@@ -244,6 +247,9 @@ function Router() {
         <Route path={"/admin/featured-listings"} component={AdminFeaturedListings} />
         <Route path={"/admin/ads"} component={AdminAds} />
         <Route path={"/admin/pm001-scraper"} component={AdminPm001Scraper} />
+        <Route path={"/admin/articles"} component={AdminArticles} />
+        <Route path={"/guides"} component={Guides} />
+        <Route path={"/guides/:slug"} component={GuideDetail} />
         <Route path={"/records"} component={AuctionSearch} />
         <Route path={"/virtual-store"} component={VirtualStore} />
         <Route path={"/merchants"} component={Merchants} />

@@ -25,6 +25,7 @@ var init_const = __esm({
 var schema_exports = {};
 __export(schema_exports, {
   adBanners: () => adBanners,
+  articles: () => articles,
   auctionChatMessageReactions: () => auctionChatMessageReactions,
   auctionChatMessages: () => auctionChatMessages,
   auctionChatRooms: () => auctionChatRooms,
@@ -84,7 +85,7 @@ __export(schema_exports, {
 });
 import { boolean, decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
-var users, auctions, auctionImages, bids, proxyBids, proxyBidLogs, notificationSettings, usersRelations, auctionsRelations, auctionImagesRelations, bidsRelations, proxyBidsRelations, favorites, favoritesRelations, siteSettings, sellerDeposits, depositTransactions, sellerDepositsRelations, depositTransactionsRelations, subscriptionPlans, userSubscriptions, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantApplications, merchantProducts, subscriptionPlansRelations, userSubscriptionsRelations, dailyEarlyBird, userAutoBidQuota, pushSubscriptions, featuredListings, adBanners, coinAnalysisHistory, auctionChatRooms, auctionChatMessages, auctionChatMessageReactions, collectionPosts, collectionPostImages, collectionPostLikes, collectionPostComments, collectionPostSaves, dailyChallenges, dailyChallengeAnswers, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, communitySeederThemes, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids, groupAuctionProxyBids, groupAuctionColorRuleTemplates;
+var users, auctions, auctionImages, bids, proxyBids, proxyBidLogs, notificationSettings, usersRelations, auctionsRelations, auctionImagesRelations, bidsRelations, proxyBidsRelations, favorites, favoritesRelations, siteSettings, sellerDeposits, depositTransactions, sellerDepositsRelations, depositTransactionsRelations, subscriptionPlans, userSubscriptions, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantApplications, merchantProducts, subscriptionPlansRelations, userSubscriptionsRelations, dailyEarlyBird, userAutoBidQuota, pushSubscriptions, featuredListings, adBanners, coinAnalysisHistory, auctionChatRooms, auctionChatMessages, auctionChatMessageReactions, collectionPosts, collectionPostImages, collectionPostLikes, collectionPostComments, collectionPostSaves, dailyChallenges, dailyChallengeAnswers, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, communitySeederThemes, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids, groupAuctionProxyBids, groupAuctionColorRuleTemplates, articles;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -815,6 +816,18 @@ var init_schema = __esm({
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
+    articles = mysqlTable("articles", {
+      id: int("id").autoincrement().primaryKey(),
+      slug: varchar("slug", { length: 200 }).notNull(),
+      title: varchar("title", { length: 200 }).notNull(),
+      excerpt: text("excerpt"),
+      content: text("content").notNull(),
+      category: varchar("category", { length: 50 }),
+      isPublished: int("isPublished").notNull().default(0),
+      publishedAt: timestamp("publishedAt"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
   }
 });
 
@@ -1031,6 +1044,7 @@ __export(db_exports, {
   countPendingMerchantAuctionOrders: () => countPendingMerchantAuctionOrders,
   countPendingOffersForMerchant: () => countPendingOffersForMerchant,
   countRecentBuyerOffersForProduct: () => countRecentBuyerOffersForProduct,
+  createArticle: () => createArticle,
   createAuction: () => createAuction,
   createCardListing: () => createCardListing,
   createCardPromoSubscriptionPlan: () => createCardPromoSubscriptionPlan,
@@ -1055,6 +1069,7 @@ __export(db_exports, {
   deductCommission: () => deductCommission,
   deductListingQuota: () => deductListingQuota,
   deductListingQuotaBulk: () => deductListingQuotaBulk,
+  deleteArticle: () => deleteArticle,
   deleteAuction: () => deleteAuction,
   deleteAuctionImage: () => deleteAuctionImage,
   deleteBuyerOrder: () => deleteBuyerOrder,
@@ -1084,6 +1099,7 @@ __export(db_exports, {
   getActiveSubscriptionPlans: () => getActiveSubscriptionPlans,
   getAdBanners: () => getAdBanners,
   getAllAdBanners: () => getAllAdBanners,
+  getAllArticles: () => getAllArticles,
   getAllBidsForExport: () => getAllBidsForExport,
   getAllDepositTopUpRequests: () => getAllDepositTopUpRequests,
   getAllDepositTransactions: () => getAllDepositTransactions,
@@ -1101,6 +1117,7 @@ __export(db_exports, {
   getAnyExistingImageUrl: () => getAnyExistingImageUrl,
   getArchivedAuctions: () => getArchivedAuctions,
   getArchivedAuctionsFiltered: () => getArchivedAuctionsFiltered,
+  getArticleBySlug: () => getArticleBySlug,
   getAuctionById: () => getAuctionById,
   getAuctionImages: () => getAuctionImages,
   getAuctions: () => getAuctions,
@@ -1154,6 +1171,7 @@ __export(db_exports, {
   getProxyBid: () => getProxyBid,
   getProxyBidLogs: () => getProxyBidLogs,
   getPublicGalleryWithItems: () => getPublicGalleryWithItems,
+  getPublishedArticles: () => getPublishedArticles,
   getRawPool: () => getRawPool,
   getRecentRegistrations: () => getRecentRegistrations,
   getRecentlyEndedForMainPage: () => getRecentlyEndedForMainPage,
@@ -1244,6 +1262,7 @@ __export(db_exports, {
   toggleMessageReaction: () => toggleMessageReaction,
   topUpDeposit: () => topUpDeposit,
   unassignGalleryImage: () => unassignGalleryImage,
+  updateArticle: () => updateArticle,
   updateAuction: () => updateAuction,
   updateCardListing: () => updateCardListing,
   updateCardPromoSubscriptionPlan: () => updateCardPromoSubscriptionPlan,
@@ -2522,6 +2541,251 @@ async function ensureDepositTables() {
     try {
       await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN auctionClosingMessage TEXT`);
     } catch {
+    }
+    try {
+      await db.execute(sql`CREATE TABLE IF NOT EXISTS articles (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        slug VARCHAR(200) NOT NULL UNIQUE,
+        title VARCHAR(200) NOT NULL,
+        excerpt TEXT,
+        content TEXT NOT NULL,
+        category VARCHAR(50),
+        isPublished INT NOT NULL DEFAULT 0,
+        publishedAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT NOW(),
+        updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW()
+      )`);
+    } catch {
+    }
+    try {
+      const pool = await getRawPool();
+      const [rows] = await pool.execute("SELECT COUNT(*) as cnt FROM articles");
+      if ((rows?.[0]?.cnt ?? 0) === 0) {
+        const seedArticles = [
+          {
+            slug: "coin-collecting-guide",
+            title: "\u9999\u6E2F\u9322\u5E63\u6536\u85CF\u5165\u9580\u6307\u5357",
+            category: "\u5165\u9580",
+            excerpt: "\u8E0F\u5165\u9322\u5E63\u6536\u85CF\u4E16\u754C\u7684\u7B2C\u4E00\u6B65\u2014\u2014\u4E86\u89E3\u57FA\u672C\u77E5\u8B58\u3001\u9078\u64C7\u65B9\u5411\u3001\u5EFA\u7ACB\u81EA\u5DF1\u7684\u85CF\u54C1\u7CFB\u5217\u3002",
+            content: `\u9322\u5E63\u6536\u85CF\uFF08Numismatics\uFF09\u662F\u9999\u6E2F\u6B77\u53F2\u6700\u60A0\u4E45\u7684\u6536\u85CF\u611B\u597D\u4E4B\u4E00\uFF0C\u5438\u5F15\u4E86\u6578\u4EE5\u842C\u8A08\u7684\u672C\u5730\u85CF\u5BB6\u3002\u7121\u8AD6\u4F60\u662F\u525B\u5165\u9580\u7684\u65B0\u624B\uFF0C\u9084\u662F\u5E0C\u671B\u7CFB\u7D71\u5316\u6574\u7406\u85CF\u54C1\u7684\u8CC7\u6DF1\u73A9\u5BB6\uFF0C\u672C\u6587\u90FD\u80FD\u70BA\u4F60\u63D0\u4F9B\u5BE6\u7528\u7684\u5165\u9580\u6307\u5F15\u3002
+
+## \u70BA\u4EC0\u9EBC\u6536\u85CF\u9322\u5E63\uFF1F
+
+\u9322\u5E63\u662F\u6B77\u53F2\u7684\u7E2E\u5F71\u3002\u4E00\u679A\u5C0F\u5C0F\u7684\u9280\u5143\uFF0C\u53EF\u80FD\u8A18\u8F09\u8457\u6E05\u671D\u672B\u5E74\u7684\u653F\u6CBB\u8B8A\u9077\uFF1B\u4E00\u5F35\u9999\u6E2F\u820A\u7D19\u5E63\uFF0C\u627F\u8F09\u7740\u6B96\u6C11\u5730\u6642\u4EE3\u7684\u96C6\u9AD4\u8A18\u61B6\u3002\u6536\u85CF\u9322\u5E63\u4E0D\u55AE\u662F\u8208\u8DA3\uFF0C\u66F4\u662F\u4E00\u7A2E\u5C0D\u6B77\u53F2\u6587\u5316\u7684\u4FDD\u5B58\u8207\u50B3\u627F\u3002
+
+## \u9078\u64C7\u4F60\u7684\u6536\u85CF\u65B9\u5411
+
+\u65B0\u624B\u6700\u5E38\u898B\u7684\u932F\u8AA4\uFF0C\u662F\u4EC0\u9EBC\u90FD\u60F3\u6536\uFF0C\u7D50\u679C\u4EC0\u9EBC\u90FD\u4E0D\u7CBE\u3002\u5EFA\u8B70\u5148\u9078\u5B9A\u4E00\u500B\u65B9\u5411\uFF1A
+
+- **\u9999\u6E2F\u672C\u5730\u9322\u5E63**\uFF1A\u6E2F\u5143\u786C\u5E63\u3001\u532F\u8C50\u9214\u7968\u3001\u6E23\u6253\u820A\u9214\uFF0C\u8CBC\u8FD1\u672C\u5730\u6B77\u53F2\uFF0C\u5BB9\u6613\u5165\u624B
+- **\u6C11\u570B\u9280\u5143**\uFF1A\u8881\u5927\u982D\u3001\u5B6B\u5C0F\u982D\u3001\u9F8D\u6D0B\uFF0C\u5B58\u4E16\u91CF\u5927\uFF0C\u5E02\u5834\u6D41\u901A\u6027\u9AD8
+- **\u8A55\u7D1A\u5E63\uFF08PCGS / NGC\uFF09**\uFF1A\u7D93\u7B2C\u4E09\u65B9\u8A55\u7D1A\u6A5F\u69CB\u9451\u5B9A\uFF0C\u54C1\u76F8\u6709\u4FDD\u969C\uFF0C\u9069\u5408\u6295\u8CC7\u5C0E\u5411\u7684\u85CF\u5BB6
+- **\u5916\u570B\u9322\u5E63**\uFF1A\u82F1\u570B\u3001\u6CD5\u570B\u3001\u65E5\u672C\u7B49\u6B77\u53F2\u9280\u5E63\uFF0C\u54C1\u76F8\u512A\u826F\u8005\u5347\u503C\u6F5B\u529B\u5927
+
+## \u5165\u624B\u7B2C\u4E00\u679A\u9322\u5E63
+
+\u5EFA\u8B70\u5F9E\u4FE1\u8B7D\u826F\u597D\u7684\u5E73\u53F0\u6216\u5546\u6236\u8CFC\u5165\uFF0C\u907F\u514D\u5728\u4E0D\u660E\u4F86\u6E90\u6E20\u9053\u8CB7\u5230\u8D0B\u54C1\u3002\u8CFC\u8CB7\u524D\u9700\u7559\u610F\uFF1A
+
+1. **\u54C1\u76F8\uFF08Grade\uFF09**\uFF1AUNC\uFF08\u672A\u6D41\u901A\uFF09\u54C1\u76F8\u6700\u9AD8\uFF0CEF\uFF08\u6975\u7F8E\u54C1\uFF09\u6B21\u4E4B\uFF0CVF\uFF08\u7F8E\u54C1\uFF09\u518D\u6B21\uFF0C\u4EE5\u6B64\u985E\u63A8
+2. **\u771F\u507D**\uFF1A\u65B0\u624B\u5EFA\u8B70\u9078\u64C7\u5DF2\u8A55\u7D1A\u7684\u9322\u5E63\uFF0C\u964D\u4F4E\u8CB7\u5230\u5047\u8CA8\u7684\u98A8\u96AA
+3. **\u5E02\u5834\u50F9\u683C**\uFF1A\u591A\u53C3\u8003\u62CD\u8CE3\u6210\u4EA4\u8A18\u9304\uFF0C\u4E86\u89E3\u5408\u7406\u5E02\u5834\u50F9
+
+## \u4FDD\u5B58\u8207\u6574\u7406
+
+\u9322\u5E63\u4FDD\u5B58\u9700\u907F\u514D\u6F6E\u6FD5\u3001\u6C27\u5316\u53CA\u4EBA\u624B\u76F4\u63A5\u63A5\u89F8\u3002\u5EFA\u8B70\u4F7F\u7528\u5C08\u7528\u5851\u6599\u5E63\u76D2\u6216\u786C\u5E63\u518A\uFF0C\u4E26\u5B58\u653E\u65BC\u4E7E\u71E5\u74B0\u5883\u3002\u5B9A\u671F\u6574\u7406\u85CF\u54C1\uFF0C\u8A18\u9304\u6BCF\u679A\u9322\u5E63\u7684\u4F86\u6E90\u3001\u8CFC\u5165\u50F9\u53CA\u54C1\u76F8\uFF0C\u6709\u52A9\u65E5\u5F8C\u7BA1\u7406\u53CA\u8F49\u8B93\u3002
+
+## \u52A0\u5165\u793E\u7FA4
+
+\u9322\u5E63\u6536\u85CF\u662F\u4E00\u9805\u9700\u8981\u4EA4\u6D41\u7684\u611B\u597D\u3002\u52A0\u5165\u672C\u5730\u6536\u85CF\u793E\u7FA4\uFF0C\u53EF\u4EE5\u4EA4\u6D41\u5FC3\u5F97\u3001\u4E92\u901A\u6D88\u606F\uFF0C\u751A\u81F3\u4EE5\u7269\u6613\u7269\u3002hongxcollections.com \u63D0\u4F9B\u5B89\u5168\u900F\u660E\u7684\u62CD\u8CE3\u53CA\u4EA4\u6D41\u5E73\u53F0\uFF0C\u6B61\u8FCE\u6240\u6709\u85CF\u5BB6\u53C3\u8207\u3002`
+          },
+          {
+            slug: "pcgs-ngc-grading-guide",
+            title: "PCGS \u8207 NGC \u8A55\u7D1A\u5E63\u5B8C\u5168\u653B\u7565",
+            category: "\u8A55\u7D1A",
+            excerpt: "\u8A55\u7D1A\u5E63\u662F\u73FE\u4EE3\u9322\u5E63\u5E02\u5834\u7684\u4E3B\u6D41\u3002\u672C\u6587\u8A73\u89E3 PCGS \u548C NGC \u5169\u5927\u8A55\u7D1A\u6A5F\u69CB\u7684\u8A55\u5206\u5236\u5EA6\uFF0C\u52A9\u4F60\u8B80\u61C2\u6BCF\u4E00\u500B\u5206\u6578\u3002",
+            content: `\u8A55\u7D1A\u5E63\uFF08Slabbed Coin\uFF09\u662F\u6307\u7D93\u904E\u7B2C\u4E09\u65B9\u5C08\u696D\u8A55\u7D1A\u6A5F\u69CB\u9451\u5B9A\u3001\u5C01\u88DD\u65BC\u900F\u660E\u786C\u76D2\uFF08Slab\uFF09\u5167\u7684\u9322\u5E63\u3002\u5C0D\u65BC\u6CE8\u91CD\u54C1\u76F8\u4FDD\u969C\u548C\u6295\u8CC7\u50F9\u503C\u7684\u85CF\u5BB6\u800C\u8A00\uFF0C\u8A55\u7D1A\u5E63\u662F\u6700\u7406\u60F3\u7684\u9078\u64C7\u3002
+
+## \u5169\u5927\u4E3B\u8981\u8A55\u7D1A\u6A5F\u69CB
+
+### PCGS\uFF08Professional Coin Grading Service\uFF09
+\u6210\u7ACB\u65BC 1986 \u5E74\uFF0C\u662F\u5168\u7403\u898F\u6A21\u6700\u5927\u3001\u6700\u5177\u516C\u4FE1\u529B\u7684\u9322\u5E63\u8A55\u7D1A\u6A5F\u69CB\u4E4B\u4E00\uFF0C\u7E3D\u90E8\u4F4D\u65BC\u7F8E\u570B\u52A0\u5DDE\u3002PCGS \u8A55\u7D1A\u7684\u9322\u5E63\u6703\u5C01\u88DD\u65BC\u85CD\u8272\u908A\u6846\u7684\u900F\u660E\u5E63\u76D2\uFF0C\u6B63\u9762\u5370\u6709\u8A55\u5206\u53CA\u9322\u5E63\u8CC7\u6599\u3002
+
+### NGC\uFF08Numismatic Guaranty Corporation\uFF09
+\u6210\u7ACB\u65BC 1987 \u5E74\uFF0C\u540C\u6A23\u662F\u570B\u969B\u9802\u7D1A\u8A55\u7D1A\u6A5F\u69CB\uFF0C\u7E3D\u90E8\u4F4D\u65BC\u7F8E\u570B\u4F5B\u7F85\u91CC\u9054\u5DDE\u3002NGC \u4EE5\u9EC3\u8272\u6A19\u7C64\u4F5C\u8B58\u5225\uFF0C\u5728\u4E9E\u6D32\u5E02\u5834\u540C\u6A23\u5EE3\u53D7\u8A8D\u53EF\u3002
+
+## \u8A55\u5206\u5236\u5EA6\uFF08Sheldon Scale\uFF09
+
+\u5169\u5927\u6A5F\u69CB\u5747\u63A1\u7528\u7531 0 \u81F3 70 \u7684 Sheldon Scale \u8A55\u5206\u5236\u5EA6\uFF1A
+
+| \u5206\u6578 | \u7B49\u7D1A | \u63CF\u8FF0 |
+|------|------|------|
+| 70 | Perfect Uncirculated | \u5B8C\u7F8E\u7121\u7455\uFF0C\u6975\u7A00\u6709 |
+| 65-69 | Gem Uncirculated | \u9802\u7D1A\u672A\u6D41\u901A\uFF0C\u7D30\u7BC0\u5B8C\u7F8E |
+| 60-64 | Uncirculated (MS/PR) | \u672A\u6D41\u901A\uFF0C\u53EF\u80FD\u6709\u8F15\u5FAE\u7455\u75B5 |
+| 55-58 | About Uncirculated | \u63A5\u8FD1\u672A\u6D41\u901A\uFF0C\u8F15\u5FAE\u6D41\u901A\u75D5\u8DE1 |
+| 45-50 | Extremely Fine (EF/XF) | \u6975\u7F8E\u54C1\uFF0C\u7D30\u7BC0\u6E05\u6670 |
+| 30-40 | Very Fine (VF) | \u7F8E\u54C1\uFF0C\u4E3B\u8981\u5716\u6848\u6E05\u6670 |
+| 20-25 | Fine (F) | \u4E2D\u54C1\uFF0C\u4E3B\u8981\u7D30\u7BC0\u53EF\u898B |
+| 1-15 | Poor to Good | \u4F4E\u54C1\u76F8\uFF0C\u8B58\u5225\u7528\u9014 |
+
+## \u5982\u4F55\u8B80\u61C2\u5E63\u76D2\u8CC7\u6599
+
+\u4EE5\u4E00\u679A\u5178\u578B\u8A55\u7D1A\u5E63\u70BA\u4F8B\uFF0C\u5E63\u76D2\u4E0A\u6703\u986F\u793A\uFF1A
+- **\u8A55\u7D1A\u6A5F\u69CB\u6A19\u8A8C**\uFF08PCGS / NGC\uFF09
+- **\u5E74\u4EFD\u53CA\u767C\u884C\u5730**\uFF08\u5982\uFF1AChina 1934\uFF09
+- **\u9762\u503C\u6216\u985E\u578B**\uFF08\u5982\uFF1ADollar / Yuan\uFF09
+- **MS 65** \u6216 **PR 68**\uFF08MS = Mint State \u672A\u6D41\u901A\uFF1BPR = Proof \u7CBE\u88FD\uFF09
+- **\u8A8D\u8B49\u865F\u78BC**\uFF08\u53EF\u5728\u5B98\u65B9\u7DB2\u7AD9\u6838\u5BE6\u771F\u507D\uFF09
+
+## \u8CB7\u8A55\u7D1A\u5E63\u7684\u6CE8\u610F\u4E8B\u9805
+
+1. **\u6838\u5BE6\u8A8D\u8B49\u865F\u78BC**\uFF1A\u767B\u5165 PCGS.com \u6216 NGC.com\uFF0C\u8F38\u5165\u8A8D\u8B49\u865F\u78BC\u78BA\u8A8D\u8A18\u9304\u76F8\u7B26
+2. **\u7559\u610F\u5E63\u76D2\u5B8C\u6574\u6027**\uFF1A\u5E63\u76D2\u4E0D\u53EF\u6709\u7834\u88C2\u3001\u958B\u81A0\u6216\u660E\u986F\u4EBA\u5DE5\u958B\u555F\u75D5\u8DE1
+3. **\u4E86\u89E3\u8A55\u7D1A\u7684\u5C40\u9650\u6027**\uFF1A\u8A55\u7D1A\u53CD\u6620\u54C1\u76F8\uFF0C\u4E0D\u4EE3\u8868\u9322\u5E63\u4E00\u5B9A\u5177\u9AD8\u50F9\u503C\uFF0C\u4ECD\u9700\u8003\u616E\u9322\u5E63\u672C\u8EAB\u7684\u7A00\u6709\u5EA6\u53CA\u5E02\u5834\u9700\u6C42
+
+## \u9999\u6E2F\u8A55\u7D1A\u5E63\u5E02\u5834
+
+\u9999\u6E2F\u662F\u4E9E\u6D32\u91CD\u8981\u7684\u8A55\u7D1A\u5E63\u96C6\u6563\u5730\uFF0CPCGS \u53CA NGC \u5747\u8A2D\u6709\u4E9E\u6D32\u8FA6\u4E8B\u8655\u3002\u672C\u5730\u85CF\u5BB6\u53EF\u900F\u904E hongxcollections.com \u7B49\u5E73\u53F0\uFF0C\u8CFC\u8CB7\u6216\u51FA\u552E\u8A55\u7D1A\u5E63\uFF0C\u4EAB\u53D7\u5B89\u5168\u900F\u660E\u7684\u7AF6\u6295\u9AD4\u9A57\u3002`
+          },
+          {
+            slug: "proxy-bidding-guide",
+            title: "\u4EE3\u7406\u6295\u6A19\u8A73\u89E3\uFF1A\u5982\u4F55\u5728\u7DB2\u4E0A\u62CD\u8CE3\u4E2D\u5B89\u5168\u51FA\u50F9",
+            category: "\u62CD\u8CE3",
+            excerpt: "\u4EE3\u7406\u6295\u6A19\uFF08Proxy Bid\uFF09\u8B93\u4F60\u8A2D\u5B9A\u5FC3\u7406\u50F9\u4F4D\u4E0A\u9650\uFF0C\u7CFB\u7D71\u81EA\u52D5\u4EE3\u4F60\u51FA\u50F9\uFF0C\u7121\u9700\u5B88\u5728\u87A2\u5E55\u524D\u3002\u672C\u6587\u8A73\u7D30\u89E3\u91CB\u904B\u4F5C\u539F\u7406\u3002",
+            content: `\u7DB2\u4E0A\u9322\u5E63\u62CD\u8CE3\u65E5\u76CA\u666E\u53CA\uFF0C\u4F46\u5F88\u591A\u65B0\u624B\u4E0D\u660E\u767D\u5982\u4F55\u5584\u7528\u300C\u4EE3\u7406\u6295\u6A19\u300D\u529F\u80FD\uFF0C\u7D50\u679C\u8981\u6642\u523B\u5B88\u5728\u87A2\u5E55\u524D\uFF0C\u6216\u56E0\u624B\u6162\u800C\u932F\u5931\u5FC3\u982D\u597D\u3002\u672C\u6587\u5C07\u8A73\u7D30\u89E3\u91CB\u4EE3\u7406\u6295\u6A19\u7684\u904B\u4F5C\u539F\u7406\u53CA\u4F7F\u7528\u6280\u5DE7\u3002
+
+## \u4EC0\u9EBC\u662F\u4EE3\u7406\u6295\u6A19\uFF1F
+
+\u4EE3\u7406\u6295\u6A19\uFF08Proxy Bid / Automatic Bid\uFF09\u662F\u4E00\u7A2E\u81EA\u52D5\u51FA\u50F9\u6A5F\u5236\u3002\u4F60\u53EA\u9700\u8A2D\u5B9A\u9858\u610F\u652F\u4ED8\u7684\u6700\u9AD8\u91D1\u984D\uFF0C\u7CFB\u7D71\u4FBF\u6703\u5728\u7AF6\u6295\u904E\u7A0B\u4E2D\uFF0C\u4EE5\u6700\u4F4E\u589E\u5E45\u81EA\u52D5\u4EE3\u4F60\u51FA\u50F9\uFF0C\u76F4\u81F3\u9054\u5230\u4F60\u7684\u4E0A\u9650\u70BA\u6B62\u3002
+
+**\u8209\u4F8B\u8AAA\u660E\uFF1A**
+- \u62CD\u8CE3\u5E95\u50F9\uFF1AHKD $100
+- \u4F60\u8A2D\u5B9A\u4EE3\u7406\u6295\u6A19\u4E0A\u9650\uFF1AHKD $300
+- \u53E6\u4E00\u4F4D\u8CB7\u5BB6\u51FA\u50F9 $150
+- \u7CFB\u7D71\u81EA\u52D5\u4EE3\u4F60\u51FA\u50F9 $180\uFF08\u8996\u4E4E\u6BCF\u53E3\u52A0\u50F9\u5E45\u5EA6\uFF09
+- \u5C0D\u65B9\u7E7C\u7E8C\u51FA\u50F9\u81F3 $250\uFF0C\u7CFB\u7D71\u81EA\u52D5\u52A0\u81F3 $280
+- \u5C0D\u65B9\u51FA\u50F9 $320\uFF0C\u8D85\u51FA\u4F60\u7684\u4E0A\u9650\uFF0C\u4F60\u7684\u4EE3\u7406\u6295\u6A19\u505C\u6B62
+
+## \u4EE3\u7406\u6295\u6A19\u7684\u512A\u52E2
+
+1. **\u7121\u9700\u5B88\u5019**\uFF1A\u8A2D\u5B9A\u5F8C\u53EF\u653E\u5FC3\u96E2\u958B\uFF0C\u7CFB\u7D71\u5168\u7A0B\u4EE3\u52DE
+2. **\u7406\u6027\u51FA\u50F9**\uFF1A\u9810\u5148\u6C7A\u5B9A\u4E0A\u9650\uFF0C\u907F\u514D\u5728\u7AF6\u6295\u71B1\u60C5\u4E2D\u885D\u52D5\u8D85\u51FA\u9810\u7B97
+3. **\u9632\u622A\u6A19\u4FDD\u8B77**\uFF1A\u914D\u5408\u300C\u9632\u622A\u6A19\u6A5F\u5236\u300D\uFF0C\u5728\u62CD\u8CE3\u6700\u5F8C\u6578\u5206\u9418\u5167\u82E5\u6709\u65B0\u51FA\u50F9\uFF0C\u7CFB\u7D71\u6703\u81EA\u52D5\u5EF6\u9577\u6642\u9593\uFF0C\u78BA\u4FDD\u516C\u5E73\u7AF6\u6295
+
+## \u9632\u622A\u6A19\u6A5F\u5236\uFF08Anti-Snipe\uFF09
+
+\u6B63\u898F\u7684\u62CD\u8CE3\u5E73\u53F0\u8A2D\u6709\u9632\u622A\u6A19\u529F\u80FD\u3002\u7576\u62CD\u8CE3\u5728\u6700\u5F8C\u5E7E\u5206\u9418\uFF08\u901A\u5E38 3-5 \u5206\u9418\uFF09\u5167\u6536\u5230\u65B0\u51FA\u50F9\uFF0C\u7CFB\u7D71\u6703\u81EA\u52D5\u5C07\u7D50\u6A19\u6642\u9593\u5EF6\u9577\u540C\u7B49\u5206\u9418\u6578\uFF0C\u907F\u514D\u6709\u4EBA\u5728\u6700\u5F8C\u4E00\u523B\u300C\u622A\u6A19\u300D\u3002
+
+\u5728 hongxcollections.com \u4E0A\uFF0C\u9632\u622A\u6A19\u6A5F\u5236\u9ED8\u8A8D\u555F\u7528\uFF0C\u5EF6\u9577\u6642\u9593\u7531\u5546\u6236\u8A2D\u5B9A\uFF0C\u78BA\u4FDD\u6BCF\u4F4D\u7AF6\u6295\u8005\u5747\u6709\u6A5F\u6703\u56DE\u61C9\u3002
+
+## \u4F7F\u7528\u4EE3\u7406\u6295\u6A19\u7684\u6CE8\u610F\u4E8B\u9805
+
+- **\u8A2D\u5B9A\u524D\u4E09\u601D**\uFF1A\u4EE3\u7406\u6295\u6A19\u4E00\u65E6\u8A2D\u5B9A\uFF0C\u7CFB\u7D71\u5373\u8996\u70BA\u6709\u6548\u51FA\u50F9\uFF0C\u8ACB\u78BA\u4FDD\u91D1\u984D\u5728\u81EA\u5DF1\u7684\u627F\u53D7\u7BC4\u570D\u5167
+- **\u4E86\u89E3\u52A0\u50F9\u5E45\u5EA6**\uFF1A\u6BCF\u500B\u62CD\u8CE3\u7684\u6BCF\u53E3\u52A0\u50F9\u5E45\u5EA6\uFF08Bid Increment\uFF09\u4E0D\u540C\uFF0C\u5F71\u97FF\u6700\u7D42\u6210\u4EA4\u50F9
+- **\u78BA\u8A8D\u7DB2\u7D61\u9023\u7DDA**\uFF1A\u96D6\u7136\u4EE3\u7406\u6295\u6A19\u7121\u9700\u5B88\u5019\uFF0C\u4F46\u5EFA\u8B70\u5728\u62CD\u8CE3\u7D50\u675F\u524D\u78BA\u8A8D\u7CFB\u7D71\u6B63\u5E38\u904B\u4F5C
+- **\u7559\u610F\u7D50\u6A19\u901A\u77E5**\uFF1A\u5F97\u6A19\u5F8C\u5546\u6236\u6703\u900F\u904E\u5E73\u53F0\u6216 WhatsApp \u806F\u7D61\uFF0C\u8ACB\u78BA\u4FDD\u806F\u7D61\u8CC7\u6599\u6B63\u78BA
+
+## \u5728 hongxcollections.com \u7AF6\u6295
+
+\u672C\u5E73\u53F0\u652F\u63F4\u4EE3\u7406\u6295\u6A19\u529F\u80FD\uFF0C\u6240\u6709\u62CD\u8CE3\u5747\u8A2D\u6709\u9632\u622A\u6A19\u4FDD\u8B77\u3002\u767B\u8A18\u5E33\u865F\u5F8C\u5373\u53EF\u53C3\u8207\u7AF6\u6295\uFF0C\u7CFB\u7D71\u5168\u7A0B\u4FDD\u8B77\u4F60\u7684\u51FA\u50F9\u8A18\u9304\uFF0C\u4EA4\u6536\u5B89\u6392\u7531\u5546\u6236\u76F4\u63A5\u806F\u7D61\u5354\u8ABF\u3002`
+          },
+          {
+            slug: "coin-storage-guide",
+            title: "\u9322\u5E63\u6B63\u78BA\u4FDD\u5B58\u65B9\u6CD5\uFF1A\u6E05\u6F54\u3001\u6536\u7D0D\u8207\u9632\u6F6E",
+            category: "\u4FDD\u990A",
+            excerpt: "\u4E00\u679A\u54C1\u76F8\u5B8C\u597D\u7684\u9322\u5E63\uFF0C\u50F9\u503C\u53EF\u6BD4\u540C\u6B3E\u4F4E\u54C1\u76F8\u8005\u9AD8\u51FA\u6578\u500D\u3002\u6B63\u78BA\u7684\u4FDD\u5B58\u65B9\u6CD5\uFF0C\u662F\u6BCF\u4F4D\u85CF\u5BB6\u5FC5\u9808\u638C\u63E1\u7684\u57FA\u672C\u529F\u3002",
+            content: `\u9322\u5E63\u6536\u85CF\u6700\u5927\u7684\u6575\u4EBA\uFF0C\u662F\u6642\u9593\u8207\u74B0\u5883\u3002\u6C27\u5316\u3001\u6F6E\u6FD5\u3001\u4EBA\u624B\u6CB9\u8102\uFF0C\u90FD\u80FD\u5728\u77ED\u6642\u9593\u5167\u4EE4\u4E00\u679A\u5B8C\u7F8E\u9280\u5E63\u5931\u53BB\u5149\u6FA4\uFF0C\u5927\u5E45\u964D\u4F4E\u5176\u6536\u85CF\u50F9\u503C\u3002\u672C\u6587\u5C07\u4ECB\u7D39\u6B63\u78BA\u7684\u9322\u5E63\u4FDD\u5B58\u6280\u5DE7\uFF0C\u52A9\u4F60\u5B88\u8B77\u6BCF\u4E00\u4EF6\u73CD\u8CB4\u85CF\u54C1\u3002
+
+## \u7D55\u5C0D\u4E0D\u8981\u505A\u7684\u4E8B
+
+\u5728\u4ECB\u7D39\u6B63\u78BA\u65B9\u6CD5\u524D\uFF0C\u5148\u5217\u51FA\u6700\u5E38\u898B\u7684\u932F\u8AA4\uFF1A
+
+- \u274C **\u7528\u624B\u76F4\u63A5\u89F8\u78B0\u5E63\u9762**\uFF1A\u624B\u6307\u6CB9\u8102\u6703\u5728\u5E63\u9762\u7559\u4E0B\u6307\u7D0B\uFF0C\u9577\u671F\u6703\u5C0E\u81F4\u8150\u8755
+- \u274C **\u7528\u5E03\u6216\u7D19\u96A8\u610F\u64E6\u62ED**\uFF1A\u6469\u64E6\u6703\u5728\u5E63\u9762\u7559\u4E0B\u8089\u773C\u96E3\u4EE5\u5BDF\u89BA\u7684\u7D30\u5FAE\u522E\u75D5\uFF0C\u5F71\u97FF\u54C1\u76F8
+- \u274C **\u7528\u6E05\u6F54\u5291\u6216\u9178\u6027\u7269\u54C1\u6E05\u6D17**\uFF1A\u5316\u5B78\u7269\u8CEA\u6703\u6C38\u4E45\u640D\u58DE\u5E63\u9762\u5149\u6FA4\uFF0C\u8A55\u7D1A\u6A5F\u69CB\u53EF\u8F15\u6613\u9451\u5225
+- \u274C **\u62CB\u5149\u6216\u6253\u78E8**\uFF1A\u4EFB\u4F55\u4EBA\u5DE5\u62CB\u5149\u5747\u6703\u88AB\u8A55\u7D1A\u6A5F\u69CB\u5224\u5B9A\u70BA\u300CCleaned\u300D\uFF0C\u5927\u5E45\u964D\u4F4E\u8A55\u5206
+
+## \u6B63\u78BA\u7684\u62FF\u53D6\u65B9\u5F0F
+
+\u62FF\u53D6\u9322\u5E63\u6642\uFF0C\u61C9\u4EE5\u62C7\u6307\u548C\u98DF\u6307\u634F\u4F4F\u9322\u5E63\u908A\u7DE3\uFF08Edge\uFF09\uFF0C\u907F\u514D\u63A5\u89F8\u5E63\u9762\uFF08Obverse \u6B63\u9762\u53CA Reverse \u80CC\u9762\uFF09\u3002\u5982\u9700\u9577\u6642\u9593\u628A\u73A9\uFF0C\u5EFA\u8B70\u6234\u4E0A\u767D\u8272\u68C9\u8CEA\u624B\u5957\u3002
+
+## \u5B58\u653E\u5DE5\u5177
+
+### \u5E63\u76D2\uFF08Coin Capsule / Slab\uFF09
+\u786C\u8CEA\u900F\u660E\u5E63\u76D2\u662F\u4FDD\u5B58\u55AE\u679A\u73CD\u8CB4\u9322\u5E63\u7684\u6700\u4F73\u9078\u64C7\uFF0C\u53EF\u9632\u6B62\u5E63\u9762\u53D7\u5916\u529B\u640D\u50B7\u53CA\u7A7A\u6C23\u6C27\u5316\u3002\u5E02\u9762\u4E0A\u6709\u591A\u7A2E\u5C3A\u5BF8\uFF0C\u8CFC\u8CB7\u6642\u9700\u6839\u64DA\u9322\u5E63\u76F4\u5F91\u9078\u64C7\u5408\u9069\u578B\u865F\u3002
+
+### \u5E63\u518A\uFF08Coin Album\uFF09
+\u9069\u5408\u6536\u7D0D\u7CFB\u5217\u6027\u85CF\u54C1\uFF0C\u5982\u5E74\u4EFD\u5957\u88DD\u6216\u570B\u5BB6\u7CFB\u5217\u3002\u9078\u64C7\u6642\u6CE8\u610F\u5E63\u518A\u593E\u9801\u9700\u70BA PVC-free\uFF08\u4E0D\u542B PVC \u6750\u8CEA\uFF09\uFF0C\u5426\u5247\u9577\u671F\u63A5\u89F8\u6703\u4EE4\u9322\u5E63\u7522\u751F\u5316\u5B78\u53CD\u61C9\u3002
+
+### \u9632\u6F6E\u7BB1
+\u5C0D\u65BC\u9AD8\u50F9\u503C\u85CF\u54C1\uFF0C\u5EFA\u8B70\u6295\u8CC7\u4E00\u500B\u9632\u6F6E\u7BB1\uFF0C\u5C07\u6FD5\u5EA6\u7DAD\u6301\u5728 40-50%RH \u4E4B\u9593\u3002\u9999\u6E2F\u6F6E\u6FD5\u6C23\u5019\u4E0B\uFF0C\u9019\u4E00\u6B65\u5C24\u70BA\u91CD\u8981\u3002
+
+## \u74B0\u5883\u8981\u6C42
+
+| \u689D\u4EF6 | \u5EFA\u8B70\u7BC4\u570D |
+|------|---------|
+| \u6EAB\u5EA6 | 18-22\xB0C |
+| \u6FD5\u5EA6 | 40-50% RH |
+| \u5149\u7DDA | \u907F\u514D\u76F4\u5C04\u967D\u5149 |
+| \u7A7A\u6C23 | \u901A\u98A8\uFF0C\u907F\u514D\u786B\u5316\u7269\u74B0\u5883 |
+
+## \u9280\u5E63\u7684\u7279\u5225\u6CE8\u610F
+
+\u9280\u5E63\u7279\u5225\u5BB9\u6613\u6C27\u5316\u8B8A\u9ED1\uFF08\u786B\u5316\u9280\u53CD\u61C9\uFF09\u3002\u5B58\u653E\u9280\u5E63\u6642\uFF0C\u53EF\u5728\u5E63\u76D2\u5167\u653E\u7F6E\u5C0F\u91CF\u9632\u6C27\u5316\u5291\uFF0C\u6216\u4F7F\u7528\u9632\u786B\u5316\u7684\u5C08\u7528\u6536\u7D0D\u888B\u3002\u5DF2\u51FA\u73FE\u8F15\u5FAE\u5F69\u8679\u8272\uFF08Toning\uFF09\u7684\u9280\u5E63\uFF0C\u5728\u85CF\u5BB6\u5708\u4E2D\u53CD\u800C\u53EF\u80FD\u88AB\u8996\u70BA\u81EA\u7136\u5305\u6F3F\uFF0C\u5207\u52FF\u5617\u8A66\u4EBA\u5DE5\u53BB\u9664\u3002
+
+## \u5B9A\u671F\u67E5\u9A57
+
+\u5EFA\u8B70\u6BCF\u534A\u5E74\u6AA2\u67E5\u4E00\u6B21\u85CF\u54C1\u72C0\u6CC1\uFF0C\u78BA\u8A8D\u7121\u6F6E\u6FD5\u3001\u6C27\u5316\u6216\u87F2\u5BB3\u554F\u984C\u3002\u767C\u73FE\u7570\u5E38\u61C9\u76E1\u5FEB\u63A1\u53D6\u9069\u7576\u63AA\u65BD\uFF0C\u907F\u514D\u640D\u5931\u64F4\u5927\u3002`
+          },
+          {
+            slug: "republican-silver-coins-guide",
+            title: "\u6C11\u570B\u9280\u5143\u8FA8\u507D\u6307\u5357\uFF1A\u8881\u5927\u982D\u8207\u5B6B\u5C0F\u982D",
+            category: "\u77E5\u8B58",
+            excerpt: "\u6C11\u570B\u9280\u5143\u662F\u9999\u6E2F\u9322\u5E63\u5E02\u5834\u7684\u71B1\u9580\u54C1\u7A2E\uFF0C\u4F46\u5E02\u9762\u4E0A\u8D0B\u54C1\u6975\u591A\u3002\u672C\u6587\u6559\u4F60\u5F9E\u91CD\u91CF\u3001\u8072\u97F3\u3001\u5716\u6848\u7D30\u7BC0\u7B49\u591A\u65B9\u9762\u8FA8\u5225\u771F\u507D\u3002",
+            content: `\u6C11\u570B\u9280\u5143\uFF0C\u5C24\u5176\u662F\u300C\u8881\u5927\u982D\u300D\uFF08\u8881\u4E16\u51F1\u50CF\u9280\u5713\uFF09\u548C\u300C\u5B6B\u5C0F\u982D\u300D\uFF08\u5B6B\u4E2D\u5C71\u50CF\u9280\u5713\uFF09\uFF0C\u662F\u9999\u6E2F\u53CA\u5169\u5CB8\u4E09\u5730\u6700\u53D7\u6B61\u8FCE\u7684\u9322\u5E63\u6536\u85CF\u54C1\u7A2E\u4E4B\u4E00\u3002\u7136\u800C\uFF0C\u6B63\u56E0\u9700\u6C42\u9F90\u5927\uFF0C\u5E02\u9762\u4E0A\u7684\u9AD8\u4EFF\u8D0B\u54C1\u6578\u91CF\u9A5A\u4EBA\uFF0C\u4EE4\u4E0D\u5C11\u65B0\u624B\u8499\u53D7\u640D\u5931\u3002\u672C\u6587\u5F9E\u591A\u500B\u89D2\u5EA6\u6559\u4F60\u8FA8\u5225\u771F\u507D\u3002
+
+## \u8881\u5927\u982D\u7C21\u4ECB
+
+\u8881\u5927\u982D\u662F\u6C11\u570B\u4E09\u81F3\u4E5D\u5E74\uFF081914-1920\u5E74\uFF09\u9444\u9020\u7684\u9280\u5713\uFF0C\u4EE5\u6B63\u9762\u9444\u6709\u8881\u4E16\u51F1\u5074\u9762\u50CF\u800C\u5F97\u540D\u3002\u6A19\u6E96\u898F\u683C\u70BA\u76F4\u5F91 39mm\uFF0C\u91CD\u91CF 26.86 \u514B\uFF0C\u542B\u9280\u91CF 89%\u3002\u4E3B\u8981\u7248\u5225\u5305\u62EC\u6C11\u570B\u4E09\u5E74\u3001\u516B\u5E74\u3001\u4E5D\u5E74\u53CA\u5341\u5E74\uFF0C\u5176\u4E2D\u4E09\u5E74\u7248\u5B58\u4E16\u91CF\u8F03\u591A\uFF0C\u5E02\u5834\u6D41\u901A\u6027\u6700\u9AD8\u3002
+
+## \u5B6B\u5C0F\u982D\u7C21\u4ECB
+
+\u5B6B\u5C0F\u982D\u662F\u6C11\u570B\u4E8C\u5341\u4E00\u81F3\u4E8C\u5341\u4E09\u5E74\uFF081932-1934\u5E74\uFF09\u9444\u9020\u7684\u9280\u5713\uFF0C\u6B63\u9762\u70BA\u5B6B\u4E2D\u5C71\u5074\u9762\u50CF\uFF0C\u80CC\u9762\u70BA\u96D9\u5E06\u8239\u5716\u6848\uFF0C\u53C8\u7A31\u300C\u8239\u6D0B\u300D\u3002\u6A19\u6E96\u898F\u683C\u76F4\u5F91 39mm\uFF0C\u91CD\u91CF 26.7 \u514B\uFF0C\u542B\u9280\u91CF 88%\u3002
+
+## \u8FA8\u507D\u65B9\u6CD5
+
+### 1. \u91CD\u91CF\u6E2C\u8A66
+\u4F7F\u7528\u7CBE\u5BC6\u96FB\u5B50\u78C5\uFF0C\u771F\u54C1\u91CD\u91CF\u8AA4\u5DEE\u4E0D\u8D85\u904E 0.3 \u514B\u3002\u91CD\u91CF\u660E\u986F\u504F\u8F15\uFF08\u5982 24 \u514B\u4EE5\u4E0B\uFF09\u5E7E\u4E4E\u53EF\u65B7\u5B9A\u70BA\u925B\u82AF\u6216\u92C5\u5408\u91D1\u4EFF\u88FD\u54C1\u3002
+
+### 2. \u8072\u97F3\u6E2C\u8A66\uFF08\u9280\u8072\uFF09
+\u5C07\u9280\u5713\u5E73\u653E\u5728\u624B\u6307\u5C16\uFF0C\u4EE5\u53E6\u4E00\u679A\u9280\u5E63\u8F15\u6572\uFF0C\u771F\u54C1\u767C\u51FA\u6E05\u8106\u60A0\u9577\u7684\u300C\u53EE\u300D\u8072\uFF0C\u9918\u97F3\u6301\u7E8C 2-3 \u79D2\uFF1B\u5047\u5E63\u8072\u97F3\u6C89\u60B6\u77ED\u4FC3\uFF0C\u5982\u300C\u5679\u300D\u8072\u3002
+
+### 3. \u5716\u6848\u7D30\u7BC0
+- **\u8881\u5927\u982D**\uFF1A\u771F\u54C1\u8881\u4E16\u51F1\u50CF\u7684\u8863\u9818\u53CA\u52F3\u7AE0\u7D30\u7BC0\u6E05\u6670\uFF0C\u982D\u9AEE\u7D72\u7D72\u5206\u660E\uFF1B\u9AD8\u4EFF\u54C1\u96D6\u7136\u5916\u89C0\u76F8\u4F3C\uFF0C\u4F46\u5728\u653E\u5927\u93E1\u4E0B\u53EF\u898B\u7D30\u7BC0\u6A21\u7CCA\u3001\u7DDA\u689D\u4E0D\u6D41\u66A2
+- **\u5B6B\u5C0F\u982D**\uFF1A\u771F\u54C1\u5E06\u8239\u7684\u5E06\u7E69\u7D30\u7BC0\u6E05\u6670\uFF0C\u6CE2\u6D6A\u7DDA\u689D\u81EA\u7136\uFF1B\u5047\u54C1\u5E06\u7E69\u5E38\u6709\u65B7\u7DDA\u6216\u7C97\u7D30\u4E0D\u5747\u7684\u554F\u984C
+
+### 4. \u908A\u9F52\uFF08Reeding\uFF09
+\u771F\u54C1\u908A\u9F52\u5747\u52FB\uFF0C\u6DF1\u6DFA\u4E00\u81F4\uFF0C\u908A\u7DE3\u7DDA\u689D\u6E05\u6670\uFF1B\u5047\u54C1\u908A\u9F52\u5E38\u898B\u7C97\u7D30\u4E0D\u5747\u3001\u6DF1\u6DFA\u4E0D\u4E00\u7684\u554F\u984C\u3002
+
+### 5. \u5305\u6F3F\u8207\u6C27\u5316
+\u771F\u54C1\u7D93\u6B77\u767E\u5E74\u6D41\u901A\uFF0C\u8868\u9762\u81EA\u7136\u5305\u6F3F\u5C64\u6B21\u8C50\u5BCC\uFF0C\u984F\u8272\u8B8A\u5316\u81EA\u7136\uFF1B\u4EBA\u5DE5\u505A\u820A\u7684\u5047\u54C1\uFF0C\u5305\u6F3F\u984F\u8272\u5F80\u5F80\u904E\u65BC\u5747\u52FB\u6216\u5728\u7D30\u7BC0\u8655\u7A4D\u805A\u7570\u5E38\u3002
+
+## \u5EFA\u8B70\u505A\u6CD5
+
+\u5C0D\u65BC\u65B0\u624B\uFF0C\u6700\u7A69\u59A5\u7684\u65B9\u6CD5\u662F\u9078\u8CFC\u5DF2\u901A\u904E PCGS \u6216 NGC \u8A55\u7D1A\u7684\u6C11\u570B\u9280\u5143\u3002\u96D6\u7136\u50F9\u683C\u8F03\u5E02\u5834\u6563\u8CA8\u7565\u9AD8\uFF0C\u4F46\u771F\u507D\u6709\u4FDD\u969C\uFF0C\u54C1\u76F8\u6709\u8A18\u9304\uFF0C\u8F49\u8B93\u6642\u4E5F\u66F4\u5177\u8AAA\u670D\u529B\u3002
+
+\u5728 hongxcollections.com \u8CFC\u8CB7\u6642\uFF0C\u53EF\u67E5\u770B\u8CE3\u5BB6\u7684\u6B77\u53F2\u8A55\u50F9\u53CA\u5546\u6236\u8A8D\u8B49\u72C0\u614B\uFF0C\u4E26\u512A\u5148\u9078\u64C7\u63D0\u4F9B\u9000\u63DB\u4FDD\u8B49\u7684\u5546\u6236\u3002\u5982\u5C0D\u771F\u507D\u6709\u7591\u554F\uFF0C\u6B61\u8FCE\u5728\u5E73\u53F0\u5167\u5411\u5546\u6236\u67E5\u8A62\u3002`
+          }
+        ];
+        for (const a of seedArticles) {
+          await pool.execute(
+            "INSERT IGNORE INTO articles (slug, title, excerpt, content, category, isPublished, publishedAt) VALUES (?, ?, ?, ?, ?, 1, NOW())",
+            [a.slug, a.title, a.excerpt, a.content, a.category]
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[Bootstrap] articles seed skipped:", e.message);
     }
     try {
       await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`);
@@ -8411,6 +8675,83 @@ async function getMatchingWTBsForListing(game, cardApiId, cardName) {
   );
   return Array.isArray(rows[0]) ? rows[0] : rows;
 }
+async function getAllArticles() {
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(
+    "SELECT id, slug, title, excerpt, category, isPublished, publishedAt, createdAt, updatedAt FROM articles ORDER BY createdAt DESC"
+  );
+  return rows ?? [];
+}
+async function getPublishedArticles() {
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(
+    "SELECT id, slug, title, excerpt, category, publishedAt, createdAt FROM articles WHERE isPublished = 1 ORDER BY publishedAt DESC, createdAt DESC"
+  );
+  return rows ?? [];
+}
+async function getArticleBySlug(slug) {
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(
+    "SELECT * FROM articles WHERE slug = ? AND isPublished = 1 LIMIT 1",
+    [slug]
+  );
+  return (rows ?? [])[0] ?? null;
+}
+async function createArticle(data) {
+  const pool = await getRawPool();
+  const [result] = await pool.execute(
+    "INSERT INTO articles (slug, title, excerpt, content, category, isPublished, publishedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [
+      data.slug,
+      data.title,
+      data.excerpt ?? null,
+      data.content,
+      data.category ?? null,
+      data.isPublished,
+      data.isPublished ? /* @__PURE__ */ new Date() : null
+    ]
+  );
+  return result.insertId;
+}
+async function updateArticle(id, data) {
+  const pool = await getRawPool();
+  const sets = [];
+  const params = [];
+  if (data.slug !== void 0) {
+    sets.push("slug = ?");
+    params.push(data.slug);
+  }
+  if (data.title !== void 0) {
+    sets.push("title = ?");
+    params.push(data.title);
+  }
+  if (data.excerpt !== void 0) {
+    sets.push("excerpt = ?");
+    params.push(data.excerpt);
+  }
+  if (data.content !== void 0) {
+    sets.push("content = ?");
+    params.push(data.content);
+  }
+  if (data.category !== void 0) {
+    sets.push("category = ?");
+    params.push(data.category);
+  }
+  if (data.isPublished !== void 0) {
+    sets.push("isPublished = ?");
+    params.push(data.isPublished);
+    if (data.isPublished) {
+      sets.push("publishedAt = COALESCE(publishedAt, NOW())");
+    }
+  }
+  if (sets.length === 0) return;
+  params.push(id);
+  await pool.execute(`UPDATE articles SET ${sets.join(", ")} WHERE id = ?`, params);
+}
+async function deleteArticle(id) {
+  const pool = await getRawPool();
+  await pool.execute("DELETE FROM articles WHERE id = ?", [id]);
+}
 var _db, _pool, ARCHIVED_SELECT, _depositTablesChecked, _subscriptionTablesChecked, _merchantSettingsTableChecked, MERCHANT_SETTINGS_DEFAULTS, _merchantProductsTableChecked, _ordersTableEnsured, FEATURED_TIER_PRICES, FEATURED_TIER_HOURS, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, _featuredTableChecked, _productGalleriesTableChecked, _galleryOrdersTableChecked;
 var init_db = __esm({
   "server/db.ts"() {
@@ -13938,6 +14279,39 @@ function extractVideoDurationSeconds(buf, mime) {
   }
 }
 var appRouter = router({
+  articles: router({
+    list: publicProcedure.query(async () => getPublishedArticles()),
+    get: publicProcedure.input(z2.object({ slug: z2.string().min(1) })).query(async ({ input }) => getArticleBySlug(input.slug)),
+    adminList: adminProcedure.query(async () => getAllArticles()),
+    create: adminProcedure.input(z2.object({
+      slug: z2.string().min(1).max(200),
+      title: z2.string().min(1).max(200),
+      excerpt: z2.string().max(500).optional(),
+      content: z2.string().min(1).max(2e4),
+      category: z2.string().max(50).optional(),
+      isPublished: z2.number().int().min(0).max(1)
+    })).mutation(async ({ input }) => {
+      const id = await createArticle(input);
+      return { id };
+    }),
+    update: adminProcedure.input(z2.object({
+      id: z2.number().int().positive(),
+      slug: z2.string().min(1).max(200).optional(),
+      title: z2.string().min(1).max(200).optional(),
+      excerpt: z2.string().max(500).nullable().optional(),
+      content: z2.string().min(1).max(2e4).optional(),
+      category: z2.string().max(50).nullable().optional(),
+      isPublished: z2.number().int().min(0).max(1).optional()
+    })).mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      await updateArticle(id, data);
+      return { ok: true };
+    }),
+    delete: adminProcedure.input(z2.object({ id: z2.number().int().positive() })).mutation(async ({ input }) => {
+      await deleteArticle(input.id);
+      return { ok: true };
+    })
+  }),
   system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

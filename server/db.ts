@@ -1697,6 +1697,250 @@ async function ensureDepositTables() {
     } catch {}
     try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN facebook VARCHAR(500)`); } catch {}
     try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN auctionClosingMessage TEXT`); } catch {}
+    // ── Knowledge base articles table ──────────────────────────────────────────
+    try {
+      await db.execute(sql`CREATE TABLE IF NOT EXISTS articles (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        slug VARCHAR(200) NOT NULL UNIQUE,
+        title VARCHAR(200) NOT NULL,
+        excerpt TEXT,
+        content TEXT NOT NULL,
+        category VARCHAR(50),
+        isPublished INT NOT NULL DEFAULT 0,
+        publishedAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT NOW(),
+        updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW()
+      )`);
+    } catch {}
+    // Seed default articles if table is empty
+    try {
+      const pool = await getRawPool();
+      const [rows]: any = await pool.execute('SELECT COUNT(*) as cnt FROM articles');
+      if ((rows?.[0]?.cnt ?? 0) === 0) {
+        const seedArticles = [
+          {
+            slug: 'coin-collecting-guide',
+            title: '香港錢幣收藏入門指南',
+            category: '入門',
+            excerpt: '踏入錢幣收藏世界的第一步——了解基本知識、選擇方向、建立自己的藏品系列。',
+            content: `錢幣收藏（Numismatics）是香港歷史最悠久的收藏愛好之一，吸引了數以萬計的本地藏家。無論你是剛入門的新手，還是希望系統化整理藏品的資深玩家，本文都能為你提供實用的入門指引。
+
+## 為什麼收藏錢幣？
+
+錢幣是歷史的縮影。一枚小小的銀元，可能記載著清朝末年的政治變遷；一張香港舊紙幣，承載着殖民地時代的集體記憶。收藏錢幣不單是興趣，更是一種對歷史文化的保存與傳承。
+
+## 選擇你的收藏方向
+
+新手最常見的錯誤，是什麼都想收，結果什麼都不精。建議先選定一個方向：
+
+- **香港本地錢幣**：港元硬幣、匯豐鈔票、渣打舊鈔，貼近本地歷史，容易入手
+- **民國銀元**：袁大頭、孫小頭、龍洋，存世量大，市場流通性高
+- **評級幣（PCGS / NGC）**：經第三方評級機構鑑定，品相有保障，適合投資導向的藏家
+- **外國錢幣**：英國、法國、日本等歷史銀幣，品相優良者升值潛力大
+
+## 入手第一枚錢幣
+
+建議從信譽良好的平台或商戶購入，避免在不明來源渠道買到贋品。購買前需留意：
+
+1. **品相（Grade）**：UNC（未流通）品相最高，EF（極美品）次之，VF（美品）再次，以此類推
+2. **真偽**：新手建議選擇已評級的錢幣，降低買到假貨的風險
+3. **市場價格**：多參考拍賣成交記錄，了解合理市場價
+
+## 保存與整理
+
+錢幣保存需避免潮濕、氧化及人手直接接觸。建議使用專用塑料幣盒或硬幣冊，並存放於乾燥環境。定期整理藏品，記錄每枚錢幣的來源、購入價及品相，有助日後管理及轉讓。
+
+## 加入社群
+
+錢幣收藏是一項需要交流的愛好。加入本地收藏社群，可以交流心得、互通消息，甚至以物易物。hongxcollections.com 提供安全透明的拍賣及交流平台，歡迎所有藏家參與。`,
+          },
+          {
+            slug: 'pcgs-ngc-grading-guide',
+            title: 'PCGS 與 NGC 評級幣完全攻略',
+            category: '評級',
+            excerpt: '評級幣是現代錢幣市場的主流。本文詳解 PCGS 和 NGC 兩大評級機構的評分制度，助你讀懂每一個分數。',
+            content: `評級幣（Slabbed Coin）是指經過第三方專業評級機構鑑定、封裝於透明硬盒（Slab）內的錢幣。對於注重品相保障和投資價值的藏家而言，評級幣是最理想的選擇。
+
+## 兩大主要評級機構
+
+### PCGS（Professional Coin Grading Service）
+成立於 1986 年，是全球規模最大、最具公信力的錢幣評級機構之一，總部位於美國加州。PCGS 評級的錢幣會封裝於藍色邊框的透明幣盒，正面印有評分及錢幣資料。
+
+### NGC（Numismatic Guaranty Corporation）
+成立於 1987 年，同樣是國際頂級評級機構，總部位於美國佛羅里達州。NGC 以黃色標籤作識別，在亞洲市場同樣廣受認可。
+
+## 評分制度（Sheldon Scale）
+
+兩大機構均採用由 0 至 70 的 Sheldon Scale 評分制度：
+
+| 分數 | 等級 | 描述 |
+|------|------|------|
+| 70 | Perfect Uncirculated | 完美無瑕，極稀有 |
+| 65-69 | Gem Uncirculated | 頂級未流通，細節完美 |
+| 60-64 | Uncirculated (MS/PR) | 未流通，可能有輕微瑕疵 |
+| 55-58 | About Uncirculated | 接近未流通，輕微流通痕跡 |
+| 45-50 | Extremely Fine (EF/XF) | 極美品，細節清晰 |
+| 30-40 | Very Fine (VF) | 美品，主要圖案清晰 |
+| 20-25 | Fine (F) | 中品，主要細節可見 |
+| 1-15 | Poor to Good | 低品相，識別用途 |
+
+## 如何讀懂幣盒資料
+
+以一枚典型評級幣為例，幣盒上會顯示：
+- **評級機構標誌**（PCGS / NGC）
+- **年份及發行地**（如：China 1934）
+- **面值或類型**（如：Dollar / Yuan）
+- **MS 65** 或 **PR 68**（MS = Mint State 未流通；PR = Proof 精製）
+- **認證號碼**（可在官方網站核實真偽）
+
+## 買評級幣的注意事項
+
+1. **核實認證號碼**：登入 PCGS.com 或 NGC.com，輸入認證號碼確認記錄相符
+2. **留意幣盒完整性**：幣盒不可有破裂、開膠或明顯人工開啟痕跡
+3. **了解評級的局限性**：評級反映品相，不代表錢幣一定具高價值，仍需考慮錢幣本身的稀有度及市場需求
+
+## 香港評級幣市場
+
+香港是亞洲重要的評級幣集散地，PCGS 及 NGC 均設有亞洲辦事處。本地藏家可透過 hongxcollections.com 等平台，購買或出售評級幣，享受安全透明的競投體驗。`,
+          },
+          {
+            slug: 'proxy-bidding-guide',
+            title: '代理投標詳解：如何在網上拍賣中安全出價',
+            category: '拍賣',
+            excerpt: '代理投標（Proxy Bid）讓你設定心理價位上限，系統自動代你出價，無需守在螢幕前。本文詳細解釋運作原理。',
+            content: `網上錢幣拍賣日益普及，但很多新手不明白如何善用「代理投標」功能，結果要時刻守在螢幕前，或因手慢而錯失心頭好。本文將詳細解釋代理投標的運作原理及使用技巧。
+
+## 什麼是代理投標？
+
+代理投標（Proxy Bid / Automatic Bid）是一種自動出價機制。你只需設定願意支付的最高金額，系統便會在競投過程中，以最低增幅自動代你出價，直至達到你的上限為止。
+
+**舉例說明：**
+- 拍賣底價：HKD $100
+- 你設定代理投標上限：HKD $300
+- 另一位買家出價 $150
+- 系統自動代你出價 $180（視乎每口加價幅度）
+- 對方繼續出價至 $250，系統自動加至 $280
+- 對方出價 $320，超出你的上限，你的代理投標停止
+
+## 代理投標的優勢
+
+1. **無需守候**：設定後可放心離開，系統全程代勞
+2. **理性出價**：預先決定上限，避免在競投熱情中衝動超出預算
+3. **防截標保護**：配合「防截標機制」，在拍賣最後數分鐘內若有新出價，系統會自動延長時間，確保公平競投
+
+## 防截標機制（Anti-Snipe）
+
+正規的拍賣平台設有防截標功能。當拍賣在最後幾分鐘（通常 3-5 分鐘）內收到新出價，系統會自動將結標時間延長同等分鐘數，避免有人在最後一刻「截標」。
+
+在 hongxcollections.com 上，防截標機制默認啟用，延長時間由商戶設定，確保每位競投者均有機會回應。
+
+## 使用代理投標的注意事項
+
+- **設定前三思**：代理投標一旦設定，系統即視為有效出價，請確保金額在自己的承受範圍內
+- **了解加價幅度**：每個拍賣的每口加價幅度（Bid Increment）不同，影響最終成交價
+- **確認網絡連線**：雖然代理投標無需守候，但建議在拍賣結束前確認系統正常運作
+- **留意結標通知**：得標後商戶會透過平台或 WhatsApp 聯絡，請確保聯絡資料正確
+
+## 在 hongxcollections.com 競投
+
+本平台支援代理投標功能，所有拍賣均設有防截標保護。登記帳號後即可參與競投，系統全程保護你的出價記錄，交收安排由商戶直接聯絡協調。`,
+          },
+          {
+            slug: 'coin-storage-guide',
+            title: '錢幣正確保存方法：清潔、收納與防潮',
+            category: '保養',
+            excerpt: '一枚品相完好的錢幣，價值可比同款低品相者高出數倍。正確的保存方法，是每位藏家必須掌握的基本功。',
+            content: `錢幣收藏最大的敵人，是時間與環境。氧化、潮濕、人手油脂，都能在短時間內令一枚完美銀幣失去光澤，大幅降低其收藏價值。本文將介紹正確的錢幣保存技巧，助你守護每一件珍貴藏品。
+
+## 絕對不要做的事
+
+在介紹正確方法前，先列出最常見的錯誤：
+
+- ❌ **用手直接觸碰幣面**：手指油脂會在幣面留下指紋，長期會導致腐蝕
+- ❌ **用布或紙隨意擦拭**：摩擦會在幣面留下肉眼難以察覺的細微刮痕，影響品相
+- ❌ **用清潔劑或酸性物品清洗**：化學物質會永久損壞幣面光澤，評級機構可輕易鑑別
+- ❌ **拋光或打磨**：任何人工拋光均會被評級機構判定為「Cleaned」，大幅降低評分
+
+## 正確的拿取方式
+
+拿取錢幣時，應以拇指和食指捏住錢幣邊緣（Edge），避免接觸幣面（Obverse 正面及 Reverse 背面）。如需長時間把玩，建議戴上白色棉質手套。
+
+## 存放工具
+
+### 幣盒（Coin Capsule / Slab）
+硬質透明幣盒是保存單枚珍貴錢幣的最佳選擇，可防止幣面受外力損傷及空氣氧化。市面上有多種尺寸，購買時需根據錢幣直徑選擇合適型號。
+
+### 幣冊（Coin Album）
+適合收納系列性藏品，如年份套裝或國家系列。選擇時注意幣冊夾頁需為 PVC-free（不含 PVC 材質），否則長期接觸會令錢幣產生化學反應。
+
+### 防潮箱
+對於高價值藏品，建議投資一個防潮箱，將濕度維持在 40-50%RH 之間。香港潮濕氣候下，這一步尤為重要。
+
+## 環境要求
+
+| 條件 | 建議範圍 |
+|------|---------|
+| 溫度 | 18-22°C |
+| 濕度 | 40-50% RH |
+| 光線 | 避免直射陽光 |
+| 空氣 | 通風，避免硫化物環境 |
+
+## 銀幣的特別注意
+
+銀幣特別容易氧化變黑（硫化銀反應）。存放銀幣時，可在幣盒內放置小量防氧化劑，或使用防硫化的專用收納袋。已出現輕微彩虹色（Toning）的銀幣，在藏家圈中反而可能被視為自然包漿，切勿嘗試人工去除。
+
+## 定期查驗
+
+建議每半年檢查一次藏品狀況，確認無潮濕、氧化或蟲害問題。發現異常應盡快採取適當措施，避免損失擴大。`,
+          },
+          {
+            slug: 'republican-silver-coins-guide',
+            title: '民國銀元辨偽指南：袁大頭與孫小頭',
+            category: '知識',
+            excerpt: '民國銀元是香港錢幣市場的熱門品種，但市面上贋品極多。本文教你從重量、聲音、圖案細節等多方面辨別真偽。',
+            content: `民國銀元，尤其是「袁大頭」（袁世凱像銀圓）和「孫小頭」（孫中山像銀圓），是香港及兩岸三地最受歡迎的錢幣收藏品種之一。然而，正因需求龐大，市面上的高仿贋品數量驚人，令不少新手蒙受損失。本文從多個角度教你辨別真偽。
+
+## 袁大頭簡介
+
+袁大頭是民國三至九年（1914-1920年）鑄造的銀圓，以正面鑄有袁世凱側面像而得名。標準規格為直徑 39mm，重量 26.86 克，含銀量 89%。主要版別包括民國三年、八年、九年及十年，其中三年版存世量較多，市場流通性最高。
+
+## 孫小頭簡介
+
+孫小頭是民國二十一至二十三年（1932-1934年）鑄造的銀圓，正面為孫中山側面像，背面為雙帆船圖案，又稱「船洋」。標準規格直徑 39mm，重量 26.7 克，含銀量 88%。
+
+## 辨偽方法
+
+### 1. 重量測試
+使用精密電子磅，真品重量誤差不超過 0.3 克。重量明顯偏輕（如 24 克以下）幾乎可斷定為鉛芯或鋅合金仿製品。
+
+### 2. 聲音測試（銀聲）
+將銀圓平放在手指尖，以另一枚銀幣輕敲，真品發出清脆悠長的「叮」聲，餘音持續 2-3 秒；假幣聲音沉悶短促，如「噹」聲。
+
+### 3. 圖案細節
+- **袁大頭**：真品袁世凱像的衣領及勳章細節清晰，頭髮絲絲分明；高仿品雖然外觀相似，但在放大鏡下可見細節模糊、線條不流暢
+- **孫小頭**：真品帆船的帆繩細節清晰，波浪線條自然；假品帆繩常有斷線或粗細不均的問題
+
+### 4. 邊齒（Reeding）
+真品邊齒均勻，深淺一致，邊緣線條清晰；假品邊齒常見粗細不均、深淺不一的問題。
+
+### 5. 包漿與氧化
+真品經歷百年流通，表面自然包漿層次豐富，顏色變化自然；人工做舊的假品，包漿顏色往往過於均勻或在細節處積聚異常。
+
+## 建議做法
+
+對於新手，最穩妥的方法是選購已通過 PCGS 或 NGC 評級的民國銀元。雖然價格較市場散貨略高，但真偽有保障，品相有記錄，轉讓時也更具說服力。
+
+在 hongxcollections.com 購買時，可查看賣家的歷史評價及商戶認證狀態，並優先選擇提供退換保證的商戶。如對真偽有疑問，歡迎在平台內向商戶查詢。`,
+          },
+        ];
+        for (const a of seedArticles) {
+          await pool.execute(
+            'INSERT IGNORE INTO articles (slug, title, excerpt, content, category, isPublished, publishedAt) VALUES (?, ?, ?, ?, ?, 1, NOW())',
+            [a.slug, a.title, a.excerpt, a.content, a.category]
+          );
+        }
+      }
+    } catch (e) { console.warn('[Bootstrap] articles seed skipped:', (e as Error).message); }
     // proxyBids: 加 unique constraint 防止 setProxyBid 重複插入（onDuplicateKeyUpdate 需要 unique key 才能 upsert）
     try { await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`); } catch {}
     // auctions.category: 從 ENUM 改為 VARCHAR(500)，以支援可設定的商品分類
@@ -8861,4 +9105,69 @@ export async function getMatchingWTBsForListing(game: string, cardApiId?: string
     params
   );
   return (Array.isArray(rows[0]) ? rows[0] : rows) as { userId: number }[];
+}
+
+// ─── Knowledge Base Articles CRUD ────────────────────────────────────────────
+export async function getAllArticles(): Promise<any[]> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    'SELECT id, slug, title, excerpt, category, isPublished, publishedAt, createdAt, updatedAt FROM articles ORDER BY createdAt DESC'
+  );
+  return rows ?? [];
+}
+
+export async function getPublishedArticles(): Promise<any[]> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    'SELECT id, slug, title, excerpt, category, publishedAt, createdAt FROM articles WHERE isPublished = 1 ORDER BY publishedAt DESC, createdAt DESC'
+  );
+  return rows ?? [];
+}
+
+export async function getArticleBySlug(slug: string): Promise<any | null> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    'SELECT * FROM articles WHERE slug = ? AND isPublished = 1 LIMIT 1',
+    [slug]
+  );
+  return (rows ?? [])[0] ?? null;
+}
+
+export async function createArticle(data: {
+  slug: string; title: string; excerpt?: string; content: string;
+  category?: string; isPublished: number;
+}): Promise<number> {
+  const pool = await getRawPool();
+  const [result]: any = await pool.execute(
+    'INSERT INTO articles (slug, title, excerpt, content, category, isPublished, publishedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [data.slug, data.title, data.excerpt ?? null, data.content, data.category ?? null,
+     data.isPublished, data.isPublished ? new Date() : null]
+  );
+  return result.insertId;
+}
+
+export async function updateArticle(id: number, data: {
+  slug?: string; title?: string; excerpt?: string | null; content?: string;
+  category?: string | null; isPublished?: number;
+}): Promise<void> {
+  const pool = await getRawPool();
+  const sets: string[] = [];
+  const params: any[] = [];
+  if (data.slug !== undefined) { sets.push('slug = ?'); params.push(data.slug); }
+  if (data.title !== undefined) { sets.push('title = ?'); params.push(data.title); }
+  if (data.excerpt !== undefined) { sets.push('excerpt = ?'); params.push(data.excerpt); }
+  if (data.content !== undefined) { sets.push('content = ?'); params.push(data.content); }
+  if (data.category !== undefined) { sets.push('category = ?'); params.push(data.category); }
+  if (data.isPublished !== undefined) {
+    sets.push('isPublished = ?'); params.push(data.isPublished);
+    if (data.isPublished) { sets.push('publishedAt = COALESCE(publishedAt, NOW())'); }
+  }
+  if (sets.length === 0) return;
+  params.push(id);
+  await pool.execute(`UPDATE articles SET ${sets.join(', ')} WHERE id = ?`, params);
+}
+
+export async function deleteArticle(id: number): Promise<void> {
+  const pool = await getRawPool();
+  await pool.execute('DELETE FROM articles WHERE id = ?', [id]);
 }

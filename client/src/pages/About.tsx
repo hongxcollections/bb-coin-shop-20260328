@@ -85,7 +85,26 @@ export default function About() {
             </ul>
           </section>
 
-          <section className="pt-4 border-t border-border text-xs text-muted-foreground flex gap-4">
+          {/* Knowledge Base Link */}
+          <section className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">📚</span>
+              <div>
+                <h2 className="font-semibold text-base mb-1">錢幣知識庫</h2>
+                <p className="text-sm text-muted-foreground mb-3">
+                  收藏入門、評級攻略、保養指南——探索我們精心整理的錢幣收藏知識文章，助你成為更出色的藏家。
+                </p>
+                <Link href="/guides">
+                  <a className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
+                    瀏覽知識庫文章 →
+                  </a>
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section className="pt-4 border-t border-border text-xs text-muted-foreground flex gap-4 flex-wrap">
+            <Link href="/guides" className="hover:text-amber-600 transition-colors underline">知識庫</Link>
             <Link href="/terms" className="hover:text-amber-600 transition-colors underline">服務條款</Link>
             <Link href="/privacy" className="hover:text-amber-600 transition-colors underline">隱私政策</Link>
             <Link href="/" className="hover:text-amber-600 transition-colors underline">返回首頁</Link>

@@ -902,3 +902,19 @@ export const groupAuctionColorRuleTemplates = mysqlTable("groupAuctionColorRuleT
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type GroupAuctionColorRuleTemplate = typeof groupAuctionColorRuleTemplates.$inferSelect;
+
+// ─── Knowledge Base Articles ──────────────────────────────────────────────────
+export const articles = mysqlTable("articles", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 200 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  excerpt: text("excerpt"),
+  content: text("content").notNull(),
+  category: varchar("category", { length: 50 }),
+  isPublished: int("isPublished").notNull().default(0),
+  publishedAt: timestamp("publishedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Article = typeof articles.$inferSelect;
+export type InsertArticle = typeof articles.$inferInsert;
