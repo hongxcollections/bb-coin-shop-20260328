@@ -58,6 +58,7 @@ import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToEndpoint } from "./push";
 import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, getMyAutoBidStatus, enforceAutoBidLimit, enforceAnonymousBidPermission, type LoyaltyConfig } from "./loyalty";
 import { ENV } from "./_core/env";
+import { sendCapiPurchase, sendCapiContact } from "./facebookCapi";
 import type { IncomingMessage } from "http";
 import { invokeLLM } from "./_core/llm";
 import type { InvokeParams, InvokeResult } from "./_core/llm";
@@ -397,6 +398,8 @@ export const appRouter = router({
         bidAmount: z.number().positive(),
         origin: z.string().optional(),
         isAnonymous: z.number().int().min(0).max(1).optional(),
+        // 客戶端 Pixel 使用的 event_id（用於 Facebook CAPI 去重）
+        fbEventId: z.string().max(64).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         // 停權檢查
@@ -465,7 +468,25 @@ export const appRouter = router({
               }
             }
           } catch {}
-          return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
+          // ── Facebook CAPI：Purchase（出價成功）────────────────────────────
+          const bidEventId = input.fbEventId ?? crypto.randomUUID();
+          sendCapiPurchase({
+            eventId: bidEventId,
+            user: {
+              userId: ctx.user.id,
+              email: ctx.user.email ?? undefined,
+              phone: ctx.user.phone ?? undefined,
+              name: (ctx.user as any).name ?? undefined,
+            },
+            data: {
+              value: input.bidAmount,
+              currency: auctionForBid?.currency ?? 'HKD',
+              contentName: auctionForBid?.title ?? `Auction #${input.auctionId}`,
+              contentIds: [String(input.auctionId)],
+            },
+            req: ctx.req as IncomingMessage,
+          });
+          return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes, fbEventId: bidEventId };
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to place bid';
           throw new TRPCError({ code: 'BAD_REQUEST', message });
@@ -5231,6 +5252,8 @@ export const appRouter = router({
         quantity: z.number().min(1).max(99).default(1),
         buyerNote: z.string().max(500).optional(),
         buyerPushEndpoint: z.string().url().optional(), // 買家當前瀏覽器的推送識別碼
+        // 客戶端 Pixel 使用的 event_id（用於 Facebook CAPI 去重）
+        fbEventId: z.string().max(64).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const product = await getMerchantProduct(input.productId);
@@ -5291,7 +5314,27 @@ export const appRouter = router({
           sendPushToUser(ctx.user.id, buyerPayload).catch(() => {});
         }
 
-        return { orderId };
+        // ── Facebook CAPI：Purchase（商品落單成功）──────────────────────────
+        const orderEventId = input.fbEventId ?? crypto.randomUUID();
+        sendCapiPurchase({
+          eventId: orderEventId,
+          user: {
+            userId: ctx.user.id,
+            email: ctx.user.email ?? undefined,
+            phone: ctx.user.phone ?? undefined,
+            name: (ctx.user as any).name ?? undefined,
+          },
+          data: {
+            value: parseFloat(String(product.price)) * input.quantity,
+            currency: product.currency ?? 'HKD',
+            contentName: product.title,
+            contentIds: [String(product.id)],
+            orderId: String(orderId),
+          },
+          req: ctx.req as IncomingMessage,
+        });
+
+        return { orderId, fbEventId: orderEventId };
       }),
 
     /** 商戶：確認成交（同時扣傭金） */
@@ -7804,6 +7847,20 @@ ${kb}`;
 
         const result = await getOrCreateChatRoom(input.auctionId, ctx.user.id, auction.createdBy);
         if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
+        // ── Facebook CAPI：Contact（買家首次開對話） ─────────────────────────
+        if (result.isNew) {
+          const contactEventId = crypto.randomUUID();
+          sendCapiContact({
+            eventId: contactEventId,
+            user: {
+              userId: ctx.user.id,
+              email: ctx.user.email ?? undefined,
+              phone: ctx.user.phone ?? undefined,
+            },
+            data: { contentName: auction.title ?? `Auction #${input.auctionId}` },
+            req: ctx.req as IncomingMessage,
+          });
+        }
         return { roomId: result.room.id, isNew: result.isNew };
       }),
 
@@ -7827,6 +7884,20 @@ ${kb}`;
         const sentinelId = -input.merchantId;
         const result = await getOrCreateChatRoom(sentinelId, ctx.user.id, input.merchantId);
         if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
+        // ── Facebook CAPI：Contact（買家首次開對話） ─────────────────────────
+        if (result.isNew) {
+          const contactEventId = crypto.randomUUID();
+          sendCapiContact({
+            eventId: contactEventId,
+            user: {
+              userId: ctx.user.id,
+              email: ctx.user.email ?? undefined,
+              phone: ctx.user.phone ?? undefined,
+            },
+            data: { contentName: input.productTitle ?? `Merchant #${input.merchantId}` },
+            req: ctx.req as IncomingMessage,
+          });
+        }
         return { roomId: result.room.id, isNew: result.isNew };
       }),
 
@@ -8425,6 +8496,24 @@ ${kb}`;
             WHERE id = ${offer.id} AND status = 'converting'
           `);
         }
+        // ── Facebook CAPI：Purchase（排價成交落單）──────────────────────────
+        sendCapiPurchase({
+          eventId: crypto.randomUUID(),
+          user: {
+            userId: ctx.user.id,
+            email: ctx.user.email ?? undefined,
+            phone: ctx.user.phone ?? undefined,
+            name: (ctx.user as any).name ?? undefined,
+          },
+          data: {
+            value: Number(offer.amount),
+            currency: offer.currency,
+            contentName: (product as any).title ?? `Product #${offer.productId}`,
+            contentIds: [String(offer.productId)],
+            orderId: String(orderId),
+          },
+          req: ctx.req as IncomingMessage,
+        });
         return { orderId };
       }),
   }),

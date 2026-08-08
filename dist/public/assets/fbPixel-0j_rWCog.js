@@ -1,1 +1,0 @@
-function n(...t){typeof window<"u"&&typeof window.fbq=="function"&&window.fbq(...t)}function c(t){n("track","ViewContent",{currency:"HKD",...t})}function a(t){n("track","Search",{search_string:t})}function i(t){n("track","AddToWishlist",{currency:"HKD",...t})}function o(){n("track","Contact")}export{i as a,o as b,a as c,c as t};

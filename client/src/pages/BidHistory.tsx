@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
 import Header from "@/components/Header";
+import { trackPurchase } from "@/lib/fbPixel";
 
 function ConfirmActionDialog({
   open,
@@ -391,9 +392,16 @@ function toWhatsAppUrl(phone: string, message: string): string {
 function WonAuctionItem({ item }: { item: WonAuctionItemType }) {
   const utils = trpc.useUtils();
   const updateStatus = trpc.wonAuctions.updatePaymentStatus.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       utils.wonAuctions.myWon.invalidate();
       toast.success('付款狀態已更新！');
+      // 買家標記已付款 → 上報 Facebook Purchase 事件
+      if (variables.status === 'paid') {
+        trackPurchase({
+          value: Number(item.winningAmount),
+          content_name: item.title,
+        });
+      }
     },
     onError: (err) => toast.error(err.message),
   });

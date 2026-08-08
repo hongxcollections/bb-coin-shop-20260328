@@ -31,6 +31,9 @@ export const ENV = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
   facebookAppId: process.env.FACEBOOK_APP_ID ?? "",
   facebookAppSecret: process.env.FACEBOOK_APP_SECRET ?? "",
+  // Facebook Conversions API access token（伺服器端事件上報）
+  // 生產環境用 FACEBOOK_ACCESS_TOKEN；測試用 FACEBOOK_DEBUG_ACCESS_TOKEN
+  facebookAccessToken: process.env.FACEBOOK_ACCESS_TOKEN || process.env.FACEBOOK_DEBUG_ACCESS_TOKEN || "",
   s3AccessKey: process.env.S3_ACCESS_KEY ?? "",
   s3SecretKey: process.env.S3_SECRET_KEY ?? "",
   s3Bucket: process.env.S3_BUCKET ?? "",

@@ -2033,7 +2033,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 disabled={page === 0}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 className="border-amber-200 text-amber-700 hover:bg-amber-50 rounded-full"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -2045,7 +2045,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 disabled={page === totalPages - 1}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => { setPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 className="border-amber-200 text-amber-700 hover:bg-amber-50 rounded-full"
               >
                 <ChevronRight className="w-4 h-4" />

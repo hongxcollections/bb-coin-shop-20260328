@@ -854,6 +854,9 @@ var init_env = __esm({
       googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       facebookAppId: process.env.FACEBOOK_APP_ID ?? "",
       facebookAppSecret: process.env.FACEBOOK_APP_SECRET ?? "",
+      // Facebook Conversions API access token（伺服器端事件上報）
+      // 生產環境用 FACEBOOK_ACCESS_TOKEN；測試用 FACEBOOK_DEBUG_ACCESS_TOKEN
+      facebookAccessToken: process.env.FACEBOOK_ACCESS_TOKEN || process.env.FACEBOOK_DEBUG_ACCESS_TOKEN || "",
       s3AccessKey: process.env.S3_ACCESS_KEY ?? "",
       s3SecretKey: process.env.S3_SECRET_KEY ?? "",
       s3Bucket: process.env.S3_BUCKET ?? "",
@@ -13711,6 +13714,123 @@ init_push();
 init_loyalty();
 init_env();
 import { TRPCError as TRPCError3 } from "@trpc/server";
+
+// server/facebookCapi.ts
+import { createHash } from "crypto";
+var PIXEL_ID = "959625897053104";
+var CAPI_URL = `https://graph.facebook.com/v20.0/${PIXEL_ID}/events`;
+function sha256(value) {
+  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
+}
+function getClientIp2(req) {
+  if (!req) return void 0;
+  const forwarded = req.headers["x-forwarded-for"]?.split(",")[0]?.trim();
+  return forwarded || (req.socket?.remoteAddress ?? void 0);
+}
+function getUserAgent(req) {
+  return req?.headers["user-agent"] ?? void 0;
+}
+function getFbCookies(req) {
+  if (!req) return {};
+  const cookieHeader = req.headers["cookie"] ?? "";
+  const fbp = cookieHeader.match(/_fbp=([^;]+)/)?.[1];
+  const fbc = cookieHeader.match(/_fbc=([^;]+)/)?.[1];
+  return { fbp, fbc };
+}
+function sendCapiPurchase(opts) {
+  _sendEvent({
+    event_name: "Purchase",
+    event_id: opts.eventId,
+    user: opts.user,
+    req: opts.req,
+    custom_data: {
+      value: opts.data.value,
+      currency: opts.data.currency,
+      content_name: opts.data.contentName,
+      content_ids: opts.data.contentIds ?? [],
+      content_type: "product",
+      order_id: opts.data.orderId
+    }
+  });
+}
+function sendCapiContact(opts) {
+  _sendEvent({
+    event_name: "Contact",
+    event_id: opts.eventId,
+    user: opts.user,
+    req: opts.req,
+    custom_data: opts.data?.contentName ? { content_name: opts.data.contentName } : void 0
+  });
+}
+function _sendEvent(payload) {
+  const accessToken = process.env.FACEBOOK_ACCESS_TOKEN || process.env.FACEBOOK_DEBUG_ACCESS_TOKEN;
+  if (!accessToken) {
+    return;
+  }
+  _doSend(payload, accessToken).catch((err) => {
+    console.warn("[CAPI] Failed to send event:", payload.event_name, err?.message ?? err);
+  });
+}
+async function _doSend(payload, accessToken) {
+  const now = Math.floor(Date.now() / 1e3);
+  const ip = getClientIp2(payload.req);
+  const ua = getUserAgent(payload.req);
+  const { fbp, fbc } = getFbCookies(payload.req);
+  const userData = {
+    client_ip_address: ip,
+    client_user_agent: ua,
+    fbp,
+    fbc
+  };
+  if (payload.user.email) {
+    userData.em = sha256(payload.user.email);
+  }
+  if (payload.user.phone) {
+    const phone = payload.user.phone.replace(/\D/g, "");
+    if (phone.length >= 8) userData.ph = sha256(phone);
+  }
+  if (payload.user.userId) {
+    userData.external_id = sha256(String(payload.user.userId));
+  }
+  const cleanUserData = Object.fromEntries(
+    Object.entries(userData).filter(([, v]) => v !== void 0)
+  );
+  const eventData = {
+    event_name: payload.event_name,
+    event_time: now,
+    event_id: payload.event_id,
+    action_source: "website",
+    user_data: cleanUserData
+  };
+  if (payload.custom_data) {
+    eventData.custom_data = Object.fromEntries(
+      Object.entries(payload.custom_data).filter(([, v]) => v !== void 0)
+    );
+  }
+  const body = {
+    data: [eventData],
+    access_token: accessToken
+  };
+  if (process.env.FACEBOOK_TEST_EVENT_CODE) {
+    body.test_event_code = process.env.FACEBOOK_TEST_EVENT_CODE;
+  }
+  const resp = await fetch(CAPI_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    const text2 = await resp.text().catch(() => "");
+    console.warn(`[CAPI] HTTP ${resp.status} for ${payload.event_name}:`, text2.slice(0, 300));
+  } else {
+    const isDebug = !!process.env.FACEBOOK_DEBUG_ACCESS_TOKEN;
+    if (isDebug || process.env.NODE_ENV !== "production") {
+      console.log(`[CAPI] Sent ${payload.event_name} (event_id=${payload.event_id})`);
+    }
+  }
+}
+
+// server/routers.ts
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
@@ -13996,7 +14116,9 @@ var appRouter = router({
       auctionId: z2.number(),
       bidAmount: z2.number().positive(),
       origin: z2.string().optional(),
-      isAnonymous: z2.number().int().min(0).max(1).optional()
+      isAnonymous: z2.number().int().min(0).max(1).optional(),
+      // 客戶端 Pixel 使用的 event_id（用於 Facebook CAPI 去重）
+      fbEventId: z2.string().max(64).optional()
     })).mutation(async ({ input, ctx }) => {
       if (ctx.user.isBanned === 1) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u60A8\u7684\u5E33\u865F\u5DF2\u88AB\u505C\u6B0A\uFF0C\u7121\u6CD5\u9032\u884C\u51FA\u50F9" });
@@ -14056,7 +14178,24 @@ var appRouter = router({
           }
         } catch {
         }
-        return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
+        const bidEventId = input.fbEventId ?? crypto.randomUUID();
+        sendCapiPurchase({
+          eventId: bidEventId,
+          user: {
+            userId: ctx.user.id,
+            email: ctx.user.email ?? void 0,
+            phone: ctx.user.phone ?? void 0,
+            name: ctx.user.name ?? void 0
+          },
+          data: {
+            value: input.bidAmount,
+            currency: auctionForBid?.currency ?? "HKD",
+            contentName: auctionForBid?.title ?? `Auction #${input.auctionId}`,
+            contentIds: [String(input.auctionId)]
+          },
+          req: ctx.req
+        });
+        return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes, fbEventId: bidEventId };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to place bid";
         throw new TRPCError3({ code: "BAD_REQUEST", message });
@@ -17977,8 +18116,10 @@ var appRouter = router({
       productId: z2.number(),
       quantity: z2.number().min(1).max(99).default(1),
       buyerNote: z2.string().max(500).optional(),
-      buyerPushEndpoint: z2.string().url().optional()
+      buyerPushEndpoint: z2.string().url().optional(),
       // 買家當前瀏覽器的推送識別碼
+      // 客戶端 Pixel 使用的 event_id（用於 Facebook CAPI 去重）
+      fbEventId: z2.string().max(64).optional()
     })).mutation(async ({ input, ctx }) => {
       const product = await getMerchantProduct(input.productId);
       if (!product) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u4E0D\u5230\u5546\u54C1" });
@@ -18033,7 +18174,25 @@ var appRouter = router({
         sendPushToUser(ctx.user.id, buyerPayload).catch(() => {
         });
       }
-      return { orderId };
+      const orderEventId = input.fbEventId ?? crypto.randomUUID();
+      sendCapiPurchase({
+        eventId: orderEventId,
+        user: {
+          userId: ctx.user.id,
+          email: ctx.user.email ?? void 0,
+          phone: ctx.user.phone ?? void 0,
+          name: ctx.user.name ?? void 0
+        },
+        data: {
+          value: parseFloat(String(product.price)) * input.quantity,
+          currency: product.currency ?? "HKD",
+          contentName: product.title,
+          contentIds: [String(product.id)],
+          orderId: String(orderId)
+        },
+        req: ctx.req
+      });
+      return { orderId, fbEventId: orderEventId };
     }),
     /** 商戶：確認成交（同時扣傭金） */
     confirm: protectedProcedure.input(z2.object({ orderId: z2.number(), finalPrice: z2.number().positive().optional() })).mutation(async ({ input, ctx }) => {
@@ -20196,6 +20355,19 @@ ${kb}`;
       }
       const result = await getOrCreateChatRoom2(input.auctionId, ctx.user.id, auction.createdBy);
       if (!result) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "\u5EFA\u7ACB\u5C0D\u8A71\u5931\u6557" });
+      if (result.isNew) {
+        const contactEventId = crypto.randomUUID();
+        sendCapiContact({
+          eventId: contactEventId,
+          user: {
+            userId: ctx.user.id,
+            email: ctx.user.email ?? void 0,
+            phone: ctx.user.phone ?? void 0
+          },
+          data: { contentName: auction.title ?? `Auction #${input.auctionId}` },
+          req: ctx.req
+        });
+      }
       return { roomId: result.room.id, isNew: result.isNew };
     }),
     /** 商品查詢：直接開商戶對話（唔需要拍賣 ID，用 auctionId=-merchantId 作 sentinel） */
@@ -20215,6 +20387,19 @@ ${kb}`;
       const sentinelId = -input.merchantId;
       const result = await getOrCreateChatRoom2(sentinelId, ctx.user.id, input.merchantId);
       if (!result) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "\u5EFA\u7ACB\u5C0D\u8A71\u5931\u6557" });
+      if (result.isNew) {
+        const contactEventId = crypto.randomUUID();
+        sendCapiContact({
+          eventId: contactEventId,
+          user: {
+            userId: ctx.user.id,
+            email: ctx.user.email ?? void 0,
+            phone: ctx.user.phone ?? void 0
+          },
+          data: { contentName: input.productTitle ?? `Merchant #${input.merchantId}` },
+          req: ctx.req
+        });
+      }
       return { roomId: result.room.id, isNew: result.isNew };
     }),
     /** 取得 room 詳情 + 訊息列表 (僅參與者) */
@@ -20714,6 +20899,23 @@ ${kb}`;
             WHERE id = ${offer.id} AND status = 'converting'
           `);
       }
+      sendCapiPurchase({
+        eventId: crypto.randomUUID(),
+        user: {
+          userId: ctx.user.id,
+          email: ctx.user.email ?? void 0,
+          phone: ctx.user.phone ?? void 0,
+          name: ctx.user.name ?? void 0
+        },
+        data: {
+          value: Number(offer.amount),
+          currency: offer.currency,
+          contentName: product.title ?? `Product #${offer.productId}`,
+          contentIds: [String(offer.productId)],
+          orderId: String(orderId)
+        },
+        req: ctx.req
+      });
       return { orderId };
     })
   }),
