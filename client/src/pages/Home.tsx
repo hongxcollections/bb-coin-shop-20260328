@@ -1216,6 +1216,15 @@ export default function Home() {
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(0);
   const auctionSectionRef = useRef<HTMLElement>(null);
+  const pageTopRef = useRef<HTMLDivElement>(null);
+  const scrollToPageTop = () => {
+    requestAnimationFrame(() => {
+      pageTopRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    });
+  };
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [auctionListOpen, setAuctionListOpen] = useState(false);
   const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
@@ -1483,7 +1492,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen home-bg overflow-x-hidden">
+    <div className="min-h-screen home-bg overflow-x-hidden" ref={pageTopRef}>
       {/* 落單彈窗 */}
       {buyingProduct && <FeaturedBuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
 
@@ -2034,7 +2043,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 disabled={page === 0}
-                onClick={() => { setPage(p => p - 1); auctionSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                onClick={() => { setPage(p => p - 1); scrollToPageTop(); }}
                 className="border-amber-200 text-amber-700 hover:bg-amber-50 rounded-full"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -2046,7 +2055,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 disabled={page === totalPages - 1}
-                onClick={() => { setPage(p => p + 1); auctionSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                onClick={() => { setPage(p => p + 1); scrollToPageTop(); }}
                 className="border-amber-200 text-amber-700 hover:bg-amber-50 rounded-full"
               >
                 <ChevronRight className="w-4 h-4" />
