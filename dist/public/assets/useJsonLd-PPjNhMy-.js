@@ -1,0 +1,1 @@
+import{r}from"./index-UpgR66GS.js";function i(n,t){r.useEffect(()=>{if(!n)return;let e=document.getElementById(t);return e||(e=document.createElement("script"),e.id=t,e.type="application/ld+json",document.head.appendChild(e)),e.textContent=JSON.stringify(n),()=>{const o=document.getElementById(t);o&&o.remove()}},[JSON.stringify(n),t])}export{i as u};

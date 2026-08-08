@@ -1215,16 +1215,6 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(0);
-  const auctionSectionRef = useRef<HTMLElement>(null);
-  const pageTopRef = useRef<HTMLDivElement>(null);
-  const scrollToPageTop = () => {
-    requestAnimationFrame(() => {
-      pageTopRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
-      window.scrollTo(0, 0);
-      document.body.scrollTop = 0;
-      document.documentElement.scrollTop = 0;
-    });
-  };
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [auctionListOpen, setAuctionListOpen] = useState(false);
   const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
@@ -1492,7 +1482,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen home-bg overflow-x-hidden" ref={pageTopRef}>
+    <div className="min-h-screen home-bg overflow-x-hidden">
       {/* 落單彈窗 */}
       {buyingProduct && <FeaturedBuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
 
@@ -1839,7 +1829,7 @@ export default function Home() {
       </section>
 
       {/* ── Section 3: Auction List (Main Content) ── */}
-      <section className="py-3" ref={auctionSectionRef}>
+      <section className="py-3">
         <div className="container">
           {/* Header */}
           <div className="flex items-center gap-3 mb-3">
@@ -2043,7 +2033,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 disabled={page === 0}
-                onClick={() => { setPage(p => p - 1); scrollToPageTop(); }}
+                onClick={() => setPage(p => p - 1)}
                 className="border-amber-200 text-amber-700 hover:bg-amber-50 rounded-full"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -2055,7 +2045,7 @@ export default function Home() {
                 variant="outline"
                 size="icon"
                 disabled={page === totalPages - 1}
-                onClick={() => { setPage(p => p + 1); scrollToPageTop(); }}
+                onClick={() => setPage(p => p + 1)}
                 className="border-amber-200 text-amber-700 hover:bg-amber-50 rounded-full"
               >
                 <ChevronRight className="w-4 h-4" />
