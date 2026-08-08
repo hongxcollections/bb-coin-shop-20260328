@@ -32,12 +32,15 @@ export default function AdSenseAd({ slot, format = "auto", width, height, classN
   const isFixed = width !== undefined && height !== undefined;
 
   return (
-    <div className={`overflow-hidden ${className}`}>
+    <div
+      className={`overflow-hidden ${className}`}
+      style={isFixed ? undefined : { width: "100%", minHeight: "50px" }}
+    >
       <ins
         className="adsbygoogle"
         style={isFixed
           ? { display: "inline-block", width: `${width}px`, height: `${height}px` }
-          : { display: "block" }}
+          : { display: "block", width: "100%" }}
         data-ad-client={publisherId}
         data-ad-slot={slot}
         {...(!isFixed && { "data-ad-format": format, "data-full-width-responsive": "true" })}
