@@ -300,7 +300,7 @@ export default function BottomNav() {
                           {isMerchant && (
                             <Link
                               href="/merchant-dashboard"
-                              onClick={() => setShowMore(false)}
+                              onClick={() => { setShowMore(false); window.scrollTo(0, 0); document.body.scrollTop = 0; document.documentElement.scrollTop = 0; }}
                               className="bottom-nav-more-item"
                             >
                               <LayoutDashboard className="w-4 h-4" />
@@ -361,7 +361,7 @@ export default function BottomNav() {
                 key={item.label}
                 href={item.path!}
                 className="bottom-nav-item"
-                onClick={item.path === "/" ? () => { window.scrollTo({ top: 0, behavior: "smooth" }); window.dispatchEvent(new CustomEvent("bottom-nav-home")); } : undefined}
+                onClick={() => { window.scrollTo(0, 0); document.body.scrollTop = 0; document.documentElement.scrollTop = 0; if (item.path === "/") window.dispatchEvent(new CustomEvent("bottom-nav-home")); }}
               >
                 <div className={`bottom-nav-btn ${active ? "bottom-nav-active" : ""}`}>
                   <item.icon className={`bottom-nav-icon ${active ? "bottom-nav-icon-active" : ""}`} />
