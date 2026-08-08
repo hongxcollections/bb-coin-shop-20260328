@@ -440,6 +440,24 @@
   font-weight: 600;
 }
 
+/* ── 商戶後台：拍賣管理 待確認訂單 閃亮提示 ── */
+@keyframes merchant-auction-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0), 0 0 8px 2px rgba(251,191,36,0.25); }
+  50%       { box-shadow: 0 0 0 4px rgba(251,191,36,0.18), 0 0 18px 6px rgba(251,191,36,0.45); }
+}
+.merchant-auction-pending {
+  animation: merchant-auction-glow 1.4s ease-in-out infinite;
+}
+.merchant-auction-shimmer-text {
+  background: linear-gradient(90deg, #92400e 0%, #f59e0b 35%, #fcd34d 50%, #f59e0b 65%, #92400e 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-sweep 1.4s linear infinite;
+  font-weight: 700;
+}
+
 /* ── Bid Message Fade In / Fade Out ───────────────────── */
 @keyframes bid-msg-in {
   0%   { opacity: 0; transform: translateY(-12px) scale(0.94); }

@@ -322,6 +322,13 @@ export default function MerchantDashboard() {
     enabled: isAuthenticated,
     refetchInterval: 60_000,
   });
+  const { data: auctionOrderPending } = trpc.auctionOrders.myPendingCount.useQuery(undefined, {
+    enabled: isAuthenticated,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const pendingAuctionOrderCount = Number(auctionOrderPending ?? 0);
+
   const { data: myApp, isLoading: loadingApp } = trpc.merchants.myApplication.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -690,13 +697,18 @@ export default function MerchantDashboard() {
         {/* ── 快速功能入口 ── */}
         <div className="grid grid-cols-2 gap-3">
           <Link href="/merchant-auctions">
-            <div className="rounded-2xl bg-white border border-amber-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <Gavel className="w-5 h-5 text-amber-600" />
+            <div className={`relative rounded-2xl bg-white p-4 flex items-center gap-3 cursor-pointer transition-colors ${pendingAuctionOrderCount > 0 ? "border-2 border-amber-400 merchant-auction-pending hover:border-amber-500" : "border border-amber-100 hover:border-amber-300 hover:bg-amber-50/50"}`}>
+              {pendingAuctionOrderCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center leading-4 z-10">
+                  {pendingAuctionOrderCount > 99 ? "99+" : pendingAuctionOrderCount}
+                </span>
+              )}
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${pendingAuctionOrderCount > 0 ? "bg-amber-400" : "bg-amber-100"}`}>
+                <Gavel className={`w-5 h-5 ${pendingAuctionOrderCount > 0 ? "text-white" : "text-amber-600"}`} />
               </div>
               <div>
-                <p className="font-semibold text-sm text-amber-900">拍賣管理</p>
-                <p className="text-xs text-gray-400 mt-0.5">刊登 · 草稿 · 封存</p>
+                <p className={`font-semibold text-sm ${pendingAuctionOrderCount > 0 ? "merchant-auction-shimmer-text" : "text-amber-900"}`}>拍賣管理</p>
+                <p className="text-xs text-gray-400 mt-0.5">{pendingAuctionOrderCount > 0 ? `${pendingAuctionOrderCount} 張訂單待確認` : "刊登 · 草稿 · 封存"}</p>
               </div>
             </div>
           </Link>
