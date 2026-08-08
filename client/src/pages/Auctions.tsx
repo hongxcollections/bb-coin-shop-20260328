@@ -611,7 +611,7 @@ export default function Auctions() {
               variant="outline"
               size="sm"
               disabled={page === 0}
-              onClick={() => setPage(p => p - 1)}
+              onClick={() => { setPage(p => p - 1); requestAnimationFrame(() => { window.scrollTo(0, 0); document.body.scrollTop = 0; document.documentElement.scrollTop = 0; }); }}
               className="border-amber-200"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -623,7 +623,7 @@ export default function Auctions() {
               variant="outline"
               size="sm"
               disabled={page >= totalPages - 1}
-              onClick={() => setPage(p => p + 1)}
+              onClick={() => { setPage(p => p + 1); requestAnimationFrame(() => { window.scrollTo(0, 0); document.body.scrollTop = 0; document.documentElement.scrollTop = 0; }); }}
               className="border-amber-200"
             >
               <ChevronRight className="w-4 h-4" />
