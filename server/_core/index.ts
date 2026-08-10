@@ -1326,6 +1326,16 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // www.hongxcollections.com → 301 redirect → hongxcollections.com
+  // 301 (永久) 確保 Google 把 canonical 歸一到 non-www，消除重複網頁問題。
+  app.use((req, res, next) => {
+    const host = (req.get("host") || "").toLowerCase();
+    if (host === "www.hongxcollections.com") {
+      return res.redirect(301, `https://hongxcollections.com${req.originalUrl}`);
+    }
+    next();
+  });
+
   // share.hongxcollections.com 唔經 CF zone（DNS-only CNAME 直指 Railway）。
   // 用嚟畀 FB / Twitter / WhatsApp / Threads scraper bypass CF edge block。
   // 真人 browser 訪問 → 302 redirect 返主站（保持靚 URL + 原 session cookie）。

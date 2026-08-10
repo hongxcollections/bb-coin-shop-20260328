@@ -29996,6 +29996,13 @@ async function startServer() {
   app.use(express2.urlencoded({ limit: "50mb", extended: true }));
   app.use((req, res, next) => {
     const host = (req.get("host") || "").toLowerCase();
+    if (host === "www.hongxcollections.com") {
+      return res.redirect(301, `https://hongxcollections.com${req.originalUrl}`);
+    }
+    next();
+  });
+  app.use((req, res, next) => {
+    const host = (req.get("host") || "").toLowerCase();
     if (host === "share.hongxcollections.com") {
       const ua = String(req.headers["user-agent"] ?? "");
       const isBot = /facebookexternalhit|meta-externalagent|facebot|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Slackbot|Discordbot|Pinterest|Threads|googlebot|bingbot|applebot|yandex|baidu|duckduck|crawler|spider|preview/i.test(ua);
