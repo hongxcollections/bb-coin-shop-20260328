@@ -1032,6 +1032,148 @@ function RecentSalesFader() {
   );
 }
 
+// ── 卡牌交易最新上架 Ticker Banner ─────────────────────────────────────────
+const CARD_GAME_LABELS: Record<string, string> = {
+  pokemon: "Pokémon", yugioh: "遊戲王", mtg: "MTG",
+  onepiece: "航海王", dragonball: "龍珠", digimon: "數碼暴龍", other: "其他",
+};
+const CARD_GAME_COLORS: Record<string, string> = {
+  pokemon: "#b91c1c", yugioh: "#6d28d9", mtg: "#065f46",
+  onepiece: "#c2410c", dragonball: "#b45309", digimon: "#1d4ed8", other: "#6b7280",
+};
+const CARD_RARITY_GRAD: Record<string, string> = {
+  SAR: "linear-gradient(135deg,#7c3aed,#a855f7)",
+  IR:  "linear-gradient(135deg,#be123c,#fb7185)",
+  HR:  "linear-gradient(135deg,#d97706,#fbbf24)",
+  RR:  "linear-gradient(135deg,#1d4ed8,#60a5fa)",
+  UR:  "linear-gradient(135deg,#dc2626,#f87171)",
+  SR:  "linear-gradient(135deg,#475569,#94a3b8)",
+  R:   "linear-gradient(135deg,#0369a1,#38bdf8)",
+};
+
+function CardListingTickerBanner() {
+  const [, navigate] = useLocation();
+  const { data: raw } = trpc.cardTrading.getListings.useQuery(
+    { limit: 50, offset: 0 },
+    { staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false }
+  );
+
+  // On each mount: shuffle the latest listings, pick up to 10
+  const items = useMemo(() => {
+    const list = (raw ?? []).filter((l: any) => l.photoUrls?.length > 0 || l.officialImageUrl);
+    const shuffled = [...list];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 10);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw]);
+
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const iv = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx(i => (i + 1) % items.length);
+        setVisible(true);
+      }, 280);
+    }, 4500);
+    return () => clearInterval(iv);
+  }, [items.length]);
+
+  if (!items.length) return null;
+
+  const item = items[idx % items.length];
+  const img = item.photoUrls?.[0] ?? item.officialImageUrl ?? null;
+  const gameLabel = CARD_GAME_LABELS[item.game] ?? item.game ?? "";
+  const gameColor = CARD_GAME_COLORS[item.game] ?? "#6b7280";
+  const rarityGrad = CARD_RARITY_GRAD[item.rarity] ?? null;
+
+  return (
+    <div className="container mb-1.5">
+      <button
+        type="button"
+        onClick={() => navigate("/cardzx/market")}
+        style={{
+          width: "100%", height: 50, borderRadius: 12, border: "none", cursor: "pointer",
+          background: "linear-gradient(90deg, #14532d 0%, #15803d 55%, #22c55e 100%)",
+          boxShadow: "0 2px 10px rgba(21,128,61,0.3)",
+          display: "flex", alignItems: "center", gap: 8, padding: "0 10px",
+          position: "relative", overflow: "hidden",
+          opacity: visible ? 1 : 0,
+          transition: "opacity 0.28s ease",
+        }}
+      >
+        {/* shimmer sweep */}
+        <span aria-hidden style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)",
+          animation: "scannerSweep 2.5s linear infinite",
+          pointerEvents: "none",
+        }} />
+
+        {/* 新上架 badge */}
+        <span style={{
+          fontSize: 9, fontWeight: 900, padding: "2px 5px", borderRadius: 4,
+          background: "rgba(255,255,255,0.22)", color: "#fff", flexShrink: 0,
+          lineHeight: 1.4, border: "1px solid rgba(255,255,255,0.4)", position: "relative",
+        }}>新上架</span>
+
+        {/* card image */}
+        {img && (
+          <img src={img} alt="" style={{
+            width: 32, height: 32, borderRadius: 5, objectFit: "cover",
+            flexShrink: 0, position: "relative", boxShadow: "0 1px 4px rgba(0,0,0,0.35)",
+          }} />
+        )}
+
+        {/* rarity badge */}
+        {item.rarity && (
+          <span style={{
+            fontSize: 8, fontWeight: 900, padding: "2px 4px", borderRadius: 3,
+            background: rarityGrad ?? "rgba(255,255,255,0.2)", color: "#fff",
+            flexShrink: 0, position: "relative", lineHeight: 1.4,
+          }}>{item.rarity}</span>
+        )}
+
+        {/* card name */}
+        <span style={{
+          flex: 1, fontSize: 12, fontWeight: 700, color: "#fff",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          textAlign: "left", position: "relative", textShadow: "0 1px 2px rgba(0,0,0,0.25)",
+        }}>{item.cardName}</span>
+
+        {/* game label */}
+        <span style={{
+          fontSize: 9, fontWeight: 800, padding: "2px 5px", borderRadius: 4,
+          background: "rgba(255,255,255,0.18)", color: "#fff",
+          flexShrink: 0, position: "relative", lineHeight: 1.4,
+          border: `1px solid ${gameColor}55`,
+        }}>{gameLabel}</span>
+
+        {/* price */}
+        <span style={{
+          fontSize: 11, fontWeight: 900, color: "#bbf7d0",
+          flexShrink: 0, position: "relative", textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+        }}>HKD ${item.priceHKD.toLocaleString()}</span>
+
+        {/* counter */}
+        {items.length > 1 && (
+          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.65)", flexShrink: 0, position: "relative" }}>
+            {idx + 1}/{items.length}
+          </span>
+        )}
+
+        <ChevronRight style={{ width: 11, height: 11, color: "rgba(255,255,255,0.8)", flexShrink: 0, position: "relative" }} />
+      </button>
+    </div>
+  );
+}
+
 function MerchantProductsStrip() {
   const { data: products } = trpc.merchants.listProducts.useQuery(undefined, { staleTime: 60_000 });
   const { data: galleries } = trpc.productGalleries.listHomeGalleries.useQuery(undefined, { staleTime: 60_000 });
@@ -1759,7 +1901,10 @@ export default function Home() {
         />
       )}
 
-      {/* ── Section 1b: Merchant Products Marquee ── */}
+      {/* ── Section 1b: Card Listing Ticker Banner ── */}
+      <CardListingTickerBanner />
+
+      {/* ── Section 1c: Merchant Products Marquee ── */}
       <MerchantProductsStrip />
 
       {/* ── Section 2: Marquee Ticker ── */}
