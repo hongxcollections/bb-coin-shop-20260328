@@ -1119,9 +1119,9 @@ function CardListingTickerBanner() {
         {/* card image — 3px 上下左空位 */}
         {img && (
           <img src={img} alt="" style={{
-            width: 56, height: 74, objectFit: "cover",
+            width: 56, height: 70, objectFit: "cover",
             flexShrink: 0, position: "relative",
-            margin: "3px 0 3px 3px", borderRadius: 8,
+            margin: "5px 0 5px 5px", borderRadius: 8,
             boxShadow: "2px 0 8px rgba(0,0,0,0.3)",
           }} />
         )}
