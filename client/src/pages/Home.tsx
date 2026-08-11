@@ -1099,9 +1099,9 @@ function CardListingTickerBanner() {
         type="button"
         onClick={() => navigate("/cardzx/market")}
         style={{
-          width: "100%", height: 50, borderRadius: 12, border: "none", cursor: "pointer",
-          background: "linear-gradient(90deg, #14532d 0%, #15803d 55%, #22c55e 100%)",
-          boxShadow: "0 2px 10px rgba(21,128,61,0.3)",
+          width: "100%", height: 80, borderRadius: 12, border: "none", cursor: "pointer",
+          background: "linear-gradient(90deg, #0369a1 0%, #0ea5e9 55%, #38bdf8 100%)",
+          boxShadow: "0 2px 10px rgba(3,105,161,0.3)",
           display: "flex", alignItems: "center", gap: 8, padding: "0 10px",
           position: "relative", overflow: "hidden",
           opacity: visible ? 1 : 0,
