@@ -1146,6 +1146,7 @@ function CardListingTickerBanner() {
             margin: 0, fontSize: 13, fontWeight: 800, color: "#fff",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             textShadow: "0 1px 2px rgba(0,0,0,0.3)", lineHeight: 1.3,
+            width: "100%",
           }}>{item.cardName}</p>
 
           {/* 第二行：遊戲 + 稀有度 + 價格 */}
