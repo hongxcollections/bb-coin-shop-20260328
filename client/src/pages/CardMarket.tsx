@@ -1260,6 +1260,7 @@ interface ListingDetailSheetProps {
   listing: Listing;
   onClose: () => void;
   onSelectListing?: (l: Listing) => void;
+  showBackToHome?: boolean;
 }
 
 function timeAgoComment(iso: string) {
@@ -1615,7 +1616,7 @@ function ListingCommentSection({ listingId }: { listingId: number }) {
   );
 }
 
-function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetailSheetProps) {
+function ListingDetailSheet({ listing, onClose, onSelectListing, showBackToHome }: ListingDetailSheetProps) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -1850,13 +1851,15 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
           {contacting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           私訊賣家洽購
         </button>
-        <button
-          onClick={() => { onClose(); navigate("/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-          className="w-full mt-2 py-2.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-1.5"
-          style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
-        >
-          ↑ 返回主頁
-        </button>
+        {showBackToHome && (
+          <button
+            onClick={() => { onClose(); navigate("/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            className="w-full mt-2 py-2.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-1.5"
+            style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+          >
+            ↑ 返回主頁
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1880,6 +1883,7 @@ export default function CardMarket() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [listingFromHome, setListingFromHome] = useState(false);
   const [showWTB, setShowWTB] = useState(false);
   const [wtbLightbox, setWtbLightbox] = useState<WTB | null>(null);
   const [riskOpen, setRiskOpen] = useState(false);
@@ -1932,7 +1936,7 @@ export default function CardMarket() {
     const listingId = params.get("listing");
     if (!listingId) return;
     const found = (allListings as Listing[]).find(l => String(l.id) === listingId);
-    if (found) setSelectedListing(found);
+    if (found) { setSelectedListing(found); setListingFromHome(true); }
   }, [searchStr, allListings]);
 
   const { data: marketStats } = trpc.cardTrading.getMarketStats.useQuery(undefined, { staleTime: 60000 });
@@ -2011,7 +2015,7 @@ export default function CardMarket() {
       <Header />
 
       {selectedListing && (
-        <ListingDetailSheet key={selectedListing.id} listing={selectedListing} onClose={() => setSelectedListing(null)} onSelectListing={setSelectedListing} />
+        <ListingDetailSheet key={selectedListing.id} listing={selectedListing} onClose={() => { setSelectedListing(null); setListingFromHome(false); }} onSelectListing={(l) => { setListingFromHome(false); setSelectedListing(l); }} showBackToHome={listingFromHome} />
       )}
 
       {wtbLightbox && (() => {
@@ -2181,7 +2185,7 @@ export default function CardMarket() {
             </div>
             <div className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
               {hotListings.map(l => (
-                <HotCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />
+                <HotCard key={l.id} listing={l} onClick={() => { setListingFromHome(false); setSelectedListing(l); }} />
               ))}
             </div>
           </div>
@@ -2251,7 +2255,7 @@ export default function CardMarket() {
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
               {recentListings.flatMap((l, i) => {
-                const card = <ListingCard key={l.id} listing={l} onClick={() => setSelectedListing(l)} />;
+                const card = <ListingCard key={l.id} listing={l} onClick={() => { setListingFromHome(false); setSelectedListing(l); }} />;
                 const insertAfter = Math.min(auctionBannerPos, recentListings.length) - 1;
                 if (i === insertAfter && cardAuctions.length > 0) {
                   return [card, <div key="auction-ticker" className="col-span-2"><AuctionTickerBanner items={cardAuctions} /></div>];
