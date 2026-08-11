@@ -1097,7 +1097,7 @@ function CardListingTickerBanner() {
     <div className="container mb-1.5">
       <button
         type="button"
-        onClick={() => navigate("/cardzx/market")}
+        onClick={() => navigate(`/cardzx/market?listing=${item.id}`)}
         style={{
           width: "100%", height: 80, borderRadius: 12, border: "none", cursor: "pointer",
           background: "linear-gradient(90deg, #0369a1 0%, #0ea5e9 55%, #38bdf8 100%)",
