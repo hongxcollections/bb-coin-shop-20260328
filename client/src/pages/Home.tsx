@@ -1102,7 +1102,7 @@ function CardListingTickerBanner() {
           width: "100%", height: 80, borderRadius: 12, border: "none", cursor: "pointer",
           background: "linear-gradient(90deg, #0369a1 0%, #0ea5e9 55%, #38bdf8 100%)",
           boxShadow: "0 2px 10px rgba(3,105,161,0.3)",
-          display: "flex", alignItems: "center", gap: 8, padding: "0 10px",
+          display: "flex", alignItems: "stretch", gap: 0, padding: 0,
           position: "relative", overflow: "hidden",
           opacity: visible ? 1 : 0,
           transition: "opacity 0.28s ease",
@@ -1116,59 +1116,64 @@ function CardListingTickerBanner() {
           pointerEvents: "none",
         }} />
 
-        {/* 新上架 badge */}
-        <span style={{
-          fontSize: 9, fontWeight: 900, padding: "2px 5px", borderRadius: 4,
-          background: "rgba(255,255,255,0.22)", color: "#fff", flexShrink: 0,
-          lineHeight: 1.4, border: "1px solid rgba(255,255,255,0.4)", position: "relative",
-        }}>新上架</span>
-
-        {/* card image */}
+        {/* card image — full height */}
         {img && (
           <img src={img} alt="" style={{
-            width: 32, height: 32, borderRadius: 5, objectFit: "cover",
-            flexShrink: 0, position: "relative", boxShadow: "0 1px 4px rgba(0,0,0,0.35)",
+            width: 60, height: 80, objectFit: "cover",
+            flexShrink: 0, position: "relative",
+            boxShadow: "2px 0 8px rgba(0,0,0,0.3)",
           }} />
         )}
 
-        {/* rarity badge */}
-        {item.rarity && (
-          <span style={{
-            fontSize: 8, fontWeight: 900, padding: "2px 4px", borderRadius: 3,
-            background: rarityGrad ?? "rgba(255,255,255,0.2)", color: "#fff",
-            flexShrink: 0, position: "relative", lineHeight: 1.4,
-          }}>{item.rarity}</span>
-        )}
+        {/* text block */}
+        <div style={{
+          flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
+          justifyContent: "center", gap: 4, padding: "0 10px",
+          position: "relative",
+        }}>
+          {/* 新上架 badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{
+              fontSize: 9, fontWeight: 900, padding: "2px 5px", borderRadius: 4,
+              background: "rgba(255,255,255,0.22)", color: "#fff",
+              lineHeight: 1.4, border: "1px solid rgba(255,255,255,0.4)",
+            }}>新上架</span>
+          </div>
 
-        {/* card name */}
-        <span style={{
-          flex: 1, fontSize: 12, fontWeight: 700, color: "#fff",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          textAlign: "left", position: "relative", textShadow: "0 1px 2px rgba(0,0,0,0.25)",
-        }}>{item.cardName}</span>
+          {/* card name — 獨立一行 */}
+          <p style={{
+            margin: 0, fontSize: 13, fontWeight: 800, color: "#fff",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            textShadow: "0 1px 2px rgba(0,0,0,0.3)", lineHeight: 1.3,
+          }}>{item.cardName}</p>
 
-        {/* game label */}
-        <span style={{
-          fontSize: 9, fontWeight: 800, padding: "2px 5px", borderRadius: 4,
-          background: "rgba(255,255,255,0.18)", color: "#fff",
-          flexShrink: 0, position: "relative", lineHeight: 1.4,
-          border: `1px solid ${gameColor}55`,
-        }}>{gameLabel}</span>
+          {/* 第二行：遊戲 + 稀有度 + 價格 */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "nowrap", overflow: "hidden" }}>
+            {item.rarity && (
+              <span style={{
+                fontSize: 9, fontWeight: 900, padding: "1px 4px", borderRadius: 3,
+                background: rarityGrad ?? "rgba(255,255,255,0.2)", color: "#fff",
+                flexShrink: 0, lineHeight: 1.4,
+              }}>{item.rarity}</span>
+            )}
+            <span style={{
+              fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 3,
+              background: "rgba(255,255,255,0.18)", color: "#fff",
+              flexShrink: 0, lineHeight: 1.4, border: `1px solid ${gameColor}55`,
+            }}>{gameLabel}</span>
+            <span style={{
+              fontSize: 12, fontWeight: 900, color: "#bfdbfe",
+              flexShrink: 0, textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+            }}>HKD ${item.priceHKD.toLocaleString()}</span>
+            {items.length > 1 && (
+              <span style={{ fontSize: 8, color: "rgba(255,255,255,0.6)", flexShrink: 0 }}>
+                {idx + 1}/{items.length}
+              </span>
+            )}
+          </div>
+        </div>
 
-        {/* price */}
-        <span style={{
-          fontSize: 11, fontWeight: 900, color: "#bbf7d0",
-          flexShrink: 0, position: "relative", textShadow: "0 1px 2px rgba(0,0,0,0.3)",
-        }}>HKD ${item.priceHKD.toLocaleString()}</span>
-
-        {/* counter */}
-        {items.length > 1 && (
-          <span style={{ fontSize: 8, color: "rgba(255,255,255,0.65)", flexShrink: 0, position: "relative" }}>
-            {idx + 1}/{items.length}
-          </span>
-        )}
-
-        <ChevronRight style={{ width: 11, height: 11, color: "rgba(255,255,255,0.8)", flexShrink: 0, position: "relative" }} />
+        <ChevronRight style={{ width: 14, height: 14, color: "rgba(255,255,255,0.8)", flexShrink: 0, alignSelf: "center", marginRight: 10, position: "relative" }} />
       </button>
     </div>
   );
