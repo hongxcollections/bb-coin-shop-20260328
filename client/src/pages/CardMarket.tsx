@@ -1855,7 +1855,7 @@ function ListingDetailSheet({ listing, onClose, onSelectListing }: ListingDetail
           className="w-full mt-2 py-2.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-1.5"
           style={{ background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
         >
-          ↑ 返回主頁頂部
+          ↑ 返回主頁
         </button>
       </div>
     </div>
