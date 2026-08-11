@@ -1116,20 +1116,21 @@ function CardListingTickerBanner() {
           pointerEvents: "none",
         }} />
 
-        {/* card image — full height */}
+        {/* card image — 3px 上下左空位 */}
         {img && (
           <img src={img} alt="" style={{
-            width: 60, height: 80, objectFit: "cover",
+            width: 56, height: 74, objectFit: "cover",
             flexShrink: 0, position: "relative",
+            margin: "3px 0 3px 3px", borderRadius: 8,
             boxShadow: "2px 0 8px rgba(0,0,0,0.3)",
           }} />
         )}
 
-        {/* text block */}
+        {/* text block — 向左拍齊 */}
         <div style={{
           flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
           justifyContent: "center", gap: 4, padding: "0 10px",
-          position: "relative",
+          position: "relative", alignItems: "flex-start",
         }}>
           {/* 新上架 badge */}
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
