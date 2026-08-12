@@ -145,6 +145,7 @@ var init_schema = __esm({
       videoUrl: varchar("videoUrl", { length: 500 }),
       privateNote: text("privateNote"),
       displayMode: varchar("displayMode", { length: 20 }).default("default").notNull(),
+      reservePrice: decimal("reservePrice", { precision: 10, scale: 2 }),
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
@@ -11614,7 +11615,14 @@ async function checkAndUpdateAuctionStatus(auctionId, origin = "") {
     const db = await getDb();
     if (!db) return;
     try {
+      const reservePrice = auction.reservePrice ? Number(auction.reservePrice) : null;
+      const currentPrice = Number(auction.currentPrice);
+      const reserveNotMet = reservePrice !== null && reservePrice > 0 && currentPrice < reservePrice;
       await db.update(auctions).set({ status: "ended" }).where(eq5(auctions.id, auctionId));
+      if (reserveNotMet) {
+        console.log(`[Auctions] Auction #${auctionId} reserve not met (reserve: ${reservePrice}, highest: ${currentPrice}) \u2014 \u6D41\u62CD`);
+        return;
+      }
       if (auction.highestBidderId) {
         try {
           await db.execute(sql3`
@@ -14407,7 +14415,8 @@ var appRouter = router({
       antiSnipeMinutes: z2.number().int().min(0).max(60).default(3),
       extendMinutes: z2.number().int().min(1).max(60).default(3),
       antiSnipeMemberLevels: z2.union([z2.literal("all"), z2.array(z2.enum(["bronze", "silver", "gold", "vip"])).transform((arr) => arr.length === 0 ? "all" : JSON.stringify(arr))]).optional(),
-      videoUrl: z2.string().max(500).nullable().optional()
+      videoUrl: z2.string().max(500).nullable().optional(),
+      reservePrice: z2.number().min(0).optional()
     })).mutation(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only admins can create auctions" });
@@ -14426,7 +14435,8 @@ var appRouter = router({
         antiSnipeMinutes: input.antiSnipeMinutes,
         extendMinutes: input.extendMinutes,
         antiSnipeMemberLevels: input.antiSnipeMemberLevels ?? "all",
-        videoUrl: input.videoUrl ?? null
+        videoUrl: input.videoUrl ?? null,
+        ...input.reservePrice !== void 0 && input.reservePrice > 0 ? { reservePrice: input.reservePrice.toString() } : { reservePrice: null }
       });
       return result;
     }),
@@ -14597,7 +14607,8 @@ var appRouter = router({
       antiSnipeMinutes: z2.number().int().min(0).max(60).optional(),
       extendMinutes: z2.number().int().min(1).max(60).optional(),
       antiSnipeMemberLevels: z2.union([z2.literal("all"), z2.array(z2.enum(["bronze", "silver", "gold", "vip"])).transform((arr) => arr.length === 0 ? "all" : JSON.stringify(arr))]).optional(),
-      videoUrl: z2.string().max(500).nullable().optional()
+      videoUrl: z2.string().max(500).nullable().optional(),
+      reservePrice: z2.number().min(0).optional()
     })).mutation(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only admins can update auctions" });
@@ -14627,6 +14638,9 @@ var appRouter = router({
       if (input.extendMinutes !== void 0) updateData.extendMinutes = input.extendMinutes;
       if (input.antiSnipeMemberLevels !== void 0) updateData.antiSnipeMemberLevels = input.antiSnipeMemberLevels;
       if (input.videoUrl !== void 0) updateData.videoUrl = input.videoUrl;
+      if (input.reservePrice !== void 0) {
+        updateData.reservePrice = input.reservePrice > 0 ? String(input.reservePrice) : null;
+      }
       try {
         await updateAuction(input.id, updateData);
         return { success: true };
@@ -14740,7 +14754,8 @@ var appRouter = router({
       startingPrice: z2.number().min(0).optional(),
       endTime: z2.date(),
       bidIncrement: z2.number().int().min(10).max(5e3).optional(),
-      currency: z2.enum(["HKD", "USD", "CNY", "GBP", "EUR", "JPY"]).optional()
+      currency: z2.enum(["HKD", "USD", "CNY", "GBP", "EUR", "JPY"]).optional(),
+      reservePrice: z2.number().min(0).optional()
     })).mutation(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "Only admins can publish drafts" });
@@ -14758,6 +14773,9 @@ var appRouter = router({
       }
       if (input.bidIncrement !== void 0) updateData.bidIncrement = input.bidIncrement;
       if (input.currency !== void 0) updateData.currency = input.currency;
+      if (input.reservePrice !== void 0) {
+        updateData.reservePrice = input.reservePrice > 0 ? String(input.reservePrice) : null;
+      }
       await updateAuction(input.id, updateData);
       return { success: true };
     }),
@@ -29424,6 +29442,12 @@ async function bootstrapMissingColumns() {
     await alter(
       `ALTER TABLE \`auctions\` ADD COLUMN \`privateNote\` TEXT NULL`,
       "Added privateNote to auctions"
+    );
+  }
+  if (!await check("auctions", "reservePrice")) {
+    await alter(
+      `ALTER TABLE \`auctions\` ADD COLUMN \`reservePrice\` DECIMAL(10,2) NULL`,
+      "Added reservePrice to auctions"
     );
   }
   try {

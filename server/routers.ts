@@ -333,6 +333,7 @@ export const appRouter = router({
         extendMinutes: z.number().int().min(1).max(60).default(3),
         antiSnipeMemberLevels: z.union([z.literal('all'), z.array(z.enum(['bronze','silver','gold','vip'])).transform(arr => arr.length === 0 ? 'all' : JSON.stringify(arr))]).optional(),
         videoUrl: z.string().max(500).nullable().optional(),
+        reservePrice: z.number().min(0).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -354,6 +355,9 @@ export const appRouter = router({
           extendMinutes: input.extendMinutes,
           antiSnipeMemberLevels: input.antiSnipeMemberLevels ?? 'all',
           videoUrl: input.videoUrl ?? null,
+          ...(input.reservePrice !== undefined && input.reservePrice > 0
+            ? { reservePrice: input.reservePrice.toString() }
+            : { reservePrice: null }),
         });
 
         return result;
@@ -554,6 +558,7 @@ export const appRouter = router({
         extendMinutes: z.number().int().min(1).max(60).optional(),
         antiSnipeMemberLevels: z.union([z.literal('all'), z.array(z.enum(['bronze','silver','gold','vip'])).transform(arr => arr.length === 0 ? 'all' : JSON.stringify(arr))]).optional(),
         videoUrl: z.string().max(500).nullable().optional(),
+        reservePrice: z.number().min(0).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -588,6 +593,9 @@ export const appRouter = router({
         if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
         if (input.antiSnipeMemberLevels !== undefined) updateData.antiSnipeMemberLevels = input.antiSnipeMemberLevels;
         if (input.videoUrl !== undefined) updateData.videoUrl = input.videoUrl;
+        if (input.reservePrice !== undefined) {
+          updateData.reservePrice = input.reservePrice > 0 ? String(input.reservePrice) : null;
+        }
 
         try {
           await updateAuction(input.id, updateData);
@@ -734,6 +742,7 @@ export const appRouter = router({
         endTime: z.date(),
         bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+        reservePrice: z.number().min(0).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -753,6 +762,9 @@ export const appRouter = router({
         }
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
+        if (input.reservePrice !== undefined) {
+          updateData.reservePrice = input.reservePrice > 0 ? String(input.reservePrice) : null;
+        }
 
         await updateAuction(input.id, updateData);
         return { success: true };

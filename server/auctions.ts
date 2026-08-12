@@ -591,10 +591,21 @@ export async function checkAndUpdateAuctionStatus(auctionId: number, origin = ''
     if (!db) return;
 
     try {
+      // 底價邏輯：若設有底價且最高出價未達底價 → 流拍，不產生訂單、不通知得標
+      const reservePrice = (auction as any).reservePrice ? Number((auction as any).reservePrice) : null;
+      const currentPrice = Number(auction.currentPrice);
+      const reserveNotMet = reservePrice !== null && reservePrice > 0 && currentPrice < reservePrice;
+
       await db
         .update(auctionsTable)
         .set({ status: 'ended' })
         .where(eq(auctionsTable.id, auctionId));
+
+      if (reserveNotMet) {
+        // 流拍：底價未達，不建立訂單、不通知
+        console.log(`[Auctions] Auction #${auctionId} reserve not met (reserve: ${reservePrice}, highest: ${currentPrice}) — 流拍`);
+        return;
+      }
 
       // 拍賣有得標者 → 自動建立拍賣訂單（pending 待商戶確認交收）
       if (auction.highestBidderId) {

@@ -29,6 +29,7 @@ interface PublishForm {
   title: string;
   description: string;
   startingPrice: number;
+  reservePrice: number;
   endTime: string;
   bidIncrement: number;
   currency: Currency;
@@ -85,13 +86,14 @@ export default function AdminDrafts() {
     onError: (err) => toast.error(`上架失敗：${err.message}`),
   });
 
-  function openPublish(draft: { id: number; title: string; description?: string | null; startingPrice: string; bidIncrement: number; currency: string }) {
+  function openPublish(draft: { id: number; title: string; description?: string | null; startingPrice: string; bidIncrement: number; currency: string; reservePrice?: string | null }) {
     setPublishDialog({
       id: draft.id,
       form: {
         title: draft.title,
         description: draft.description ?? "",
         startingPrice: Number(draft.startingPrice),
+        reservePrice: draft.reservePrice ? Number(draft.reservePrice) : 0,
         endTime: defaultEndTime(3),
         bidIncrement: draft.bidIncrement,
         currency: (CURRENCY_OPTIONS.includes(draft.currency as Currency) ? draft.currency : "HKD") as Currency,
@@ -110,6 +112,7 @@ export default function AdminDrafts() {
       endTime: new Date(publishDialog.form.endTime),
       bidIncrement: publishDialog.form.bidIncrement,
       currency: publishDialog.form.currency,
+      reservePrice: publishDialog.form.reservePrice || 0,
     });
   }
 
@@ -314,6 +317,9 @@ export default function AdminDrafts() {
                           {getCurrencySymbol(currency)}{Number(draft.startingPrice).toLocaleString()} {currency}
                         </span>
                         <span>每口 {getCurrencySymbol(currency)}{draft.bidIncrement}</span>
+                        {(draft as { reservePrice?: string | null }).reservePrice && Number((draft as { reservePrice?: string | null }).reservePrice) > 0 && (
+                          <span className="text-purple-600 font-medium">底價 {getCurrencySymbol(currency)}{Number((draft as { reservePrice?: string | null }).reservePrice).toLocaleString()}</span>
+                        )}
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {new Date(draft.createdAt).toLocaleString("zh-HK")}
@@ -402,6 +408,12 @@ export default function AdminDrafts() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs">底價（選填，留空即無底價）</Label>
+                <Input type="number" min={0} placeholder="留空 = 無底價" value={publishDialog.form.reservePrice || ""}
+                  onChange={e => setPublishDialog(d => d ? { ...d, form: { ...d.form, reservePrice: Number(e.target.value) } } : null)} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">底價對買家完全隱藏，未達底價自動流拍</p>
               </div>
               <div className="flex gap-3 items-end">
                 <div className="flex-1">

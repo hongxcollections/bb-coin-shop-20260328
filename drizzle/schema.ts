@@ -61,6 +61,7 @@ export const auctions = mysqlTable("auctions", {
   videoUrl: varchar("videoUrl", { length: 500 }),
   privateNote: text("privateNote"),
   displayMode: varchar("displayMode", { length: 20 }).default("default").notNull(),
+  reservePrice: decimal("reservePrice", { precision: 10, scale: 2 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
