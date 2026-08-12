@@ -541,6 +541,7 @@ export default function Auctions() {
                     antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
                     extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
                     description={(auction as { description?: string | null }).description}
+                    reservePrice={(auction as { reservePrice?: string | null }).reservePrice}
                     onLinkClick={saveScrollPosition}
                   />
                 ) : (
