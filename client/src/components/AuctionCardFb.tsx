@@ -213,7 +213,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
     }
     // Below reserve: hide bidder name, only show count
     if (highestBidderName && highestBidderId) {
-      return <span className="text-xs text-gray-500">👍 <span className="bg-white text-red-800 border border-red-200 rounded px-1 font-semibold text-[11px]">{highestBidderName}</span>{bidCount > 1 ? ` 和 ${bidCount - 1} 人` : ""}</span>;
+      return <span className="text-xs text-gray-500">👍 <span className="bg-white text-red-800 rounded px-1 font-semibold text-[11px]">{highestBidderName}</span>{bidCount > 1 ? ` 和 ${bidCount - 1} 人` : ""}</span>;
     }
     return <span className="text-xs text-gray-500">👍 {bidCount} 則回應</span>;
   })();
@@ -282,7 +282,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
                 {belowReserve && <span className="text-[10px] bg-sky-500 text-white font-semibold rounded px-1 ml-1">底價未達</span>}
               </span>
               {!belowReserve && highestBidderName && highestBidderId && (
-                <span className="bg-white text-red-800 border border-red-200 rounded px-1.5 py-0.5 text-[11px] font-semibold truncate max-w-[110px]">
+                <span className="bg-white text-red-800 rounded px-1.5 py-0.5 text-[11px] font-semibold truncate max-w-[110px]">
                   {highestBidderName}
                 </span>
               )}

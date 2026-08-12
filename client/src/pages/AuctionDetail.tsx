@@ -875,7 +875,7 @@ export default function AuctionDetail() {
                             bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (
                               <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>(我本人✓)</span>
                             ) : (
-                              <span className="text-red-500 font-semibold" style={{ fontSize: "15px" }}>({displayName(bids[0], user?.id)})</span>
+                              <span className="bg-white text-red-800 rounded px-1.5 font-semibold" style={{ fontSize: "13px" }}>{displayName(bids[0], user?.id)}</span>
                             )
                           )}
                         </>
@@ -1318,7 +1318,7 @@ export default function AuctionDetail() {
                               <div className="flex items-center gap-2">
                                 <User className="w-3.5 h-3.5 text-muted-foreground" />
                                 {i === 0
-                                  ? <span className="bg-white text-red-800 border border-red-200 rounded px-1.5 py-0.5 text-xs font-semibold">{shownName}</span>
+                                  ? <span className="bg-white text-red-800 rounded px-1.5 py-0.5 text-xs font-semibold">{shownName}</span>
                                   : <span className="text-muted-foreground">{shownName}</span>}
                                 {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
                               </div>

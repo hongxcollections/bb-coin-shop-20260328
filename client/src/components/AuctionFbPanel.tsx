@@ -522,7 +522,7 @@ export function AuctionFbPanel({
                       <span className="text-[10px] font-bold bg-sky-500 text-white rounded px-1 whitespace-nowrap">底價未達</span>
                     )}
                     {!belowReserve && highestBidderName && (
-                      <span className="bg-white text-red-800 border border-red-200 rounded px-1.5 py-0.5 text-[10px] font-semibold truncate max-w-[80px]">{highestBidderName}</span>
+                      <span className="bg-white text-red-800 rounded px-1.5 py-0.5 text-[10px] font-semibold truncate max-w-[80px]">{highestBidderName}</span>
                     )}
                   </div>
                 )}

@@ -541,7 +541,7 @@ export function AuctionImageLightbox({
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
                       {highestBidderName && (
-                        <span className="bg-white text-red-800 border border-red-200 rounded px-1.5 py-0.5 text-[10px] font-semibold truncate max-w-[80px]">{highestBidderName}</span>
+                        <span className="bg-white text-red-800 rounded px-1.5 py-0.5 text-[10px] font-semibold truncate max-w-[80px]">{highestBidderName}</span>
                       )}
                     </div>
                   )}

@@ -132,7 +132,7 @@ export function AuctionCard({
       return <span className="text-[9px] text-gray-500">(得標者 ***)</span>;
     }
     if (highestBidderName) {
-      return <span className="text-[9px] bg-white text-red-800 border border-red-200 rounded px-1 font-semibold">{highestBidderName}</span>;
+      return <span className="text-[9px] bg-white text-red-800 rounded px-1 font-semibold">{highestBidderName}</span>;
     }
     if (!highestBidderId) {
       // Bids exist but no leader → reserve price hasn't been met yet — show nothing while active
@@ -147,6 +147,7 @@ export function AuctionCard({
   }
 
   const hasBids = (bidCount ?? 0) > 0;
+  const belowReserve = !!(reservePrice && Number(reservePrice) > 0 && !highestBidderId && hasBids);
   const cardBg = isEndingSoon
     ? (hasBids ? "border-orange-300 bg-orange-200/60 hover:border-orange-400" : "border-orange-200 bg-orange-50/40 hover:border-orange-300")
     : (hasBids ? "border-amber-300 bg-amber-100 hover:border-amber-400 hover:bg-amber-100" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50");
@@ -206,7 +207,9 @@ export function AuctionCard({
 
             {/* 價錢 + 分享 + 閃出價 */}
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-amber-600 flex-1">{curr}{currentPrice.toLocaleString()}</span>
+              <span className="text-xl font-bold text-amber-600">{curr}{currentPrice.toLocaleString()}</span>
+              {belowReserve && <span className="text-[9px] bg-sky-500 text-white rounded px-1 font-semibold shrink-0">底價未達</span>}
+              <span className="flex-1" />
               <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                 <ShareMenu
                   auctionId={auctionId}
