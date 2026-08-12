@@ -28,6 +28,7 @@ export interface AuctionCardFbProps {
   antiSnipeMinutes?: number;
   extendMinutes?: number;
   description?: string | null;
+  reservePrice?: string | number | null;
   onLinkClick?: () => void;
 }
 
@@ -177,8 +178,10 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
     auctionId, title, images = [], endTime, createdAt, currentPrice, currency,
     isEnded, bidCount = 0, highestBidderName, currentUserId, highestBidderId,
     sellerName, sellerPhotoUrl, createdBy, bidIncrement = 30, shareTemplate,
-    antiSnipeEnabled, antiSnipeMinutes, extendMinutes, description, onLinkClick,
+    antiSnipeEnabled, antiSnipeMinutes, extendMinutes, description, reservePrice, onLinkClick,
   } = props;
+  const hasReserve = !!(reservePrice && Number(reservePrice) > 0);
+  const belowReserve = hasReserve && !highestBidderId && bidCount > 0;
 
   const { user } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -208,7 +211,8 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
     if (isEnded && highestBidderId && !isPrivilegedViewer) {
       return <span className="text-xs text-gray-500">👍 得標用戶*** {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
     }
-    if (highestBidderName) {
+    // Below reserve: hide bidder name, only show count
+    if (highestBidderName && highestBidderId) {
       return <span className="text-xs text-gray-500">👍 {highestBidderName} {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
     }
     return <span className="text-xs text-gray-500">👍 {bidCount} 則回應</span>;
@@ -268,10 +272,16 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
               <MiniCountdown endTime={new Date(endTime)} />
             </div>
             <div className="flex items-center justify-end gap-3">
+              {hasReserve && (
+                <span className="text-[10px] text-purple-600 border border-purple-200 bg-purple-50 rounded px-1.5 py-0.5 shrink-0">
+                  設有底價
+                </span>
+              )}
               <span className="text-[13px] text-amber-600 font-semibold">
                 目前：{curr}{currentPrice.toLocaleString()}
+                {belowReserve && <span className="text-[10px] text-gray-500 font-normal ml-1">(底價未達)</span>}
               </span>
-              {highestBidderName && (
+              {!belowReserve && highestBidderName && highestBidderId && (
                 <span className="text-[12px] text-gray-500 truncate max-w-[110px]">
                   最高：{highestBidderName}
                 </span>

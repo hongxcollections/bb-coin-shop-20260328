@@ -581,7 +581,8 @@ export default function AuctionDetail() {
   if ((auction as any).displayMode === "facebook") {
     const fbImages = images.map((img: { id: number; imageUrl: string }) => ({ imageUrl: img.imageUrl }));
     const topBid = bids.length > 0 ? bids[0] : null;
-    const fbHighestBidderName = topBid
+    // Only show highest bidder name when reserve price is met (highestBidderId is set)
+    const fbHighestBidderName = (topBid && auction.highestBidderId)
       ? (topBid.isAnonymous === 1 ? "🕵️ 匿名買家" : (topBid.username ?? null))
       : null;
     return (
@@ -610,6 +611,7 @@ export default function AuctionDetail() {
             antiSnipeMinutes={(auction as any).antiSnipeMinutes}
             extendMinutes={(auction as any).extendMinutes}
             description={(auction as any).description ?? null}
+            reservePrice={(auction as any).reservePrice ?? null}
           />
         </div>
       </div>
