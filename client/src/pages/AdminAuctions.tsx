@@ -46,7 +46,6 @@ interface AuctionFormData {
   title: string;
   description: string;
   startingPrice: string;
-  reservePrice: string;
   endTime: string;
   bidIncrement: number;
   currency: string;
@@ -80,7 +79,6 @@ const defaultForm: AuctionFormData = {
   title: "",
   description: "",
   startingPrice: "",
-  reservePrice: "",
   endTime: "",
   bidIncrement: 30,
   currency: "HKD",
@@ -516,7 +514,6 @@ export default function AdminAuctions() {
         extendMinutes: form.extendMinutes,
         antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as ('bronze' | 'silver' | 'gold' | 'vip')[] | 'all',
         videoUrl: form.videoUrl || null,
-        reservePrice: form.reservePrice ? parseFloat(form.reservePrice) : 0,
       });
     } else {
       createAuction.mutate({
@@ -531,7 +528,6 @@ export default function AdminAuctions() {
         extendMinutes: form.extendMinutes,
         antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as ('bronze' | 'silver' | 'gold' | 'vip')[] | 'all',
         videoUrl: form.videoUrl || null,
-        reservePrice: form.reservePrice ? parseFloat(form.reservePrice) : 0,
       });
     }
   };
@@ -565,10 +561,6 @@ export default function AdminAuctions() {
         try { return JSON.parse(raw) as string[]; } catch { return []; }
       })(),
       videoUrl: (auction as { videoUrl?: string | null }).videoUrl ?? "",
-      reservePrice: (() => {
-        const rp = (auction as { reservePrice?: string | number | null }).reservePrice;
-        return rp && Number(rp) > 0 ? String(Number(rp)) : "";
-      })(),
     });
     setUploadedImages(
       (images ?? []).map((img) => ({
@@ -703,24 +695,6 @@ export default function AdminAuctions() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                {/* 底價 */}
-                <div>
-                  <Label htmlFor="reservePrice">底價（選填，留空即無底價）</Label>
-                  <div className="flex items-center gap-1 mt-1">
-                    <span className="text-sm text-muted-foreground shrink-0">{getCurrencySymbol(form.currency)}</span>
-                    <Input
-                      id="reservePrice"
-                      type="number"
-                      min="0"
-                      value={form.reservePrice}
-                      onChange={(e) => setForm((f) => ({ ...f, reservePrice: e.target.value }))}
-                      placeholder="例：500（未達此價自動流拍）"
-                      className="border-amber-200 focus-visible:ring-amber-400"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">底價對買家完全隱藏。拍賣結束時若最高出價未達底價，系統自動流拍。</p>
                 </div>
 
                 {/* 反狙擊延時設定 */}
@@ -915,7 +889,6 @@ export default function AdminAuctions() {
               highestBidderId?: number | null;
               highestBidderName?: string | null;
               currency?: string;
-              reservePrice?: string | number | null;
               images: unknown;
             };
             const activeAuctions = (auctions as AuctionItem[]).filter(
@@ -1026,9 +999,6 @@ export default function AdminAuctions() {
                       {auction.bidIncrement && (
                         <span className="text-amber-600">每口 {getCurrencySymbol(currency)}{auction.bidIncrement}</span>
                       )}
-                      {auction.reservePrice && Number(auction.reservePrice) > 0 && (
-                        <span className="text-purple-600 font-medium">底價 {getCurrencySymbol(currency)}{Number(auction.reservePrice).toLocaleString()}</span>
-                      )}
                     </div>
                     {/* Row 4: Bidder info (active) or Winner info (ended) */}
                     {!isEffectivelyEnded && auction.highestBidderId && (
@@ -1040,26 +1010,14 @@ export default function AdminAuctions() {
                     {!isEffectivelyEnded && !auction.highestBidderId && (
                       <div className="mt-1 text-xs text-black">(未有出價)</div>
                     )}
-                    {isEffectivelyEnded && auction.highestBidderId && (() => {
-                      const rp = auction.reservePrice ? Number(auction.reservePrice) : null;
-                      const cp = Number(auction.currentPrice);
-                      const reserveNotMet = rp && rp > 0 && cp < rp;
-                      return reserveNotMet ? (
-                        <div className="mt-1.5 flex items-center gap-1 text-xs bg-red-50 border border-red-200 rounded px-2 py-0.5">
-                          <span className="text-red-500">🔴</span>
-                          <span className="font-semibold text-red-600">底價未達，流拍</span>
-                          <span className="text-gray-400">·</span>
-                          <span className="text-gray-500">底價 {getCurrencySymbol(currency)}{Number(rp).toLocaleString()} / 最高出價 {getCurrencySymbol(currency)}{cp.toLocaleString()}</span>
-                        </div>
-                      ) : (
-                        <div className="mt-1.5 flex items-center gap-1 text-xs bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
-                          <span className="text-emerald-600">🏆</span>
-                          <span className="font-semibold text-emerald-700 truncate max-w-[120px]">{auction.highestBidderName ?? `用戶 #${auction.highestBidderId}`}</span>
-                          <span className="text-gray-400">·</span>
-                          <span className="font-bold text-emerald-700">{getCurrencySymbol(currency)}{Number(auction.currentPrice).toLocaleString()} {currency}</span>
-                        </div>
-                      );
-                    })()}
+                    {isEffectivelyEnded && auction.highestBidderId && (
+                      <div className="mt-1.5 flex items-center gap-1 text-xs bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
+                        <span className="text-emerald-600">🏆</span>
+                        <span className="font-semibold text-emerald-700 truncate max-w-[120px]">{auction.highestBidderName ?? `用戶 #${auction.highestBidderId}`}</span>
+                        <span className="text-gray-400">·</span>
+                        <span className="font-bold text-emerald-700">{getCurrencySymbol(currency)}{Number(auction.currentPrice).toLocaleString()} {currency}</span>
+                      </div>
+                    )}
                     {isEffectivelyEnded && !auction.highestBidderId && (
                       <div className="mt-1 text-xs text-gray-400 italic">未有出價，流拍</div>
                     )}
