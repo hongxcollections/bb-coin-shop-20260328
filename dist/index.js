@@ -11183,7 +11183,7 @@ async function validateBid(auctionId, bidAmount) {
   const currentPrice = parseFloat(auction.currentPrice.toString());
   const startingPrice = parseFloat(auction.startingPrice.toString());
   const bidIncrement = auction.bidIncrement ?? 50;
-  const hasExistingBid = auction.highestBidderId !== null && auction.highestBidderId !== void 0;
+  const hasExistingBid = auction.highestBidderId !== null && auction.highestBidderId !== void 0 || currentPrice > startingPrice;
   const minBid = hasExistingBid ? currentPrice + bidIncrement : startingPrice;
   if (bidAmount < minBid) {
     if (hasExistingBid) {
@@ -11194,8 +11194,13 @@ async function validateBid(auctionId, bidAmount) {
   }
   return { valid: true };
 }
-async function recordBid(db, auctionId, userId, bidAmount, isAnonymous = 0) {
-  await db.update(auctions).set({ currentPrice: bidAmount.toString(), highestBidderId: userId }).where(eq5(auctions.id, auctionId));
+async function recordBid(db, auctionId, userId, bidAmount, isAnonymous = 0, reservePrice, bidIncrement = 30) {
+  const belowReserve = reservePrice !== null && reservePrice !== void 0 && reservePrice > 0 && bidAmount < reservePrice;
+  if (belowReserve) {
+    await db.update(auctions).set({ currentPrice: (bidAmount + bidIncrement).toString(), highestBidderId: null }).where(eq5(auctions.id, auctionId));
+  } else {
+    await db.update(auctions).set({ currentPrice: bidAmount.toString(), highestBidderId: userId }).where(eq5(auctions.id, auctionId));
+  }
   await placeBid({ auctionId, userId, bidAmount: bidAmount.toString(), isAnonymous });
 }
 async function runProxyBidEngine(auctionId, triggeringUserId) {
@@ -11543,8 +11548,11 @@ async function placeBid2(auctionId, userId, bidAmount, origin = "", isAnonymous 
   if (!db) throw new Error("Database not available");
   const auctionBefore = await getAuctionById(auctionId);
   const previousHighestBidderId = auctionBefore?.highestBidderId ?? null;
+  const reservePrice = auctionBefore?.reservePrice ? Number(auctionBefore.reservePrice) : null;
+  const bidIncrementVal = auctionBefore?.bidIncrement ?? 30;
+  const belowReserve = reservePrice !== null && reservePrice > 0 && bidAmount < reservePrice;
   try {
-    await recordBid(db, auctionId, userId, bidAmount, isAnonymous);
+    await recordBid(db, auctionId, userId, bidAmount, isAnonymous, reservePrice, bidIncrementVal);
     let extended = false;
     let newEndTime;
     const auctionAfter = await getAuctionById(auctionId);
@@ -11580,10 +11588,12 @@ async function placeBid2(auctionId, userId, bidAmount, origin = "", isAnonymous 
         }
       }
     }
-    try {
-      await runProxyBidEngine(auctionId, userId);
-    } catch (err) {
-      console.error("[Auctions] Proxy engine error:", err);
+    if (!belowReserve) {
+      try {
+        await runProxyBidEngine(auctionId, userId);
+      } catch (err) {
+        console.error("[Auctions] Proxy engine error:", err);
+      }
     }
     if (previousHighestBidderId && previousHighestBidderId !== userId) {
       notifyOutbid(auctionId, previousHighestBidderId, bidAmount, origin).catch(
@@ -11619,11 +11629,10 @@ async function checkAndUpdateAuctionStatus(auctionId, origin = "") {
     if (!db) return;
     try {
       const reservePrice = auction.reservePrice ? Number(auction.reservePrice) : null;
-      const currentPrice = Number(auction.currentPrice);
-      const reserveNotMet = reservePrice !== null && reservePrice > 0 && currentPrice < reservePrice;
+      const reserveNotMet = reservePrice !== null && reservePrice > 0 && auction.highestBidderId === null;
       await db.update(auctions).set({ status: "ended" }).where(eq5(auctions.id, auctionId));
       if (reserveNotMet) {
-        console.log(`[Auctions] Auction #${auctionId} reserve not met (reserve: ${reservePrice}, highest: ${currentPrice}) \u2014 \u6D41\u62CD`);
+        console.log(`[Auctions] Auction #${auctionId} reserve not met (reserve: ${reservePrice}, highestBidderId: null) \u2014 \u6D41\u62CD`);
         return;
       }
       if (auction.highestBidderId) {

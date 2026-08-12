@@ -32,7 +32,10 @@ export async function validateBid(auctionId: number, bidAmount: number): Promise
 
   // First bid: allow bidding at starting price (no increment required)
   // Subsequent bids: must be at least currentPrice + bidIncrement
-  const hasExistingBid = auction.highestBidderId !== null && auction.highestBidderId !== undefined;
+  // Note: when reserve price is active, highestBidderId may be null even though bids exist
+  // (price gets incremented but no leader is set). Use currentPrice > startingPrice as fallback.
+  const hasExistingBid = (auction.highestBidderId !== null && auction.highestBidderId !== undefined)
+    || currentPrice > startingPrice;
   const minBid = hasExistingBid ? currentPrice + bidIncrement : startingPrice;
 
   if (bidAmount < minBid) {
@@ -49,12 +52,38 @@ export async function validateBid(auctionId: number, bidAmount: number): Promise
 /**
  * Internal helper: record a bid and update auction price/highestBidder.
  * Does NOT validate — caller is responsible for ensuring the bid is legal.
+ *
+ * Reserve price logic:
+ *   - If reservePrice is set and bidAmount < reservePrice:
+ *       currentPrice = bidAmount + bidIncrement  (system auto-increments by one notch)
+ *       highestBidderId = null                   (no leader shown until reserve is met)
+ *   - If no reserve, or bidAmount >= reservePrice:
+ *       Normal behaviour — currentPrice = bidAmount, highestBidderId = userId
  */
-async function recordBid(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, auctionId: number, userId: number, bidAmount: number, isAnonymous = 0) {
-  await db
-    .update(auctionsTable)
-    .set({ currentPrice: bidAmount.toString(), highestBidderId: userId })
-    .where(eq(auctionsTable.id, auctionId));
+async function recordBid(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  auctionId: number,
+  userId: number,
+  bidAmount: number,
+  isAnonymous = 0,
+  reservePrice?: number | null,
+  bidIncrement = 30,
+) {
+  const belowReserve = reservePrice !== null && reservePrice !== undefined && reservePrice > 0 && bidAmount < reservePrice;
+
+  if (belowReserve) {
+    // Reserve not met: auto-increment price by one notch, clear leader
+    await db
+      .update(auctionsTable)
+      .set({ currentPrice: (bidAmount + bidIncrement).toString(), highestBidderId: null })
+      .where(eq(auctionsTable.id, auctionId));
+  } else {
+    // Reserve met (or no reserve): normal bid
+    await db
+      .update(auctionsTable)
+      .set({ currentPrice: bidAmount.toString(), highestBidderId: userId })
+      .where(eq(auctionsTable.id, auctionId));
+  }
 
   await dbPlaceBid({ auctionId, userId, bidAmount: bidAmount.toString(), isAnonymous });
 }
@@ -484,9 +513,12 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
   // Capture previous highest bidder before overwriting
   const auctionBefore = await getAuctionById(auctionId);
   const previousHighestBidderId = auctionBefore?.highestBidderId ?? null;
+  const reservePrice = (auctionBefore as any)?.reservePrice ? Number((auctionBefore as any).reservePrice) : null;
+  const bidIncrementVal = auctionBefore?.bidIncrement ?? 30;
+  const belowReserve = reservePrice !== null && reservePrice > 0 && bidAmount < reservePrice;
 
   try {
-    await recordBid(db, auctionId, userId, bidAmount, isAnonymous);
+    await recordBid(db, auctionId, userId, bidAmount, isAnonymous, reservePrice, bidIncrementVal);
 
     // ── Anti-snipe extension ─────────────────────────────────────────────────
     let extended = false;
@@ -531,13 +563,17 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
     }
 
     // Run proxy engine synchronously so client receives the latest state in the same response
-    try {
-      await runProxyBidEngine(auctionId, userId);
-    } catch (err) {
-      console.error('[Auctions] Proxy engine error:', err);
+    // Skip proxy engine while reserve price is not yet met — no leader exists yet
+    if (!belowReserve) {
+      try {
+        await runProxyBidEngine(auctionId, userId);
+      } catch (err) {
+        console.error('[Auctions] Proxy engine error:', err);
+      }
     }
 
     // Send outbid email to previous highest bidder (fire-and-forget)
+    // Only fires when there was a previous leader (i.e. reserve was already met before this bid)
     if (previousHighestBidderId && previousHighestBidderId !== userId) {
       notifyOutbid(auctionId, previousHighestBidderId, bidAmount, origin).catch(err =>
         console.error('[Auctions] Outbid notify error:', err)
@@ -591,10 +627,11 @@ export async function checkAndUpdateAuctionStatus(auctionId: number, origin = ''
     if (!db) return;
 
     try {
-      // 底價邏輯：若設有底價且最高出價未達底價 → 流拍，不產生訂單、不通知得標
+      // 底價邏輯：若設有底價且從未有人超越底價（highestBidderId 仍是 null）→ 流拍
+      // 注意：用 highestBidderId 判斷比用 currentPrice 更準確，因為在底價機制下
+      // currentPrice 可能已被系統自動加一口至接近或等於底價，但仍未有人真正超越底價
       const reservePrice = (auction as any).reservePrice ? Number((auction as any).reservePrice) : null;
-      const currentPrice = Number(auction.currentPrice);
-      const reserveNotMet = reservePrice !== null && reservePrice > 0 && currentPrice < reservePrice;
+      const reserveNotMet = reservePrice !== null && reservePrice > 0 && auction.highestBidderId === null;
 
       await db
         .update(auctionsTable)
@@ -603,7 +640,7 @@ export async function checkAndUpdateAuctionStatus(auctionId: number, origin = ''
 
       if (reserveNotMet) {
         // 流拍：底價未達，不建立訂單、不通知
-        console.log(`[Auctions] Auction #${auctionId} reserve not met (reserve: ${reservePrice}, highest: ${currentPrice}) — 流拍`);
+        console.log(`[Auctions] Auction #${auctionId} reserve not met (reserve: ${reservePrice}, highestBidderId: null) — 流拍`);
         return;
       }
 
