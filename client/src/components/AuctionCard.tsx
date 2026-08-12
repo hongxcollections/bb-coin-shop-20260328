@@ -158,7 +158,7 @@ export function AuctionCard({
         {/* Row 1: 商品名稱 + badges 全寬 */}
         <div className="flex items-center gap-1.5 min-w-0">
           <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{title}</h3>
-          {reservePrice && Number(reservePrice) > 0 && (
+          {reservePrice && Number(reservePrice) > 0 && !highestBidderId && (
             <Badge className="bg-sky-500 text-white text-[9px] px-1.5 py-0.5 shrink-0">
               設有底價
             </Badge>

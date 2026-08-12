@@ -272,7 +272,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
               <MiniCountdown endTime={new Date(endTime)} />
             </div>
             <div className="flex items-center justify-end gap-3">
-              {hasReserve && (
+              {hasReserve && !highestBidderId && (
                 <span className="text-[10px] bg-sky-500 text-white rounded px-1.5 py-0.5 shrink-0">
                   設有底價
                 </span>

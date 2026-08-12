@@ -812,7 +812,7 @@ export default function AuctionDetail() {
               <SessionBelongsBanner auctionId={auctionId} merchantUserId={auction.createdBy} />
               <h1 className="text-2xl font-bold leading-tight mb-3">{auction.title}</h1>
               <div className="flex items-center justify-end gap-2 mb-2">
-                {(auction as { reservePrice?: string | null }).reservePrice && Number((auction as { reservePrice?: string | null }).reservePrice) > 0 && (
+                {(auction as { reservePrice?: string | null }).reservePrice && Number((auction as { reservePrice?: string | null }).reservePrice) > 0 && !(auction as { highestBidderId?: number | null }).highestBidderId && (
                   <Badge className="bg-sky-500 text-white">
                     設有底價
                   </Badge>
