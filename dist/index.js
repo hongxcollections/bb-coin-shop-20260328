@@ -14632,6 +14632,7 @@ var appRouter = router({
         updateData.currentPrice = String(input.startingPrice);
       }
       if (input.endTime !== void 0) updateData.endTime = input.endTime;
+      if (input.reservePrice !== void 0) updateData.reservePrice = input.reservePrice > 0 ? input.reservePrice.toString() : null;
       if (input.bidIncrement !== void 0) updateData.bidIncrement = input.bidIncrement;
       if (input.currency !== void 0) updateData.currency = input.currency;
       if (input.antiSnipeEnabled !== void 0) updateData.antiSnipeEnabled = input.antiSnipeEnabled;
@@ -16642,6 +16643,7 @@ var appRouter = router({
       title: z2.string().min(1).max(255),
       description: z2.string().default(""),
       startingPrice: z2.number().min(0),
+      reservePrice: z2.number().min(0).optional(),
       bidIncrement: z2.number().int().min(10).max(5e3).default(30),
       currency: z2.enum(["HKD", "USD", "CNY", "GBP", "EUR", "JPY"]).default("HKD"),
       antiSnipeEnabled: z2.number().int().min(0).max(1).default(1),
@@ -16673,7 +16675,8 @@ var appRouter = router({
         extendMinutes: input.extendMinutes,
         category: input.category,
         videoUrl: input.videoUrl ?? null,
-        privateNote: input.privateNote ?? null
+        privateNote: input.privateNote ?? null,
+        reservePrice: input.reservePrice && input.reservePrice > 0 ? input.reservePrice.toString() : null
       });
       return result;
     }),
@@ -16770,6 +16773,7 @@ var appRouter = router({
       title: z2.string().min(1).max(255).optional(),
       description: z2.string().optional(),
       startingPrice: z2.number().min(0).optional(),
+      reservePrice: z2.number().min(0).optional(),
       bidIncrement: z2.number().int().min(10).max(5e3).optional(),
       currency: z2.enum(["HKD", "USD", "CNY", "GBP", "EUR", "JPY"]).optional(),
       antiSnipeEnabled: z2.number().int().min(0).max(1).optional(),

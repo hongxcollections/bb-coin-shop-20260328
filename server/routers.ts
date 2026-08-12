@@ -586,6 +586,7 @@ export const appRouter = router({
           updateData.currentPrice = String(input.startingPrice);
         }
         if (input.endTime !== undefined) updateData.endTime = input.endTime;
+        if (input.reservePrice !== undefined) updateData.reservePrice = input.reservePrice > 0 ? input.reservePrice.toString() : null;
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
         if (input.antiSnipeEnabled !== undefined) updateData.antiSnipeEnabled = input.antiSnipeEnabled;
@@ -3064,6 +3065,7 @@ export const appRouter = router({
         title: z.string().min(1).max(255),
         description: z.string().default(''),
         startingPrice: z.number().min(0),
+        reservePrice: z.number().min(0).optional(),
         bidIncrement: z.number().int().min(10).max(5000).default(30),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).default('HKD'),
         antiSnipeEnabled: z.number().int().min(0).max(1).default(1),
@@ -3098,6 +3100,7 @@ export const appRouter = router({
           category: input.category,
           videoUrl: input.videoUrl ?? null,
           privateNote: input.privateNote ?? null,
+          reservePrice: input.reservePrice && input.reservePrice > 0 ? input.reservePrice.toString() : null,
         });
         return result;
       }),
@@ -3210,6 +3213,7 @@ export const appRouter = router({
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         startingPrice: z.number().min(0).optional(),
+        reservePrice: z.number().min(0).optional(),
         bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
         antiSnipeEnabled: z.number().int().min(0).max(1).optional(),
