@@ -11197,7 +11197,7 @@ async function validateBid(auctionId, bidAmount) {
 async function recordBid(db, auctionId, userId, bidAmount, isAnonymous = 0, reservePrice, bidIncrement = 30) {
   const belowReserve = reservePrice !== null && reservePrice !== void 0 && reservePrice > 0 && bidAmount < reservePrice;
   if (belowReserve) {
-    await db.update(auctions).set({ currentPrice: (bidAmount + bidIncrement).toString(), highestBidderId: null }).where(eq5(auctions.id, auctionId));
+    await db.update(auctions).set({ currentPrice: bidAmount.toString(), highestBidderId: null }).where(eq5(auctions.id, auctionId));
   } else {
     await db.update(auctions).set({ currentPrice: bidAmount.toString(), highestBidderId: userId }).where(eq5(auctions.id, auctionId));
   }

@@ -72,10 +72,11 @@ async function recordBid(
   const belowReserve = reservePrice !== null && reservePrice !== undefined && reservePrice > 0 && bidAmount < reservePrice;
 
   if (belowReserve) {
-    // Reserve not met: auto-increment price by one notch, clear leader
+    // Reserve not met: record user's actual bid as currentPrice, clear leader (no auto-increment)
+    // Next bid minimum = currentPrice + bidIncrement (normal formula applies)
     await db
       .update(auctionsTable)
-      .set({ currentPrice: (bidAmount + bidIncrement).toString(), highestBidderId: null })
+      .set({ currentPrice: bidAmount.toString(), highestBidderId: null })
       .where(eq(auctionsTable.id, auctionId));
   } else {
     // Reserve met (or no reserve): normal bid
