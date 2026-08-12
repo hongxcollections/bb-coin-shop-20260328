@@ -567,6 +567,7 @@ export default function Auctions() {
                     extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
                     createdBy={(auction as { createdBy?: number }).createdBy}
                     timeProgress={timeProgress}
+                    reservePrice={(auction as { reservePrice?: string | null }).reservePrice}
                     onLinkClick={saveScrollPosition}
                   />
                 )}

@@ -456,6 +456,7 @@ export default function MerchantSessionPublic() {
                     extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
                     createdBy={a.createdBy}
                     timeProgress={timeProgress}
+                    reservePrice={(a as { reservePrice?: string | null }).reservePrice}
                     onLinkClick={() => {
                       try {
                         sessionStorage.setItem("bb_auction_from_session", JSON.stringify({

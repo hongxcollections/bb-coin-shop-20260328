@@ -82,6 +82,7 @@ export interface AuctionCardProps {
 
   timeProgress?: number | null;
   hasMyBid?: boolean;
+  reservePrice?: string | number | null;
 
   onLinkClick?: () => void;
 }
@@ -113,6 +114,7 @@ export function AuctionCard({
   createdBy,
   timeProgress,
   hasMyBid = false,
+  reservePrice,
   onLinkClick,
 }: AuctionCardProps) {
   const curr = getCurrencySymbol(currency);
@@ -154,6 +156,11 @@ export function AuctionCard({
         {/* Row 1: 商品名稱 + badges 全寬 */}
         <div className="flex items-center gap-1.5 min-w-0">
           <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{title}</h3>
+          {reservePrice && Number(reservePrice) > 0 && (
+            <Badge className="bg-purple-100 text-purple-700 border border-purple-200 text-[9px] px-1.5 py-0.5 shrink-0">
+              設有底價
+            </Badge>
+          )}
           {isEndingSoon && (
             <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse shrink-0">
               {endingSoonText}

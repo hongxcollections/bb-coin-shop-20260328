@@ -1162,6 +1162,7 @@ export default function MerchantStore() {
                       extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
                       createdBy={(a as { createdBy?: number }).createdBy}
                       timeProgress={timeProgress}
+                      reservePrice={(a as { reservePrice?: string | null }).reservePrice}
                     />
                   );
                 })}

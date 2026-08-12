@@ -2166,6 +2166,7 @@ export default function Home() {
                     extendMinutes={ah.extendMinutes}
                     createdBy={ah.createdBy}
                     timeProgress={timeProgress}
+                    reservePrice={(ah as { reservePrice?: string | null }).reservePrice}
                   />
                 );
               })}

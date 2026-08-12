@@ -171,6 +171,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         extendMinutes: auctions.extendMinutes,
         fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
         displayMode: auctions.displayMode,
+        reservePrice: auctions.reservePrice,
         bidCount: sql<number>`((SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id}) + (SELECT COUNT(*) FROM auctionComments WHERE auctionComments.auctionId = ${auctions.id}))`,
       })
       .from(auctions)
@@ -244,6 +245,7 @@ export async function getAuctionById(id: number) {
         displayMode: auctions.displayMode,
         sellerPhotoUrl: sql<string | null>`(SELECT COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) FROM users u LEFT JOIN merchantApplications ma ON ma.userId = u.id AND ma.status = 'approved' WHERE u.id = ${auctions.createdBy} LIMIT 1)`,
         fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
+        reservePrice: auctions.reservePrice,
       })
       .from(auctions)
       .where(eq(auctions.id, id))

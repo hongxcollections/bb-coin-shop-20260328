@@ -1431,6 +1431,7 @@ async function getAuctions(limit = 20, offset = 0, category) {
       extendMinutes: auctions.extendMinutes,
       fbShareTemplate: sql`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
       displayMode: auctions.displayMode,
+      reservePrice: auctions.reservePrice,
       bidCount: sql`((SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id}) + (SELECT COUNT(*) FROM auctionComments WHERE auctionComments.auctionId = ${auctions.id}))`
     }).from(auctions).leftJoin(users, eq(auctions.highestBidderId, users.id));
     const baseConditions = [
@@ -1486,7 +1487,8 @@ async function getAuctionById(id) {
       privateNote: auctions.privateNote,
       displayMode: auctions.displayMode,
       sellerPhotoUrl: sql`(SELECT COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) FROM users u LEFT JOIN merchantApplications ma ON ma.userId = u.id AND ma.status = 'approved' WHERE u.id = ${auctions.createdBy} LIMIT 1)`,
-      fbShareTemplate: sql`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`
+      fbShareTemplate: sql`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
+      reservePrice: auctions.reservePrice
     }).from(auctions).where(eq(auctions.id, id)).limit(1);
     return result.length > 0 ? result[0] : void 0;
   } catch (error) {
