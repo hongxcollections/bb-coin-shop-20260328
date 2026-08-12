@@ -16798,6 +16798,7 @@ var appRouter = router({
         updateData.startingPrice = input.startingPrice.toString();
         updateData.currentPrice = input.startingPrice.toString();
       }
+      if (input.reservePrice !== void 0) updateData.reservePrice = input.reservePrice > 0 ? input.reservePrice.toString() : null;
       if (input.bidIncrement !== void 0) updateData.bidIncrement = input.bidIncrement;
       if (input.currency !== void 0) updateData.currency = input.currency;
       if (input.antiSnipeEnabled !== void 0) updateData.antiSnipeEnabled = input.antiSnipeEnabled;

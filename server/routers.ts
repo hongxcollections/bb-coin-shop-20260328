@@ -3239,6 +3239,7 @@ export const appRouter = router({
           updateData.startingPrice = input.startingPrice.toString();
           updateData.currentPrice = input.startingPrice.toString();
         }
+        if (input.reservePrice !== undefined) updateData.reservePrice = input.reservePrice > 0 ? input.reservePrice.toString() : null;
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
         if (input.antiSnipeEnabled !== undefined) updateData.antiSnipeEnabled = input.antiSnipeEnabled;
