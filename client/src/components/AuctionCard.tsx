@@ -132,7 +132,7 @@ export function AuctionCard({
       return <span className="text-[9px] text-gray-500">(得標者 ***)</span>;
     }
     if (highestBidderName) {
-      return <span className="text-[9px] text-red-500 font-semibold">({highestBidderName})</span>;
+      return <span className="text-[9px] bg-white text-red-800 border border-red-200 rounded px-1 font-semibold">{highestBidderName}</span>;
     }
     if (!highestBidderId) {
       // Bids exist but no leader → reserve price hasn't been met yet — show nothing while active

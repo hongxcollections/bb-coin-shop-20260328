@@ -1317,7 +1317,9 @@ export default function AuctionDetail() {
                             <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
                               <div className="flex items-center gap-2">
                                 <User className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span className="text-muted-foreground">{shownName}</span>
+                                {i === 0
+                                  ? <span className="bg-white text-red-800 border border-red-200 rounded px-1.5 py-0.5 text-xs font-semibold">{shownName}</span>
+                                  : <span className="text-muted-foreground">{shownName}</span>}
                                 {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
                               </div>
                               <div className="font-bold text-amber-700 price-tag">
