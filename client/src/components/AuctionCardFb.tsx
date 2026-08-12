@@ -206,7 +206,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
   const reactionLabel = (() => {
     if (bidCount === 0) return null;
     if (isViewerWinner) {
-      return <span className="text-xs text-gray-500">👍 我本人 {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
+      return <span className="text-xs text-gray-500">👍 <span className="bg-emerald-500 text-white rounded px-1 font-semibold text-[11px]">我本人✓</span>{bidCount > 1 ? ` 和 ${bidCount - 1} 人` : ""}</span>;
     }
     if (isEnded && highestBidderId && !isPrivilegedViewer) {
       return <span className="text-xs text-gray-500">👍 得標用戶*** {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;

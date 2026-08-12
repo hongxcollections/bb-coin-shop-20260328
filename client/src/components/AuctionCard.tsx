@@ -123,8 +123,8 @@ export function AuctionCard({
   function renderBidderTag() {
     if (highestBidderId && currentUserId && highestBidderId === currentUserId) {
       return (
-        <span className="text-[9px] text-emerald-600 font-bold">
-          {sessionMode && isEnded ? "(我得標了✓)" : "(我本人✓)"}
+        <span className="text-[9px] bg-emerald-500 text-white rounded px-1 font-semibold">
+          {sessionMode && isEnded ? "我得標了✓" : "我本人✓"}
         </span>
       );
     }

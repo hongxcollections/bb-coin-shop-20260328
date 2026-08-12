@@ -856,8 +856,8 @@ export default function AuctionDetail() {
                             const canSee = isPrivileged || isWinner;
                             const name = canSee ? displayName(bids[0], user?.id) : "***";
                             return (
-                              <span className={`font-semibold ${isWinner ? "text-emerald-600" : canSee ? "text-red-500" : "text-gray-500"}`} style={{ fontSize: "15px" }}>
-                                (得標者 {name}{isWinner ? " ✓" : ""})
+                              <span className={`font-semibold rounded px-1.5 ${isWinner ? "bg-emerald-500 text-white" : canSee ? "bg-white text-red-800" : "text-gray-500"}`} style={{ fontSize: "15px" }}>
+                                {isWinner ? `得標者 ${name} ✓` : canSee ? `得標者 ${name}` : "得標者 ***"}
                               </span>
                             );
                           })()}
@@ -873,7 +873,7 @@ export default function AuctionDetail() {
                           )}
                           {bids.length > 0 && !!(auction as { highestBidderId?: number | null }).highestBidderId && (
                             bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (
-                              <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>(我本人✓)</span>
+                              <span className="bg-emerald-500 text-white rounded px-1.5 font-bold" style={{ fontSize: "15px" }}>我本人✓</span>
                             ) : (
                               <span className="bg-white text-red-800 rounded px-1.5 font-semibold" style={{ fontSize: "18px" }}>{displayName(bids[0], user?.id)}</span>
                             )
