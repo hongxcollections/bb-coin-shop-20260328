@@ -618,7 +618,7 @@ export default function MerchantAuctions() {
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
   const [activeEditTarget, setActiveEditTarget] = useState<AuctionItem | null>(null);
-  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", privateNote: "", categories: [] as string[], videoUrl: "", startingPrice: "", bidIncrement: 30, currency: "HKD" });
+  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", privateNote: "", categories: [] as string[], videoUrl: "", startingPrice: "", bidIncrement: 30, currency: "HKD", reservePrice: "" });
   const activeEditVideoFileRef = useRef<HTMLInputElement>(null);
   const [activeEditUploadingVideo, setActiveEditUploadingVideo] = useState(false);
   const handleActiveEditVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -997,6 +997,7 @@ export default function MerchantAuctions() {
       startingPrice: String(a.startingPrice),
       bidIncrement: a.bidIncrement ?? 30,
       currency: a.currency ?? "HKD",
+      reservePrice: (a as any).reservePrice ? String((a as any).reservePrice) : "",
     });
     setActiveEditUploaded((a.images ?? []).map(img => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setActiveEditPending([]);
@@ -1046,6 +1047,7 @@ export default function MerchantAuctions() {
         startingPrice: sp,
         bidIncrement: activeEditForm.bidIncrement,
         currency: activeEditForm.currency as never,
+        reservePrice: activeEditForm.reservePrice ? parseFloat(activeEditForm.reservePrice) : 0,
       }),
     });
   };
@@ -2441,6 +2443,23 @@ export default function MerchantAuctions() {
                 </div>
               );
             })()}
+            {/* 底價（未有出價時可修改） */}
+            {!activeEditTarget?.highestBidderId && (
+              <div>
+                <Label className="text-sm font-medium">底價（選填，留空即無底價）</Label>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-sm text-muted-foreground shrink-0">{getCurrencySymbol(activeEditForm.currency)}</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={activeEditForm.reservePrice}
+                    onChange={(e) => setActiveEditForm((f) => ({ ...f, reservePrice: e.target.value }))}
+                    placeholder="例：500（留空即無底價）"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">底價對買家完全隱藏。未達底價自動流拍。</p>
+              </div>
+            )}
             <div className="flex gap-2 justify-end pt-1">
               <Button variant="outline" onClick={() => {
                 setActiveEditOpen(false);

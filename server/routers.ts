@@ -3264,6 +3264,7 @@ export const appRouter = router({
         startingPrice: z.number().min(0).optional(),
         bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+        reservePrice: z.number().min(0).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.id);
@@ -3274,15 +3275,16 @@ export const appRouter = router({
         if (auction.status !== 'active') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '此功能只適用於進行中的拍賣' });
         }
-        // 改價格 / 加幅 / 貨幣 必須未有出價
+        // 改價格 / 加幅 / 貨幣 / 底價 必須未有出價
         const priceFieldsTouched =
           input.startingPrice !== undefined ||
           input.bidIncrement !== undefined ||
-          input.currency !== undefined;
+          input.currency !== undefined ||
+          input.reservePrice !== undefined;
         if (priceFieldsTouched) {
           const bidHistory = await getBidHistory(input.id);
           if (bidHistory.length > 0) {
-            throw new TRPCError({ code: 'BAD_REQUEST', message: '已有出價記錄，不可修改起拍價／加幅／貨幣' });
+            throw new TRPCError({ code: 'BAD_REQUEST', message: '已有出價記錄，不可修改起拍價／加幅／貨幣／底價' });
           }
         }
         const updateData: Record<string, unknown> = {};
@@ -3297,6 +3299,9 @@ export const appRouter = router({
         }
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
+        if (input.reservePrice !== undefined) {
+          updateData.reservePrice = (!input.reservePrice || input.reservePrice === 0) ? null : String(input.reservePrice);
+        }
         await updateAuction(input.id, updateData);
         return { success: true };
       }),

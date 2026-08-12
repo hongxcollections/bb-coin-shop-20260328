@@ -16831,7 +16831,8 @@ var appRouter = router({
       videoUrl: z2.string().nullable().optional(),
       startingPrice: z2.number().min(0).optional(),
       bidIncrement: z2.number().int().min(10).max(5e3).optional(),
-      currency: z2.enum(["HKD", "USD", "CNY", "GBP", "EUR", "JPY"]).optional()
+      currency: z2.enum(["HKD", "USD", "CNY", "GBP", "EUR", "JPY"]).optional(),
+      reservePrice: z2.number().min(0).nullable().optional()
     })).mutation(async ({ input, ctx }) => {
       const auction = await getAuctionById(input.id);
       if (!auction) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u4E0D\u5230\u62CD\u8CE3" });
@@ -16841,11 +16842,11 @@ var appRouter = router({
       if (auction.status !== "active") {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u6B64\u529F\u80FD\u53EA\u9069\u7528\u65BC\u9032\u884C\u4E2D\u7684\u62CD\u8CE3" });
       }
-      const priceFieldsTouched = input.startingPrice !== void 0 || input.bidIncrement !== void 0 || input.currency !== void 0;
+      const priceFieldsTouched = input.startingPrice !== void 0 || input.bidIncrement !== void 0 || input.currency !== void 0 || input.reservePrice !== void 0;
       if (priceFieldsTouched) {
         const bidHistory = await getBidHistory(input.id);
         if (bidHistory.length > 0) {
-          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5DF2\u6709\u51FA\u50F9\u8A18\u9304\uFF0C\u4E0D\u53EF\u4FEE\u6539\u8D77\u62CD\u50F9\uFF0F\u52A0\u5E45\uFF0F\u8CA8\u5E63" });
+          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5DF2\u6709\u51FA\u50F9\u8A18\u9304\uFF0C\u4E0D\u53EF\u4FEE\u6539\u8D77\u62CD\u50F9\uFF0F\u52A0\u5E45\uFF0F\u8CA8\u5E63\uFF0F\u5E95\u50F9" });
         }
       }
       const updateData = {};
@@ -16860,6 +16861,9 @@ var appRouter = router({
       }
       if (input.bidIncrement !== void 0) updateData.bidIncrement = input.bidIncrement;
       if (input.currency !== void 0) updateData.currency = input.currency;
+      if (input.reservePrice !== void 0) {
+        updateData.reservePrice = !input.reservePrice || input.reservePrice === 0 ? null : String(input.reservePrice);
+      }
       await updateAuction(input.id, updateData);
       return { success: true };
     }),
