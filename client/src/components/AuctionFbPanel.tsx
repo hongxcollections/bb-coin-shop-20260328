@@ -415,7 +415,7 @@ export function AuctionFbPanel({
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     const amount = parseInt(bidInput, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
-    const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
+    const minBid = belowReserve ? currentPrice : (bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice));
     if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
     if (myProxy?.isActive) {
       const ok = await confirm({
@@ -432,7 +432,7 @@ export function AuctionFbPanel({
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
     const amount = parseInt(proxyAmountStr, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效代理出價上限"); return; }
-    const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
+    const minBid = belowReserve ? currentPrice : (bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice));
     if (amount < minBid) { toast.error(`代理出價上限最低 ${curr}${minBid.toLocaleString()}`); return; }
     setProxyConfirmStep(true);
   };
@@ -518,7 +518,10 @@ export function AuctionFbPanel({
                 ) : (
                   <div className="flex items-center gap-1.5 flex-wrap justify-end">
                     <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
-                    {highestBidderName && (
+                    {belowReserve && (
+                      <span className="text-[10px] font-bold bg-sky-500 text-white rounded px-1 whitespace-nowrap">底價未達</span>
+                    )}
+                    {!belowReserve && highestBidderName && (
                       <span className="text-[11px] text-gray-500 truncate max-w-[80px]">最高：{highestBidderName}</span>
                     )}
                   </div>
@@ -717,8 +720,13 @@ export function AuctionFbPanel({
             <div className={`${!endTime ? "border-t border-gray-100 " : ""}px-3 pt-1 pb-1 bg-white shrink-0`}>
               <div className="flex gap-2">
                 {(() => {
-                  const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
-                  return [
+                  const normalMin = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
+                  const minBid = belowReserve ? currentPrice : normalMin;
+                  return belowReserve ? [
+                    { hint: "最低", amt: currentPrice },
+                    { hint: "+1口", amt: normalMin + bidIncrement },
+                    { hint: "+2口", amt: normalMin + bidIncrement * 2 },
+                  ] : [
                     { hint: "最低", amt: minBid },
                     { hint: "+1口", amt: minBid + bidIncrement },
                     { hint: "+2口", amt: minBid + bidIncrement * 2 },
@@ -814,7 +822,7 @@ export function AuctionFbPanel({
                 <input
                   className="flex-1 px-3 py-2 text-sm outline-none placeholder-gray-400"
                   style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
-                  placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice)).toLocaleString()})`}
+                  placeholder={`出價 (最低 ${curr}${(belowReserve ? currentPrice : (bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice))).toLocaleString()})`}
                   value={bidInput}
                   onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
@@ -865,7 +873,7 @@ export function AuctionFbPanel({
                     className="flex-1 px-3 py-2.5 text-base font-bold outline-none placeholder-gray-400"
                     style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
                     inputMode="numeric"
-                    placeholder={`最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()}`}
+                    placeholder={`最低 ${curr}${(belowReserve ? currentPrice : (bidCount > 0 ? currentPrice + bidIncrement : currentPrice)).toLocaleString()}`}
                     value={proxyAmountStr}
                     onChange={(e) => { if (/^\d*$/.test(e.target.value)) setProxyAmountStr(e.target.value); }}
                     onKeyDown={(e) => { if (e.key === "Enter") handleSetProxy(); }}
