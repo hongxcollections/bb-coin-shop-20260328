@@ -388,6 +388,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         currency={currency}
         currentPrice={currentPrice}
         highestBidderName={highestBidderName}
+        highestBidderId={highestBidderId}
         bidIncrement={bidIncrement}
         bidCount={bidCount}
         isEnded={isEnded}
@@ -395,6 +396,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         antiSnipeEnabled={antiSnipeEnabled}
         antiSnipeMinutes={antiSnipeMinutes}
         extendMinutes={extendMinutes}
+        reservePrice={reservePrice}
       />
 
       {/* FB Panel — opened via "回應" button */}
@@ -417,6 +419,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         antiSnipeEnabled={antiSnipeEnabled}
         antiSnipeMinutes={antiSnipeMinutes}
         extendMinutes={extendMinutes}
+        reservePrice={reservePrice}
       />
     </div>
   );

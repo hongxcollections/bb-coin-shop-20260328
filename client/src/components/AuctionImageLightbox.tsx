@@ -27,6 +27,8 @@ interface Props {
   antiSnipeEnabled?: number;
   antiSnipeMinutes?: number;
   extendMinutes?: number;
+  reservePrice?: string | number | null;
+  highestBidderId?: number | null;
 }
 
 type PanelItem = {
@@ -182,7 +184,7 @@ export function AuctionImageLightbox({
   open, onClose, images, auctionId, auctionTitle,
   sellerName, sellerPhotoUrl, createdBy,
   currency, currentPrice, highestBidderName, bidIncrement = 30, bidCount = 0, isEnded,
-  endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
+  endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, reservePrice, highestBidderId,
 }: Props) {
   const { user, isAuthenticated } = useAuth();
   const confirm = useConfirm();
@@ -364,6 +366,8 @@ export function AuctionImageLightbox({
     i => i.type === "bid" || (i.type === "comment" && i.replyToBidId === null)
   );
   const maxBidAmount = Math.max(0, ...items.filter(i => i.type === "bid" && i.rawAmount != null).map(i => Number(i.rawAmount)));
+  const hasReserve = !!(reservePrice && Number(reservePrice) > 0);
+  const belowReserve = hasReserve && !highestBidderId && bidCount > 0;
   const replyMap = new Map<number, PanelItem[]>();
   for (const item of items) {
     if (item.type === "comment" && item.replyToBidId != null) {
@@ -574,7 +578,10 @@ export function AuctionImageLightbox({
                 }
 
                 /* isMyBid from server */
-                const isLeading = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
+                const isTopBid = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
+                // 底價未達時不算任何人「領先」
+                const isLeading = isTopBid && !belowReserve;
+                const isTopBidBelowReserve = isTopBid && belowReserve;
                 return (
                   <div key={`b-${item.id}`} className={isLeading ? "border-l-[3px] border-red-500 pl-2 -ml-2" : ""}>
                     <div className="flex items-start gap-3">
@@ -597,6 +604,7 @@ export function AuctionImageLightbox({
                             <>
                               <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
                               {isLeading && <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>}
+                              {isTopBidBelowReserve && <span className="text-[10px] font-bold text-purple-600 border border-purple-400 rounded px-1 whitespace-nowrap">底價未達</span>}
                             </>
                           )}
                         </div>

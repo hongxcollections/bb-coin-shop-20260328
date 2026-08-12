@@ -26,6 +26,7 @@ interface AuctionFbPanelProps {
   antiSnipeMinutes?: number;
   extendMinutes?: number;
   endTime?: string | Date;
+  reservePrice?: string | number | null;
 }
 
 type PanelItem = {
@@ -154,7 +155,7 @@ function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onS
 export function AuctionFbPanel({
   open, onClose, auctionId, auctionTitle, createdBy, sellerName, sellerPhotoUrl,
   currency, currentPrice, highestBidderName, highestBidderId, bidIncrement = 30, bidCount = 0, isEnded,
-  endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
+  endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, reservePrice,
 }: AuctionFbPanelProps) {
   const { user, isAuthenticated } = useAuth();
   const isMerchant = !!user && user.id === createdBy;
@@ -370,6 +371,8 @@ export function AuctionFbPanel({
     i => i.type === "bid" || (i.type === "comment" && i.replyToBidId === null)
   );
   const maxBidAmount = Math.max(0, ...items.filter(i => i.type === "bid" && i.rawAmount != null).map(i => Number(i.rawAmount)));
+  const hasReserve = !!(reservePrice && Number(reservePrice) > 0);
+  const belowReserve = hasReserve && !highestBidderId && bidCount > 0;
   const replyMap = new Map<number, PanelItem[]>();
   for (const item of items) {
     if (item.type === "comment" && item.replyToBidId != null) {
@@ -556,7 +559,10 @@ export function AuctionFbPanel({
               }
 
               /* Bid item — isMyBid comes from server */
-              const isLeading = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
+              const isTopBid = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
+              // 底價未達時不算任何人「領先」，只標記最高出價為「底價未達」
+              const isLeading = isTopBid && !belowReserve;
+              const isTopBidBelowReserve = isTopBid && belowReserve;
               /* Ended auction: privileged (merchant/admin/winner) → real data; others → masked */
               const isOtherBidder = isEnded && !isPrivileged && !isLeading && !item.isAnonymous;
               const isWinnerAnon = isEnded && !isPrivileged && isLeading && !item.isAnonymous;
@@ -601,6 +607,7 @@ export function AuctionFbPanel({
                           <>
                             <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
                             {isLeading && <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>}
+                            {isTopBidBelowReserve && <span className="text-[10px] font-bold text-purple-600 border border-purple-400 rounded px-1 whitespace-nowrap">底價未達</span>}
                           </>
                         )}
                       </div>
