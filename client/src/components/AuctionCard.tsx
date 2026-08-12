@@ -196,6 +196,7 @@ export function AuctionCard({
             {/* 出價資訊行 */}
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-muted-foreground shrink-0">{priceLabel}</span>
+              {belowReserve && <span className="text-[9px] bg-sky-500 text-white rounded px-1 font-semibold shrink-0">底價未達</span>}
               {renderBidderTag()}
               {(bidCount ?? 0) > 0 && (
                 <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
@@ -207,9 +208,7 @@ export function AuctionCard({
 
             {/* 價錢 + 分享 + 閃出價 */}
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-amber-600">{curr}{currentPrice.toLocaleString()}</span>
-              {belowReserve && <span className="text-[9px] bg-sky-500 text-white rounded px-1 font-semibold shrink-0">底價未達</span>}
-              <span className="flex-1" />
+              <span className="text-xl font-bold text-amber-600 flex-1">{curr}{currentPrice.toLocaleString()}</span>
               <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                 <ShareMenu
                   auctionId={auctionId}
