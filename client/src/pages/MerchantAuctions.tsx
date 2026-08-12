@@ -174,6 +174,7 @@ interface AuctionFormData {
   title: string;
   description: string;
   startingPrice: string;
+  reservePrice: string;
   bidIncrement: number;
   currency: string;
   antiSnipeEnabled: boolean;
@@ -191,6 +192,7 @@ const defaultForm: AuctionFormData = {
   title: "",
   description: "",
   startingPrice: "",
+  reservePrice: "",
   bidIncrement: 30,
   currency: "HKD",
   antiSnipeEnabled: true,
@@ -218,6 +220,7 @@ type AuctionItem = {
   extendMinutes?: number | null;
   category?: string | null;
   privateNote?: string | null;
+  reservePrice?: string | number | null;
   displayMode?: string | null;
   images: Array<{ id?: number; imageUrl: string; displayOrder: number }>;
 };
@@ -400,6 +403,9 @@ function AuctionCard({
           <p className="text-xs text-muted-foreground leading-snug">
             起：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
             {" · "}口：${auction.bidIncrement ?? 30}
+            {auction.reservePrice && Number(auction.reservePrice) > 0 && (
+              <span className="ml-1 text-purple-600 font-medium">· 底：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.reservePrice).toLocaleString()}</span>
+            )}
             {tab === "草稿" && (
               (auction.antiSnipeEnabled ?? 1) === 1
                 ? <span className="ml-1 text-amber-500">🛡️{auction.antiSnipeMinutes ?? 3}+{auction.extendMinutes ?? 3}分</span>
@@ -965,6 +971,10 @@ export default function MerchantAuctions() {
       })(),
       videoUrl: (a as { videoUrl?: string | null }).videoUrl ?? "",
       privateNote: a.privateNote ?? "",
+      reservePrice: (() => {
+        const rp = a.reservePrice;
+        return rp && Number(rp) > 0 ? String(Number(rp)) : "";
+      })(),
     });
     setUploadedImages((a.images ?? []).map((img) => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setPendingImages([]);
@@ -1071,10 +1081,11 @@ export default function MerchantAuctions() {
     }
 
     const privateNote = form.privateNote.trim() || null;
+    const reservePrice = form.reservePrice ? parseFloat(form.reservePrice) : 0;
     if (editId) {
-      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null, privateNote });
+      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null, privateNote, reservePrice });
     } else {
-      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null, privateNote });
+      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null, privateNote, reservePrice });
     }
   };
 
@@ -1573,6 +1584,21 @@ export default function MerchantAuctions() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            {/* 底價 */}
+            <div>
+              <Label>底價（選填，留空即無底價）</Label>
+              <div className="flex items-center gap-1 mt-1">
+                <span className="text-sm text-muted-foreground shrink-0">{getCurrencySymbol(form.currency)}</span>
+                <Input
+                  type="number"
+                  min="0"
+                  value={form.reservePrice}
+                  onChange={(e) => setForm((f) => ({ ...f, reservePrice: e.target.value }))}
+                  placeholder="例：500（留空即無底價）"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">底價對買家完全隱藏。拍賣結束時若最高出價未達底價，系統自動流拍。</p>
             </div>
             {/* 反狙擊延時設定 */}
             <div className="rounded-lg border border-amber-200 bg-amber-100/70 p-3 space-y-2">
