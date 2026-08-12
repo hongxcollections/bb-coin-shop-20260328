@@ -273,13 +273,13 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
             </div>
             <div className="flex items-center justify-end gap-3">
               {hasReserve && (
-                <span className="text-[10px] text-purple-600 border border-purple-200 bg-purple-50 rounded px-1.5 py-0.5 shrink-0">
+                <span className="text-[10px] bg-sky-500 text-white rounded px-1.5 py-0.5 shrink-0">
                   設有底價
                 </span>
               )}
               <span className="text-[13px] text-amber-600 font-semibold">
                 目前：{curr}{currentPrice.toLocaleString()}
-                {belowReserve && <span className="text-[10px] text-gray-500 font-normal ml-1">(底價未達)</span>}
+                {belowReserve && <span className="text-[10px] bg-sky-500 text-white font-semibold rounded px-1 ml-1">底價未達</span>}
               </span>
               {!belowReserve && highestBidderName && highestBidderId && (
                 <span className="text-[12px] text-gray-500 truncate max-w-[110px]">

@@ -813,7 +813,7 @@ export default function AuctionDetail() {
               <h1 className="text-2xl font-bold leading-tight mb-3">{auction.title}</h1>
               <div className="flex items-center justify-end gap-2 mb-2">
                 {(auction as { reservePrice?: string | null }).reservePrice && Number((auction as { reservePrice?: string | null }).reservePrice) > 0 && (
-                  <Badge className="bg-purple-100 text-purple-700 border border-purple-200">
+                  <Badge className="bg-sky-500 text-white">
                     設有底價
                   </Badge>
                 )}
@@ -869,7 +869,7 @@ export default function AuctionDetail() {
                             <span className="text-[9px] text-black font-normal">(未有出價)</span>
                           )}
                           {bids.length > 0 && !(auction as { highestBidderId?: number | null }).highestBidderId && (
-                            <span className="text-[9px] text-gray-500 font-normal">(底價未達)</span>
+                            <span className="text-[9px] bg-sky-500 text-white font-semibold rounded px-1">底價未達</span>
                           )}
                           {bids.length > 0 && !!(auction as { highestBidderId?: number | null }).highestBidderId && (
                             bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (

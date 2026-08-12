@@ -607,7 +607,7 @@ export function AuctionFbPanel({
                           <>
                             <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
                             {isLeading && <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>}
-                            {isTopBidBelowReserve && <span className="text-[10px] font-bold text-purple-600 border border-purple-400 rounded px-1 whitespace-nowrap">底價未達</span>}
+                            {isTopBidBelowReserve && <span className="text-[10px] font-bold bg-sky-500 text-white rounded px-1 whitespace-nowrap">底價未達</span>}
                           </>
                         )}
                       </div>
