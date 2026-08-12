@@ -585,7 +585,7 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
       console.warn('[Loyalty] Recalc on bid warning:', err instanceof Error ? err.message : err)
     );
 
-    return { success: true, extended, newEndTime, extendMinutes: auctionAfter?.extendMinutes ?? 3 };
+    return { success: true, extended, newEndTime, extendMinutes: auctionAfter?.extendMinutes ?? 3, belowReserve };
   } catch (error) {
     console.error('[Auctions] Failed to place bid:', error);
     throw error;

@@ -414,8 +414,9 @@ export default function AuctionDetail() {
     onSuccess: (data) => {
       const auctionTitle = (auction as { title?: string })?.title ?? '';
       const extNote = data.extended ? ` · 已延長 ${data.extendMinutes ?? 3} 分鐘` : '';
+      const reserveNote = (data as any).belowReserve ? ' · 底價未達，繼續競投中' : '';
       toast.success(`商品名稱 - ${auctionTitle}`, {
-        description: `確認出價 - ${currencySymbol}${pendingBidAmount.toLocaleString()}${extNote}`,
+        description: `確認出價 - ${currencySymbol}${pendingBidAmount.toLocaleString()}${extNote}${reserveNote}`,
         className: "bb-toast-success",
         duration: 5000,
       });
@@ -514,7 +515,9 @@ export default function AuctionDetail() {
   const currentPrice = auction ? Number(auction.currentPrice) : 0;
   const startingPrice = auction ? Number(auction.startingPrice) : 0;
   // 無出價記錄時，最低出價 = 起拍價（零起拍則為一口加幅）；有出價時 = 現價 + 每口加幅
-  const hasExistingBid = !!(auction as { highestBidderId?: number | null })?.highestBidderId;
+  // 底價模式下 highestBidderId 可能為 null 但價格已被系統加口，用 currentPrice > startingPrice 補判
+  const hasExistingBid = !!(auction as { highestBidderId?: number | null })?.highestBidderId
+    || currentPrice > startingPrice;
   const minBid = hasExistingBid ? currentPrice + bidIncrement : (startingPrice === 0 ? bidIncrement : startingPrice);
 
   // 快速出價按鈕：最低出價、最低+1口、最低+2口
@@ -863,10 +866,15 @@ export default function AuctionDetail() {
                           {bids.length === 0 && (
                             <span className="text-[9px] text-black font-normal">(未有出價)</span>
                           )}
-                          {bids.length > 0 && bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (
-                            <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>(我本人✓)</span>
-                          ) : bids.length > 0 && (
-                            <span className="text-red-500 font-semibold" style={{ fontSize: "15px" }}>({displayName(bids[0], user?.id)})</span>
+                          {bids.length > 0 && !(auction as { highestBidderId?: number | null }).highestBidderId && (
+                            <span className="text-[9px] text-gray-500 font-normal">(底價未達)</span>
+                          )}
+                          {bids.length > 0 && !!(auction as { highestBidderId?: number | null }).highestBidderId && (
+                            bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (
+                              <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>(我本人✓)</span>
+                            ) : (
+                              <span className="text-red-500 font-semibold" style={{ fontSize: "15px" }}>({displayName(bids[0], user?.id)})</span>
+                            )
                           )}
                         </>
                       )}

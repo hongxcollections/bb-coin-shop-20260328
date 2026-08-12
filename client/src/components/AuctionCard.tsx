@@ -135,6 +135,8 @@ export function AuctionCard({
       return <span className="text-[9px] text-red-500 font-semibold">({highestBidderName})</span>;
     }
     if (!highestBidderId) {
+      // Bids exist but no leader → reserve price hasn't been met yet — show nothing while active
+      if ((bidCount ?? 0) > 0 && !isEnded) return null;
       return (
         <span className="text-[9px] text-gray-400">
           {sessionMode && isEnded ? "(流拍)" : "(未有出價)"}

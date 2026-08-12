@@ -11603,7 +11603,7 @@ async function placeBid2(auctionId, userId, bidAmount, origin = "", isAnonymous 
     Promise.resolve().then(() => (init_loyalty(), loyalty_exports)).then((m) => m.recalculateUserLevel(userId)).catch(
       (err) => console.warn("[Loyalty] Recalc on bid warning:", err instanceof Error ? err.message : err)
     );
-    return { success: true, extended, newEndTime, extendMinutes: auctionAfter?.extendMinutes ?? 3 };
+    return { success: true, extended, newEndTime, extendMinutes: auctionAfter?.extendMinutes ?? 3, belowReserve };
   } catch (error) {
     console.error("[Auctions] Failed to place bid:", error);
     throw error;
