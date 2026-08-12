@@ -1721,6 +1721,7 @@ async function getAuctionsByCreator(userId) {
       videoUrl: auctions.videoUrl,
       privateNote: auctions.privateNote,
       displayMode: auctions.displayMode,
+      reservePrice: auctions.reservePrice,
       bidCount: sql`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`
     }).from(auctions).leftJoin(users, eq(auctions.highestBidderId, users.id)).where(and(eq(auctions.createdBy, userId), or(eq(auctions.archived, 0), isNull(auctions.archived)))).orderBy(
       sql`CASE WHEN ${auctions.status} = 'active' THEN 0 ELSE 1 END`,
