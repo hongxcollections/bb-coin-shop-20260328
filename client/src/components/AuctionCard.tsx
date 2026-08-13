@@ -228,7 +228,7 @@ export function AuctionCard({
                   startingPrice={startingPrice}
                   bidIncrement={bidIncrement}
                   currency={currency}
-                  hasExistingBid={!!highestBidderId}
+                  hasExistingBid={!!highestBidderId || (bidCount ?? 0) > 0}
                   isEnded={isEnded}
                   createdBy={createdBy}
                   endTime={endTime}
