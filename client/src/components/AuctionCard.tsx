@@ -158,7 +158,7 @@ export function AuctionCard({
         {hasBids && <div className="scanner-shimmer" />}
         {/* Row 1: badges 一行，商品名稱獨立一行 */}
         <div className="flex flex-col gap-0.5 min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-end gap-1.5">
             {reservePrice && Number(reservePrice) > 0 && !highestBidderId && (
               <Badge className="bg-sky-500 text-white text-[9px] px-1.5 py-0.5 shrink-0">
                 設有底價
