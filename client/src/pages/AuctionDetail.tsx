@@ -518,7 +518,7 @@ export default function AuctionDetail() {
   // 底價模式下 highestBidderId 為 null，用 bids.length 判斷是否已有出價
   // （auction.bidCount 不在 detail response 裡，用 bidHistory 陣列長度代替）
   const hasExistingBid = !!(auction as { highestBidderId?: number | null })?.highestBidderId
-    || bids.length > 0;
+    || ((auction as { bidHistory?: unknown[] })?.bidHistory?.length ?? 0) > 0;
   const minBid = hasExistingBid ? currentPrice + bidIncrement : (startingPrice === 0 ? bidIncrement : startingPrice);
 
   // 快速出價按鈕：最低出價、最低+1口、最低+2口
