@@ -156,22 +156,24 @@ export function AuctionCard({
     <Link href={`/auctions/${auctionId}`} onClick={onLinkClick}>
       <div className={`auction-list-item flex flex-col gap-2 p-3 rounded-xl cursor-pointer transition-all border relative overflow-hidden ${cardBg}`}>
         {hasBids && <div className="scanner-shimmer" />}
-        {/* Row 1: 商品名稱 + badges 全寬 */}
-        <div className="flex items-center gap-1.5 min-w-0">
-          <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{title}</h3>
-          {reservePrice && Number(reservePrice) > 0 && !highestBidderId && (
-            <Badge className="bg-sky-500 text-white text-[9px] px-1.5 py-0.5 shrink-0">
-              設有底價
+        {/* Row 1: badges 一行，商品名稱獨立一行 */}
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-1.5">
+            {reservePrice && Number(reservePrice) > 0 && !highestBidderId && (
+              <Badge className="bg-sky-500 text-white text-[9px] px-1.5 py-0.5 shrink-0">
+                設有底價
+              </Badge>
+            )}
+            {isEndingSoon && (
+              <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse shrink-0">
+                {endingSoonText}
+              </Badge>
+            )}
+            <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+              {!isEnded ? "競拍中" : "已結束"}
             </Badge>
-          )}
-          {isEndingSoon && (
-            <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse shrink-0">
-              {endingSoonText}
-            </Badge>
-          )}
-          <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
-            {!isEnded ? "競拍中" : "已結束"}
-          </Badge>
+          </div>
+          <h3 className="font-semibold text-[15px] truncate text-amber-900 min-w-0">{title}</h3>
         </div>
 
         {/* Row 2: 圖片 + 資料 */}
