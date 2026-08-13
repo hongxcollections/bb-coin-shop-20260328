@@ -344,6 +344,8 @@ export function AuctionFbPanel({
       setProxyAmountStr("");
       setProxyBidOpen(false);
       utils.auctionFbPanel.getPanel.invalidate();
+      utils.auctions.list.invalidate();
+      utils.auctions.detail.invalidate({ id: auctionId });
       toast.success("出價成功！");
       setTimeout(() => {
         if (sort === "new") scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });

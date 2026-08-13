@@ -515,9 +515,10 @@ export default function AuctionDetail() {
   const currentPrice = auction ? Number(auction.currentPrice) : 0;
   const startingPrice = auction ? Number(auction.startingPrice) : 0;
   // 無出價記錄時，最低出價 = 起拍價（零起拍則為一口加幅）；有出價時 = 現價 + 每口加幅
-  // 底價模式下 highestBidderId 為 null，用 bidCount > 0 判斷是否已有出價
+  // 底價模式下 highestBidderId 為 null，用 bids.length 判斷是否已有出價
+  // （auction.bidCount 不在 detail response 裡，用 bidHistory 陣列長度代替）
   const hasExistingBid = !!(auction as { highestBidderId?: number | null })?.highestBidderId
-    || ((auction as { bidCount?: number })?.bidCount ?? 0) > 0;
+    || bids.length > 0;
   const minBid = hasExistingBid ? currentPrice + bidIncrement : (startingPrice === 0 ? bidIncrement : startingPrice);
 
   // 快速出價按鈕：最低出價、最低+1口、最低+2口
