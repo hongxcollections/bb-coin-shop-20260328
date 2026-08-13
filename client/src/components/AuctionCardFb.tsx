@@ -274,7 +274,9 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
             <div className="flex items-center justify-end gap-3">
               {hasReserve && !highestBidderId && (
                 <span className="text-[10px] bg-sky-500 text-white rounded px-1.5 py-0.5 shrink-0">
-                  設有底價
+                  設有底價{currentUserId && createdBy && currentUserId === createdBy && (
+                    <span className="ml-1 font-bold">{curr}{Number(reservePrice).toLocaleString()}</span>
+                  )}
                 </span>
               )}
               <span className="text-[13px] text-amber-600 font-semibold">

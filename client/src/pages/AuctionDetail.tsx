@@ -815,7 +815,9 @@ export default function AuctionDetail() {
               <div className="flex items-center justify-end gap-2 mb-2">
                 {(auction as { reservePrice?: string | null }).reservePrice && Number((auction as { reservePrice?: string | null }).reservePrice) > 0 && !(auction as { highestBidderId?: number | null }).highestBidderId && (
                   <Badge className="bg-sky-500 text-white">
-                    設有底價
+                    設有底價{user?.id === (auction as { createdBy?: number }).createdBy && (
+                      <span className="ml-1 font-bold">{currencySymbol}{Number((auction as { reservePrice?: string | null }).reservePrice).toLocaleString()}</span>
+                    )}
                   </Badge>
                 )}
                 <Badge className={isActive ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
