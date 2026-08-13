@@ -161,7 +161,9 @@ export function AuctionCard({
           <div className="flex items-center justify-end gap-1.5">
             {reservePrice && Number(reservePrice) > 0 && !highestBidderId && (
               <Badge className="bg-sky-500 text-white text-[9px] px-1.5 py-0.5 shrink-0">
-                設有底價
+                設有底價{currentUserId && createdBy && currentUserId === createdBy && (
+                  <span className="ml-1 font-bold">{curr}{Number(reservePrice).toLocaleString()}</span>
+                )}
               </Badge>
             )}
             {isEndingSoon && (
