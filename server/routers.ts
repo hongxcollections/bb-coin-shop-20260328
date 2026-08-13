@@ -4120,6 +4120,7 @@ export const appRouter = router({
             antiSnipeEnabled: auctions.antiSnipeEnabled,
             antiSnipeMinutes: auctions.antiSnipeMinutes,
             extendMinutes: auctions.extendMinutes,
+            reservePrice: auctions.reservePrice,
           }).from(auctions)
             .leftJoin(usersTable, eq(auctions.highestBidderId, usersTable.id))
             .where(drizzleAnd(

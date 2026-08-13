@@ -17549,7 +17549,8 @@ var appRouter = router({
           createdAt: auctions.createdAt,
           antiSnipeEnabled: auctions.antiSnipeEnabled,
           antiSnipeMinutes: auctions.antiSnipeMinutes,
-          extendMinutes: auctions.extendMinutes
+          extendMinutes: auctions.extendMinutes,
+          reservePrice: auctions.reservePrice
         }).from(auctions).leftJoin(usersTable, eq8(auctions.highestBidderId, usersTable.id)).where(drizzleAnd(
           eq8(auctions.createdBy, input.userId),
           eq8(auctions.status, "active"),
