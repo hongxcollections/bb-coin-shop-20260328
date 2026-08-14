@@ -670,11 +670,7 @@ export default function MerchantAuctions() {
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
   const { data: pendingAuctionOrdersCount = 0 } = trpc.auctionOrders.myPendingCount.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 }) as any;
   const pendingOrdersCount = pendingAuctionOrdersCount;
-  const [mainTab, setMainTab] = useState<"auctions" | "orders" | "cards">("auctions");
-  const { data: myCardListings = [], isLoading: loadingCards } = trpc.cardTrading.getMyListings.useQuery(
-    { status: "active", limit: 50 },
-    { enabled: isAuthenticated }
-  );
+  const [mainTab, setMainTab] = useState<"auctions" | "orders">("auctions");
 
   const uploadMutation = trpc.merchants.uploadAuctionImage.useMutation();
   const uploadVideoMutation = trpc.merchants.uploadVideo.useMutation();
@@ -1306,7 +1302,7 @@ export default function MerchantAuctions() {
           )}
         </div>
 
-        {/* 大 Tab：我的拍賣 / 訂單管理 / 卡牌清單 */}
+        {/* 大 Tab：我的拍賣 / 訂單管理 */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
           <button onClick={() => setMainTab("auctions")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${mainTab === "auctions" ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
@@ -1321,58 +1317,9 @@ export default function MerchantAuctions() {
               </span>
             )}
           </button>
-          <button onClick={() => setMainTab("cards")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${mainTab === "cards" ? "bg-white text-sky-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-            <CreditCard className="w-4 h-4" />卡牌清單
-          </button>
         </div>
 
         {mainTab === "orders" && <MerchantAuctionOrdersTab />}
-
-        {mainTab === "cards" && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">卡牌清單由「卡牌交易 → 我的清單」管理，此處僅供瀏覽。</p>
-              <Link href="/cardzx/market/my">
-                <a className="text-xs font-semibold text-sky-600 hover:text-sky-800 underline underline-offset-2">前往管理</a>
-              </Link>
-            </div>
-            {loadingCards ? (
-              <div className="text-center py-10 text-2xl animate-spin">🃏</div>
-            ) : (myCardListings as any[]).length === 0 ? (
-              <div className="text-center py-10 text-sm text-gray-400">尚未有上架卡牌</div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2.5">
-                {(myCardListings as any[]).map((listing: any) => {
-                  const img = listing.photoUrls?.[0] ?? listing.officialImageUrl ?? null;
-                  return (
-                    <Link key={listing.id} href={`/cardzx/market?listing=${listing.id}`}>
-                      <div className="bg-white border border-sky-100 rounded-xl overflow-hidden hover:border-sky-300 hover:shadow-sm transition-all cursor-pointer">
-                        <div className="relative w-full aspect-square bg-gray-100">
-                          {img ? (
-                            <img src={img} alt={listing.cardName} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl">🃏</div>
-                          )}
-                          {listing.priceUnit && (
-                            <span className={`absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${listing.priceUnit === "單張" ? "bg-sky-500 text-white" : "bg-orange-500 text-white"}`}>
-                              {listing.priceUnit}
-                            </span>
-                          )}
-                        </div>
-                        <div className="p-2">
-                          <p className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-snug mb-1">{listing.cardName}</p>
-                          {listing.setName && <p className="text-[10px] text-gray-400 truncate mb-1">{listing.setName}</p>}
-                          <p className="text-xs font-black text-red-600">HK${Number(listing.priceHKD).toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
         {mainTab === "auctions" && (<>
 
