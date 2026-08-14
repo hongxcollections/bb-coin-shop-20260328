@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
-import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X, Images, GalleryHorizontal, LayoutList } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X, Images, GalleryHorizontal, LayoutList, CreditCard, ExternalLink } from "lucide-react";
 import GallerySheet from "@/components/GallerySheet";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -679,6 +679,10 @@ export default function MerchantStore() {
   );
   const { data: endedAuctionItems = [] } = trpc.merchants.getEndedAuctions.useQuery(
     { userId },
+    { enabled: userId > 0 }
+  );
+  const { data: cardListings = [] } = trpc.cardTrading.getSellerListings.useQuery(
+    { userId, status: "active", limit: 50 },
     { enabled: userId > 0 }
   );
 
@@ -1369,6 +1373,56 @@ export default function MerchantStore() {
             </div>
           )}
         </div>
+        {/* ── 卡牌交易 ── */}
+        {(cardListings as any[]).length > 0 && (
+          <div className="rounded-2xl bg-gradient-to-b from-sky-50/50 to-white border border-sky-100 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-sky-100 bg-gradient-to-r from-sky-50/80 to-sky-50/30">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 shadow-sm shadow-sky-200">
+                <CreditCard className="w-4 h-4 text-white" />
+              </div>
+              <h2 className="font-bold text-sm text-sky-900">卡牌交易</h2>
+              <span className="ml-auto text-xs font-semibold text-sky-700 bg-white/80 border border-sky-200 px-2.5 py-0.5 rounded-full">
+                {(cardListings as any[]).length} 張
+              </span>
+            </div>
+            <div className="p-3 grid grid-cols-2 gap-2.5">
+              {(cardListings as any[]).map((listing: any) => {
+                const img = listing.photoUrls?.[0] ?? listing.officialImageUrl ?? null;
+                return (
+                  <Link key={listing.id} href={`/cardzx/market?listing=${listing.id}`}>
+                    <div className="bg-white border border-sky-100 rounded-xl overflow-hidden hover:border-sky-300 hover:shadow-sm transition-all cursor-pointer">
+                      <div className="relative w-full aspect-square bg-gray-100">
+                        {img ? (
+                          <img src={img} alt={listing.cardName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-2xl">🃏</div>
+                        )}
+                        {listing.priceUnit && (
+                          <span className={`absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${listing.priceUnit === "單張" ? "bg-sky-500 text-white" : "bg-orange-500 text-white"}`}>
+                            {listing.priceUnit}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-2">
+                        <p className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-snug mb-1">{listing.cardName}</p>
+                        {listing.setName && <p className="text-[10px] text-gray-400 truncate mb-1">{listing.setName}</p>}
+                        <p className="text-xs font-black text-red-600">HK${Number(listing.priceHKD).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="px-4 py-2.5 border-t border-sky-100 bg-sky-50/40">
+              <Link href="/cardzx/market">
+                <a className="flex items-center justify-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-800 transition-colors">
+                  <ExternalLink className="w-3.5 h-3.5" />前往卡牌交易市場瀏覽全部
+                </a>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* ── 圖片集商品 ── */}
         {(publicGalleries as any[]).length > 0 && (
           <div className="rounded-2xl bg-gradient-to-b from-indigo-50/50 to-white border border-indigo-100 shadow-sm overflow-hidden">
