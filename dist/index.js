@@ -17155,7 +17155,8 @@ var appRouter = router({
         currency: original.currency,
         category: original.category ?? void 0,
         createdBy: ctx.user.id,
-        relistSourceId: input.id
+        relistSourceId: input.id,
+        reservePrice: original.reservePrice ?? null
       });
       const originalImages = await getAuctionImages(input.id);
       for (const img of originalImages) {

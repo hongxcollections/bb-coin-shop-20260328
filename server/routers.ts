@@ -3639,6 +3639,7 @@ export const appRouter = router({
           category: (original as any).category ?? undefined,
           createdBy: ctx.user.id,
           relistSourceId: input.id,
+          reservePrice: (original as any).reservePrice ?? null,
         });
         const originalImages = await getAuctionImages(input.id);
         for (const img of originalImages) {
