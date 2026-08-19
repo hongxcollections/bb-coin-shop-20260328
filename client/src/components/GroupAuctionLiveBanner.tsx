@@ -302,8 +302,9 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
   return (
     // 用 flex-col + rowGap 精確控制 banner 同下方圖片間距
     <div style={{ display: "flex", flexDirection: "column", rowGap: "5px" }}>
-      <Link href={`/group/${round.id}`}>
-        <a
+      <div className="relative">
+        <Link
+          href={`/group/${round.id}`}
           className="block relative overflow-hidden rounded-2xl shadow-lg cursor-pointer active:scale-[0.985] transition-transform"
           style={{ background: "linear-gradient(135deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #fbbf24 100%)" }}
         >
@@ -370,8 +371,7 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pr-12">
                 <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
                   <span className="text-white/80 text-[11px] font-semibold">全部</span>
                   <span className="text-white text-[13px] font-black">{round.totalItems}</span>
@@ -384,17 +384,18 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
                   <span className="text-white/80 text-[11px] font-semibold">用戶</span>
                   <span className="text-white text-[13px] font-black">{round.uniqueBidders}</span>
                 </div>
-              </div>
-              <GroupAuctionShareMenu
-                roundId={round.id}
-                title={round.title}
-                endAt={round.endAt}
-                heroStyle
-              />
             </div>
           </div>
-        </a>
-      </Link>
+        </Link>
+        <div className="absolute right-4 bottom-3.5 z-20">
+          <GroupAuctionShareMenu
+            roundId={round.id}
+            title={round.title}
+            endAt={round.endAt}
+            heroStyle
+          />
+        </div>
+      </div>
 
       {/* 圓圈圖片列：rowGap 已由外層 flex-col 控制為 5px，圖片之間亦 5px */}
       {promoImgs.length > 0 && (

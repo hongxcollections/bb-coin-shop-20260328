@@ -37,32 +37,34 @@ export default function Guides() {
         ) : (
           <div className="space-y-3">
             {(articles as any[]).map((a) => (
-              <Link key={a.id} href={`/guides/${a.slug}`}>
-                <a className="block bg-white border border-amber-100 rounded-2xl p-4 hover:border-amber-300 hover:shadow-sm transition-all group">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {a.category && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${CATEGORY_COLORS[a.category] ?? "bg-gray-100 text-gray-600"}`}>
-                            <Tag className="w-3 h-3" />{a.category}
-                          </span>
-                        )}
-                        {a.publishedAt && (
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(a.publishedAt).toLocaleDateString("zh-HK")}
-                          </span>
-                        )}
-                      </div>
-                      <h2 className="font-semibold text-base text-gray-900 group-hover:text-amber-700 transition-colors line-clamp-2">
-                        {a.title}
-                      </h2>
-                      {a.excerpt && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{a.excerpt}</p>
+              <Link
+                key={a.id}
+                href={`/guides/${a.slug}`}
+                className="block bg-white border border-amber-100 rounded-2xl p-4 hover:border-amber-300 hover:shadow-sm transition-all group"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      {a.category && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${CATEGORY_COLORS[a.category] ?? "bg-gray-100 text-gray-600"}`}>
+                          <Tag className="w-3 h-3" />{a.category}
+                        </span>
+                      )}
+                      {a.publishedAt && (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(a.publishedAt).toLocaleDateString("zh-HK")}
+                        </span>
                       )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-amber-400 shrink-0 mt-1 group-hover:translate-x-1 transition-transform" />
+                    <h2 className="font-semibold text-base text-gray-900 group-hover:text-amber-700 transition-colors line-clamp-2">
+                      {a.title}
+                    </h2>
+                    {a.excerpt && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{a.excerpt}</p>
+                    )}
                   </div>
-                </a>
+                  <ChevronRight className="w-5 h-5 text-amber-400 shrink-0 mt-1 group-hover:translate-x-1 transition-transform" />
+                </div>
               </Link>
             ))}
           </div>

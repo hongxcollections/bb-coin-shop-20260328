@@ -12,19 +12,38 @@ interface AdSenseAdProps {
 export default function AdSenseAd({ slot, format = "auto", width, height, className = "" }: AdSenseAdProps) {
   const { data: settings } = trpc.siteSettings.getAll.useQuery();
   const s = (settings as Record<string, string> | undefined) ?? {};
-  const enabled = s.adsenseEnabled !== "false";
+  // Fail closed: do not serve ads while settings are still loading or unavailable.
+  // This prevents an app shell/list page from briefly rendering an ad before the
+  // administrator's disabled setting arrives.
+  const enabled = s.adsenseEnabled === "true";
   const publisherId = s.adsensePublisherId || "ca-pub-3555957571802049";
   const pushed = useRef(false);
 
   useEffect(() => {
     if (!enabled) return;
     if (pushed.current) return;
-    pushed.current = true;
-    try {
-      const w = window as any;
-      w.adsbygoogle = w.adsbygoogle || [];
-      w.adsbygoogle.push({});
-    } catch {}
+    const pushAd = () => {
+      try {
+        const w = window as any;
+        w.adsbygoogle = w.adsbygoogle || [];
+        w.adsbygoogle.push({});
+        pushed.current = true;
+      } catch {}
+    };
+
+    const existingScript = document.getElementById("adsense-script");
+    if (existingScript) {
+      pushAd();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "adsense-script";
+    script.async = true;
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(publisherId)}`;
+    script.crossOrigin = "anonymous";
+    script.onload = pushAd;
+    document.head.appendChild(script);
   }, [enabled]);
 
   if (!enabled) return null;

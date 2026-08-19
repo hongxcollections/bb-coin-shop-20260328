@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, SessionShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
-import AdSenseAd from "@/components/AdSenseAd";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Calendar, Clock, Package, Users, Store, QrCode } from "lucide-react";
@@ -465,9 +464,6 @@ export default function MerchantSessionPublic() {
                       } catch {}
                     }}
                   />
-                  {idx === 5 && filtered.length > 6 && (
-                    <AdSenseAd slot="2797554307" width={320} height={100} className="my-1 rounded-xl overflow-hidden mx-auto" />
-                  )}
                 </React.Fragment>
               );
             })}

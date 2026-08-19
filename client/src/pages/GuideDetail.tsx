@@ -2,6 +2,7 @@ import { Link, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { BookOpen, ChevronLeft, Tag, Calendar } from "lucide-react";
 import AdSenseAd from "@/components/AdSenseAd";
+import { useSeoMeta } from "@/lib/useSeoMeta";
 
 const CATEGORY_COLORS: Record<string, string> = {
   入門: "bg-green-100 text-green-700",
@@ -109,6 +110,17 @@ export default function GuideDetail() {
   const { data: article, isLoading, error } = trpc.articles.get.useQuery({ slug: params.slug ?? '' }, {
     enabled: !!params.slug,
   });
+  const articleContent = typeof article?.content === "string" ? article.content : "";
+  const articleDescription = article?.excerpt
+    || articleContent.replace(/[#|*_`>-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 155)
+    || "香港錢幣收藏、評級、保養及拍賣實用指南。";
+
+  useSeoMeta({
+    title: article?.title ? `${article.title}｜錢幣知識庫` : "錢幣知識庫",
+    description: articleDescription,
+    ogUrl: params.slug ? `/guides/${params.slug}` : "/guides",
+    ogType: "article",
+  });
 
   if (isLoading) {
     return (
@@ -134,10 +146,8 @@ export default function GuideDetail() {
     <div className="min-h-screen bg-background">
       <div className="container max-w-3xl mx-auto pt-10 pb-24 px-4">
         {/* Back */}
-        <Link href="/guides">
-          <a className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 mb-6 transition-colors">
-            <ChevronLeft className="w-4 h-4" />知識庫
-          </a>
+        <Link href="/guides" className="inline-flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 mb-6 transition-colors">
+          <ChevronLeft className="w-4 h-4" />知識庫
         </Link>
 
         {/* Meta */}
@@ -163,26 +173,25 @@ export default function GuideDetail() {
           </p>
         )}
 
-        {/* AdSense — 文章頂部 */}
-        <AdSenseAd slot="7607027858" format="auto" className="rounded-xl overflow-hidden mb-6" />
-
         {/* Content */}
         <article className="prose-sm max-w-none">
-          {renderContent((article as any).content ?? '')}
+          {renderContent(articleContent)}
         </article>
 
-        {/* AdSense — 文章底部 */}
-        <div className="mt-8">
-          <AdSenseAd slot="9658476126" format="auto" className="rounded-xl overflow-hidden" />
-        </div>
+        {/* Only show one ad after a substantial article, never before the content. */}
+        {articleContent.trim().length >= 600 && (
+          <div className="mt-8">
+            <AdSenseAd slot="9658476126" format="auto" className="rounded-xl overflow-hidden" />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-border">
           <p className="text-xs text-muted-foreground mb-3">本文由 hongxcollections.com 知識庫提供，歡迎分享。</p>
           <div className="flex gap-4 text-xs text-muted-foreground">
-            <Link href="/guides" className="hover:text-amber-600 transition-colors underline">更多文章</Link>
-            <Link href="/" className="hover:text-amber-600 transition-colors underline">返回首頁</Link>
-            <Link href="/auctions" className="hover:text-amber-600 transition-colors underline">瀏覽拍賣</Link>
+          <Link href="/guides" className="hover:text-amber-600 transition-colors underline">更多文章</Link>
+          <Link href="/" className="hover:text-amber-600 transition-colors underline">返回首頁</Link>
+          <Link href="/auctions" className="hover:text-amber-600 transition-colors underline">瀏覽拍賣</Link>
           </div>
         </div>
       </div>

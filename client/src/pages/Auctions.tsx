@@ -24,7 +24,6 @@ import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
 import { AuctionCardFb } from "@/components/AuctionCardFb";
 import Header from "@/components/Header";
-import AdSenseAd from "@/components/AdSenseAd";
 import { GroupAuctionLiveBanner } from "@/components/GroupAuctionLiveBanner";
 
 function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
@@ -573,9 +572,6 @@ export default function Auctions() {
                   />
                 )}
                 {bannerEl}
-                {(rowIdx === 3 || (rowIdx > 3 && (rowIdx + 1) % 6 === 0)) && (
-                  <AdSenseAd slot="7230103426" width={320} height={100} className="my-1 rounded-xl overflow-hidden mx-auto" />
-                )}
                 </React.Fragment>
               );
             })}

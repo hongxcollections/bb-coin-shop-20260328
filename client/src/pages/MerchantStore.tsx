@@ -16,7 +16,6 @@ import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
-import AdSenseAd from "@/components/AdSenseAd";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
@@ -1318,7 +1317,6 @@ export default function MerchantStore() {
               <div className="text-center py-10 text-2xl animate-spin">💰</div>
             ) : (
               <>
-                <AdSenseAd slot="9658476126" format="auto" className="rounded-xl overflow-hidden mb-2" />
                 <ProductsList
                   products={paginatedActiveProducts}
                   layout={merchantLayout}

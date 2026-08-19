@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import AdSenseAd from "@/components/AdSenseAd";
 import ChatRoomDialog from "@/components/ChatRoomDialog";
 import { useParams, Link, useLocation } from "wouter";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -629,9 +628,6 @@ export default function MerchantProductDetail() {
                 {product.description && (
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
                 )}
-
-                {/* AdSense 廣告位 — 描述下方 */}
-                <AdSenseAd slot="7607027858" format="auto" className="rounded-xl overflow-hidden" />
 
                 {/* 出售價錢三行佈局 */}
                 <div className="pt-1 space-y-1">
