@@ -846,7 +846,7 @@ async function injectCardMarketListingOgMeta(
 
     const ogTitle = `${titleName} | HKD $${price} | ${gameLabel} | CardZx | hongxcollections.com`;
     const infoParts = [cardName, rarity, setName, condition, gameLabel].filter(Boolean);
-    const ogDesc = `${infoParts.join(" · ")}\nHKD $${price}\n@所有人 歡迎登入網站齊來選購`;
+    const ogDesc = `${infoParts.join(" · ")}\nHKD $${price}\n@每個人 歡迎登入網站齊來選購`;
 
     const photoUrlsParsed: string[] = (() => {
       try {

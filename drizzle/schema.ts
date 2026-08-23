@@ -911,6 +911,7 @@ export const articles = mysqlTable("articles", {
   title: varchar("title", { length: 200 }).notNull(),
   excerpt: text("excerpt"),
   content: text("content").notNull(),
+  imageUrl: varchar("imageUrl", { length: 500 }),
   category: varchar("category", { length: 50 }),
   isPublished: int("isPublished").notNull().default(0),
   publishedAt: timestamp("publishedAt"),

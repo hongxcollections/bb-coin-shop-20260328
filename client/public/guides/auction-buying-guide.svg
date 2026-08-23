@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">錢幣拍賣出價插畫</title>
+  <desc id="desc">拍賣槌、出價牌和硬幣的編輯插畫</desc>
+  <defs><linearGradient id="bg" x1="0" x2="1"><stop stop-color="#fff4d8"/><stop offset="1" stop-color="#f1d6a0"/></linearGradient></defs>
+  <rect width="1200" height="520" rx="32" fill="url(#bg)"/>
+  <path d="M770 106l145 145M830 75l145 145" stroke="#8b541c" stroke-width="32" stroke-linecap="round"/>
+  <rect x="702" y="120" width="170" height="94" rx="18" transform="rotate(45 787 167)" fill="#c4872d" stroke="#704214" stroke-width="9"/>
+  <path d="M815 250h-230l-70 172h370z" fill="#8b541c" stroke="#704214" stroke-width="9"/>
+  <circle cx="660" cy="260" r="108" fill="#f4ca5b" stroke="#7a4a16" stroke-width="9"/>
+  <circle cx="660" cy="260" r="84" fill="none" stroke="#fff1b0" stroke-width="5"/>
+  <text x="625" y="280" font-family="sans-serif" font-size="48" font-weight="700" fill="#7a4a16">GO</text>
+  <rect x="150" y="132" width="260" height="188" rx="14" fill="#fff" stroke="#946125" stroke-width="8"/>
+  <text x="215" y="220" font-family="sans-serif" font-size="48" font-weight="700" fill="#7a4a16">HK$</text>
+  <text x="200" y="275" font-family="sans-serif" font-size="31" fill="#946125">預算先行</text>
+  <text x="110" y="420" font-family="sans-serif" font-size="42" font-weight="700" fill="#6b481f">理性出價，享受競投</text>
+</svg>

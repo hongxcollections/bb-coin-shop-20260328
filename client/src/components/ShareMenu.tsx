@@ -197,7 +197,7 @@ interface ShareMenuProps {
   buttonClassName?: string;
 }
 
-const DEFAULT_SHARE_TEMPLATE = "{title}\n目前出價 {price}\n結標時間：{endTime}\n@所有人 歡迎登入網站齊來競拍！";
+const DEFAULT_SHARE_TEMPLATE = "{title}\n目前出價 {price}\n結標時間：{endTime}\n@每個人 歡迎登入網站齊來競拍！";
 
 function buildShareText(
   template: string | null | undefined,
@@ -290,7 +290,7 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
   const productUrl = `${SHARE_ORIGIN}/merchant-products/${productId}`;
   const currSymbol = getCurrSymbol(currency ?? "HKD");
   const priceLabel = price === 0 ? "查詢格價" : `${currSymbol}${price.toLocaleString()}`;
-  const shareText = `${title}\n售價 ${priceLabel}\n@所有人 歡迎登入網站齊來選購！\n${productUrl}`;
+  const shareText = `${title}\n售價 ${priceLabel}\n@每個人 歡迎登入網站齊來選購！\n${productUrl}`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
@@ -614,7 +614,7 @@ export function GroupAuctionShareMenu({ roundId, title, endAt, iconOnly, heroSty
       endStr = `結拍：${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}號 星期${DAYS[d.getDay()]} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
     }
   }
-  const shareText = [title, endStr, "@所有人 歡迎登入網站齊來競拍！", roundUrl].filter(Boolean).join("\n");
+  const shareText = [title, endStr, "@每個人 歡迎登入網站齊來競拍！", roundUrl].filter(Boolean).join("\n");
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
@@ -1010,7 +1010,7 @@ export function GalleryItemShareMenu({ galleryId, itemId, itemName, itemNumber, 
   const shareText = [
     itemNumber ? `# ${itemNumber}` : (itemName || "圖集商品"),
     priceStr,
-    "@所有人 歡迎登入網站齊來選購！",
+    "@每個人 歡迎登入網站齊來選購！",
     galleryUrl,
   ].join("\n");
 
@@ -1178,7 +1178,7 @@ export function GalleryShareMenu({ galleryId, title, description, merchantName, 
     `📸 ${title}`,
     description ? description : null,
     merchantName ? `${merchantName} 圖片集` : null,
-    `@所有人 歡迎登入網站齊來選購！`,
+    `@每個人 歡迎登入網站齊來選購！`,
     galleryUrl,
   ].filter(Boolean).join("\n");
 
@@ -1360,7 +1360,7 @@ export function GroupAuctionItemShareMenu({ itemId, roundId, title, lotNumber, c
     namePart,
     `目前出價 ${priceLabel}`,
     endStr ? `結標時間：${endStr}` : null,
-    "@所有人 歡迎登入網站齊來競拍！",
+    "@每個人 歡迎登入網站齊來競拍！",
     itemUrl,
   ].filter(Boolean).join("\n");
 

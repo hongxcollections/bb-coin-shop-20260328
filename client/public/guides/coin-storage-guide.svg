@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">錢幣保存與整理插畫</title>
+  <desc id="desc">防潮收藏盒和保護套中的硬幣編輯插畫</desc>
+  <defs><linearGradient id="bg" x1="0" x2="1"><stop stop-color="#f3edff"/><stop offset="1" stop-color="#dfd4f5"/></linearGradient><linearGradient id="box" x1="0" x2="1"><stop stop-color="#7861a6"/><stop offset="1" stop-color="#49356d"/></linearGradient></defs>
+  <rect width="1200" height="520" rx="32" fill="url(#bg)"/>
+  <rect x="665" y="126" width="360" height="250" rx="28" fill="url(#box)" stroke="#3d2b5d" stroke-width="10"/>
+  <rect x="710" y="172" width="270" height="158" rx="18" fill="#b9a8dc"/>
+  <g fill="#e1be6b" stroke="#76531d" stroke-width="6"><circle cx="770" cy="220" r="35"/><circle cx="870" cy="220" r="35"/><circle cx="770" cy="292" r="35"/><circle cx="870" cy="292" r="35"/></g>
+  <path d="M260 395c0-145 92-225 168-225s168 80 168 225" fill="none" stroke="#765b9d" stroke-width="18"/>
+  <path d="M230 395h396" stroke="#765b9d" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="428" cy="254" r="62" fill="#e1be6b" stroke="#76531d" stroke-width="8"/>
+  <circle cx="428" cy="254" r="45" fill="none" stroke="#fff0b9" stroke-width="4"/>
+  <path d="M340 105c28-22 66-22 94 0M370 78v35" fill="none" stroke="#765b9d" stroke-width="8" stroke-linecap="round"/>
+  <text x="110" y="145" font-family="sans-serif" font-size="42" font-weight="700" fill="#4e3e71">保存得好，歲月才是朋友</text>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">錢幣拍賣成交紀錄插畫</title>
+  <desc id="desc">成交紀錄圖表和銀色硬幣的編輯插畫</desc>
+  <defs><linearGradient id="bg" x1="0" x2="1"><stop stop-color="#edf8ef"/><stop offset="1" stop-color="#c9e5cd"/></linearGradient><linearGradient id="coin" x1="0" x2="1"><stop stop-color="#eef1eb"/><stop offset="1" stop-color="#83938b"/></linearGradient></defs>
+  <rect width="1200" height="520" rx="32" fill="url(#bg)"/>
+  <rect x="130" y="165" width="470" height="250" rx="22" fill="#fff" stroke="#46745b" stroke-width="8"/>
+  <path d="M180 355l96-74 78 32 112-105 92 39" fill="none" stroke="#4d9b6a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 374h380M180 210v164" stroke="#8bb89a" stroke-width="4"/>
+  <g fill="#4d9b6a"><circle cx="276" cy="281" r="10"/><circle cx="354" cy="313" r="10"/><circle cx="466" cy="208" r="10"/><circle cx="558" cy="247" r="10"/></g>
+  <circle cx="895" cy="285" r="146" fill="url(#coin)" stroke="#52645a" stroke-width="10"/>
+  <circle cx="895" cy="285" r="118" fill="none" stroke="#f7faf4" stroke-width="5"/>
+  <path d="M850 323c28-52 60-52 90 0M850 247h90M865 220l30 27 30-27" fill="none" stroke="#52645a" stroke-width="8" stroke-linecap="round"/>
+  <text x="130" y="112" font-family="sans-serif" font-size="42" font-weight="700" fill="#35634b">紀錄是參考，不是保證</text>
+</svg>

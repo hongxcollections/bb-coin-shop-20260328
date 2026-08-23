@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">香港錢幣歷史插畫</title>
+  <desc id="desc">維多利亞港天際線與香港硬幣的編輯插畫</desc>
+  <defs><linearGradient id="sky" x1="0" x2="0" y2="1"><stop stop-color="#dff5f1"/><stop offset="1" stop-color="#a7d4cb"/></linearGradient></defs>
+  <rect width="1200" height="520" rx="32" fill="url(#sky)"/>
+  <circle cx="930" cy="120" r="52" fill="#f6d889"/>
+  <path d="M0 410c180-60 286-45 420 0 142-75 263-85 404-4 136-58 260-51 376 4v110H0z" fill="#50898a"/>
+  <path d="M0 390l145-92 75 61 85-137 68 92 98-64 86 92 74-46 105 86 70-65 91 73 94-37 109 58" fill="none" stroke="#275d66" stroke-width="13"/>
+  <circle cx="320" cy="215" r="116" fill="#e8b85e" stroke="#74501c" stroke-width="9"/>
+  <circle cx="320" cy="215" r="92" fill="none" stroke="#fff0b0" stroke-width="5"/>
+  <path d="M268 238h104M287 192h66v72h-66z" fill="none" stroke="#74501c" stroke-width="7"/>
+  <text x="100" y="100" font-family="sans-serif" font-size="42" font-weight="700" fill="#275d66">一枚硬幣，一段香港故事</text>
+</svg>

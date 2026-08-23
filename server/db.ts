@@ -1708,6 +1708,7 @@ async function ensureDepositTables() {
         title VARCHAR(200) NOT NULL,
         excerpt TEXT,
         content TEXT NOT NULL,
+        imageUrl VARCHAR(500),
         category VARCHAR(50),
         isPublished INT NOT NULL DEFAULT 0,
         publishedAt TIMESTAMP NULL,
@@ -1715,12 +1716,12 @@ async function ensureDepositTables() {
         updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW()
       )`);
     } catch {}
-    // Seed default articles if table is empty
+    try { await db.execute(sql`ALTER TABLE articles ADD COLUMN imageUrl VARCHAR(500) NULL`); } catch {}
+    // Seed reviewed editorial articles. INSERT IGNORE keeps hand-edited records intact
+    // while allowing existing installations to receive new knowledge-base content.
     try {
       const pool = await getRawPool();
-      const [rows]: any = await pool.execute('SELECT COUNT(*) as cnt FROM articles');
-      if ((rows?.[0]?.cnt ?? 0) === 0) {
-        const seedArticles = [
+      const seedArticles = [
           {
             slug: 'coin-collecting-guide',
             title: '香港錢幣收藏入門指南',
@@ -1935,13 +1936,229 @@ async function ensureDepositTables() {
 
 在 hongxcollections.com 購買時，可查看賣家的歷史評價及商戶認證狀態，並優先選擇提供退換保證的商戶。如對真偽有疑問，歡迎在平台內向商戶查詢。`,
           },
+          {
+            slug: 'first-coin-purchase-checklist',
+            title: '買第一枚收藏幣前：新手實用檢查清單',
+            category: '入門',
+            imageUrl: '/guides/coin-collecting-guide.svg',
+            excerpt: '把預算、規格、來源和退出方案逐項寫下，讓第一次購買成為有根據的開始，而不是衝動交易。',
+            content: `第一次買收藏幣，最容易被「只差一點就錯過」的氣氛推動。真正適合長期收藏的第一枚錢幣，未必是最罕有或最昂貴的一枚，而是你知道自己為甚麼買、看過哪些資料、可以安心保管的一枚。以下清單可在看貨、出價和收貨三個階段使用。
+
+## 購買前：先為自己定下範圍
+
+先寫下一個可承受的總預算，並預留運費、手續費、幣盒及可能的鑑定費。然後只選一個小題目，例如某一版香港流通硬幣、某個年份的紀念幣，或一枚已評級的常見銀元。題目越清楚，越容易比較同類品相和成交價。
+
+- **收藏目標**：是為歷史、設計、完整年份套裝，還是流通性？答案會影響你對品相和認證的取捨。
+- **可接受狀態**：列出不能接受的問題，例如清洗、鑲補、嚴重刮痕、鏽蝕或不明修補。
+- **資料來源**：至少看兩個來源，包括公開拍賣成交紀錄、專業目錄、可信賣家的詳細照片或第三方評級查詢。
+
+## 看貨時：把「描述」變成可核對的事實
+
+不要只看正面主圖。要求或尋找正、背、邊齒和不同角度的清晰照片；對於有膠盒的評級幣，也要看盒身有否裂痕、標籤資料是否完整。將年份、版別、面值、材質、重量和直徑逐項記下，再與可靠目錄比對。
+
+| 項目 | 要問的問題 | 有用的證據 |
+|------|------------|------------|
+| 身份 | 年份、版別、鑄造地是否一致？ | 目錄編號、標籤、清晰局部圖 |
+| 品相 | 磨損在哪裡？有否清洗或修補？ | 斜光照片、放大細節 |
+| 真偽 | 來源是否可追溯？ | 收據、評級查詢、退貨條款 |
+| 價格 | 比的是同版、近似品相嗎？ | 多筆成交紀錄，而非單一叫價 |
+
+## 出價前：把上限寫好
+
+拍賣的真正成本不是落槌價。加上買家佣金、運費、保險、匯率和可能的進口費後，才是你實際支付的數字。出價前寫下「最高總成本」，競投時只依這個數字行事。若資料不足或照片看不清，放棄不是失敗；下一次機會通常比想像中快出現。
+
+## 收貨後：立即建立第一筆藏品紀錄
+
+開箱時保留包裝、收據和原始照片，並在自然光下拍攝正反面。建立一張紀錄卡：購入日期、來源、價格、描述、已知瑕疵和儲存位置。這份紀錄日後有助保險、轉讓、核對來源，也讓你看到自己的收藏方向是否越來越清晰。
+
+## 延伸閱讀
+
+了解評級標籤和分數，可閱讀「PCGS 與 NGC 評級幣完全攻略」；若你正準備參與競投，請再看「錢幣拍賣出價前的七個準備」。保存方面，請參考「錢幣保存與防潮實作指南」。`,
+          },
+          {
+            slug: 'coin-authenticity-workflow',
+            title: '收藏幣真偽判讀流程：由規格、工藝到來源',
+            category: '評級',
+            imageUrl: '/guides/authenticity-grading-guide.svg',
+            excerpt: '辨偽不是單靠磁鐵、聲音或一張照片；用可重複的檢查流程，才知道何時應停止交易並尋求專業意見。',
+            content: `錢幣辨偽最重要的原則，是不要讓任何一項測試單獨決定結果。重量接近標準不代表一定真，膠盒存在亦不等於標籤和內容物從未被動過。收藏者可以先做非破壞性的基礎檢查，再把有疑問的錢幣交給有經驗的鑑定人士或合適的評級服務。
+
+## 第一步：確認你手上「應該是甚麼」
+
+先從可信目錄或博物館、學會資料找出該幣的年份、面值、材質、標準重量、直徑和邊部形式。相同主題的錢幣可能有不同版別，不能以「看起來像」作比較。記下參考資料的版本和圖片來源，避免把另一版的規格套用到手上的錢幣。
+
+## 第二步：做不傷幣的實測
+
+使用校準過的電子磅和游標卡尺，測量重量及直徑；測量時不要磨邊、刮表面或使用酸性試劑。把量度結果視為範圍而非絕對值：正常流通、輕微磨損或官方容差都會帶來差異，但明顯偏離是需要停下來查證的訊號。
+
+- **圖文與工藝**：字體筆畫、珠圈、邊齒、圖案高點和模具裂紋是否與同版真品一致。
+- **表面狀態**：自然包漿通常在高低處有層次；均一、發黑的覆蓋物或露出新金屬的凹位，都值得提高警覺。
+- **邊部**：除了看齒是否均勻，也要看有否接縫、重壓、修補或不合理的磨損。
+- **磁性與密度**：可作初步排除，不能代替完整鑑定；有些真幣本來具磁性，有些贋品也可模仿重量。
+
+## 第三步：把來源納入判斷
+
+問清楚錢幣來自哪裡、賣家是否可提供購入紀錄、是否容許在合理時間內檢驗和退貨。來源完整不是真偽保證，卻能降低資料斷裂的風險。對於已評級幣，應以評級機構官方查詢頁核對編號、幣種、分數和影像；如資料不符、標籤有異常或盒身有被開啟痕跡，先不要付款。
+
+## 何時應尋求專業協助？
+
+若金額超出你可承受的學費、版別罕見、照片無法判讀，或不同檢查結果互相矛盾，最好的決定是暫緩交易。請專家檢視不是軟弱，而是把不確定性轉化為成本可控的程序。不要自行清洗、打磨或做酸測，因為即使最終是真品，也可能因此永久失去表面和收藏價值。
+
+## 延伸閱讀
+
+想理解第三方評級在交易中的角色，可閱讀「PCGS 與 NGC 評級幣完全攻略」；初次買幣可先完成「買第一枚收藏幣前：新手實用檢查清單」。`,
+          },
+          {
+            slug: 'coin-storage-practical-guide',
+            title: '錢幣保存與防潮實作指南：從幣套到收納紀錄',
+            category: '保養',
+            imageUrl: '/guides/coin-storage-guide.svg',
+            excerpt: '香港潮濕環境下，正確保護比清潔更重要：選材、濕度、拿取方式和定期檢查都要有一致程序。',
+            content: `收藏幣的保存目標不是令它「看起來更新」，而是減慢環境、人手和不當包裝造成的變化。很多無法挽回的損害，來自好意的清洗、普通膠袋的揮發物，或把硬幣長期放在忽冷忽熱的地方。建立簡單、穩定的保存程序，比購買昂貴器材更重要。
+
+## 先選對接觸錢幣的材料
+
+未評級幣可使用標明不含 PVC 的硬幣套、紙套、硬殼或密封膠囊；不同大小要配合硬幣直徑，過緊會刮邊，過鬆會令硬幣在內部磨擦。評級幣保持在原裝幣盒內即可，額外套袋的作用是防刮盒身，而不是把它壓在不透氣的包裝中。
+
+- **適合**：無 PVC 收納套、惰性塑膠膠囊、無酸紙材、專用收藏盒。
+- **避免**：軟身不明膠套、橡筋、膠紙、含硫紙張、木盒內直接接觸硬幣。
+- **拿取**：洗淨及完全抹乾雙手後，只拿邊緣；處理高價值或鏡面幣時可用不掉毛手套或軟頭夾。
+
+## 控制環境，而不是密封一切
+
+香港的季節濕度變化明顯。收納櫃應遠離廚房、浴室、窗邊和日照位置；如藏品量較多，可使用可讀取濕度的防潮箱或密封收納箱配合可再生乾燥劑。重點是穩定，而不是一味追求極低濕度。乾燥劑顏色改變或讀數長期異常，就應按產品指示更換或再生。
+
+| 項目 | 實作做法 |
+|------|----------|
+| 濕度 | 以約 40–50% RH 為常見起點，並觀察藏品與盒材狀況 |
+| 溫度 | 避免長期高溫和急劇升降，不要把收藏盒留在車內 |
+| 光線 | 避免直射陽光和強燈長時間照射紙鈔、彩色包裝或標籤 |
+| 檢查 | 每 3–6 個月查看一次，不必頻繁翻動或擦拭 |
+
+## 面對氧化、污漬和舊包漿
+
+銀幣、銅幣的自然變色並不一定是問題；對某些收藏者而言，原始表面和自然包漿反而是價值的一部分。看到變色時先拍照、記錄日期，判斷是否屬於活性鏽蝕、黏性殘留或快速擴散的問題。不要用牙膏、銀布、化學浸液或金屬刷自行處理。對高價值錢幣，先向具經驗的保育人士或評級服務諮詢。
+
+## 用紀錄保護藏品
+
+每枚幣建立一筆紀錄：照片、尺寸、材質、購入來源、包裝種類、儲存位置和最近檢查日期。若日後要出售、投保或搬遷，這份資料比記憶可靠。保存完成後，請繼續閱讀「買第一枚收藏幣前：新手實用檢查清單」，建立一致的購入紀錄。`,
+          },
+          {
+            slug: 'auction-bidding-preparation',
+            title: '錢幣拍賣出價前的七個準備',
+            category: '拍賣',
+            imageUrl: '/guides/auction-buying-guide.svg',
+            excerpt: '從閱讀圖錄、計算總成本到設定止損價，七個步驟幫你在競投時保持判斷，而非被倒數牽着走。',
+            content: `拍賣提供了接觸不同錢幣的機會，也把時間壓力、競爭和費用放在同一個畫面。成功競投不等於每次都贏到標的，而是在你贏得時，仍知道實際成本、風險和下一步安排。以下步驟適用於網上與現場拍賣。
+
+## 1. 讀完整圖錄，不只看封面照片
+
+把錢幣的年份、版別、重量、尺寸、評級、來源、瑕疵註記和退貨條款抄下。圖錄形容詞如「漂亮」、「罕見」可作參考，不能代替你對同版資料和照片的核對。影像不足時，先提出問題或放棄出價。
+
+## 2. 核實出價單位與費用
+
+不同平台可能以港元、外幣或不同最小加價幅度計算。落槌後的買家佣金、支付手續費、運費、保險和匯兌成本，會令總額明顯高於螢幕數字。出價前用下面公式估算，並以較高的匯率或運費作緩衝。
+
+**最高總成本 = 最高落槌價 + 買家佣金 + 付款／匯兌費 + 運送與保險 + 稅費預留**
+
+## 3. 只比較可比的成交
+
+成交紀錄必須同時接近：同一版別、相近品相、相同是否已評級、相近拍賣時間和近似市場。把一枚罕見高分幣的價格套在普通流通品，或以零售標價代替成交價，都會把估值帶偏。詳情可參考「如何閱讀錢幣拍賣成交紀錄」。
+
+## 4. 寫下最高落槌價
+
+先從總成本倒推最高落槌價，寫在紙上或備忘錄中。代理出價可以幫你守住上限，但前提是上限已經過計算；它不是用來追價的工具。若有多個標的，要把總預算分配好，避免前幾項已耗盡後面真正想要的錢幣。
+
+## 5. 檢查賣方與拍賣規則
+
+確認付款期限、是否可合併運送、退貨或爭議流程、跨境寄送限制，以及得標後由誰負責保險。任何承諾都應以平台條款和文字紀錄為準。遇到要求站外付款、急促私訊或不願提供基本資料的情況，停止交易並使用平台正式渠道查詢。
+
+## 6. 競投時保持節奏
+
+最後數分鐘最容易被情緒帶動。若你已達上限，不要因為「只多一次」而改變規則；下一枚同類幣未必完全一樣，卻往往仍有機會。保持網絡、付款方式和收件資料預先準備好，減少得標後的混亂。
+
+## 7. 得標後立即整理
+
+保存圖錄截圖、成交頁、付款紀錄、包裝照片和收據；收貨時核對標的、評級編號和描述。把資料加進你的藏品紀錄，再決定是否需要更換合適的保存套或防潮位置。`,
+          },
+          {
+            slug: 'hong-kong-coins-collecting-guide',
+            title: '香港流通硬幣收藏導讀：從年份、設計到套裝',
+            category: '知識',
+            imageUrl: '/guides/hong-kong-coins-guide.svg',
+            excerpt: '以日常港幣硬幣作起點，認識年份、君主肖像、面值和發行包裝如何形成可研究的香港收藏主題。',
+            content: `香港流通硬幣是很適合入門的本地收藏題目：資料相對容易找到、面值系統清楚，而且每枚硬幣都連結到不同時期的公共生活。它不必從稀有年份或高價版別開始；一套自己親手整理、來源清楚的常見年份，也可以帶來完整的研究樂趣。
+
+## 先建立「面值 × 年份」的收藏框架
+
+把目標拆成一張表：先列出你想收藏的面值，再列年份和設計類型。香港硬幣曾出現不同君主肖像及多次設計調整；同一面值在不同時期亦可能有材質、直徑或邊部差異。使用香港金融管理局、博物館或可靠目錄的資料，為每個格子留下來源註記，而不是憑印象填寫。
+
+| 收藏方法 | 適合誰 | 注意事項 |
+|----------|--------|----------|
+| 年份套裝 | 喜歡完成感的新手 | 先決定是否包括所有面值、紀念發行及不同設計 |
+| 設計主題 | 對肖像、植物或紋章有興趣 | 應分辨流通版、紀念版與樣幣資料 |
+| 未流通套裝 | 重視原裝包裝與品相 | 觀察外包裝、封條和硬幣是否受潮變質 |
+| 錯版研究 | 已熟悉正常版別的收藏者 | 必須以可驗證資料排除人為損傷 |
+
+## 看懂「常見」與「難找」的差別
+
+年份較早不必然罕有，發行量少也不必然價格高。實際可得性、保存狀態、是否有大量存貨釋出，以及本地需求都會影響市場。比較時要分清散幣、原卷、官方套裝和已評級品；同一日期的硬幣，在這些狀態下並不是同一種商品。
+
+## 從找零開始的正確做法
+
+日常找零可以是有趣的來源，但不要用清潔劑、拋光布或硬物把舊幣「翻新」。先放入無 PVC 的紙套或小容器，記下取得日期和大概來源；有趣的年份、明顯不同的設計或疑似錯版，才另外拍照研究。若打算從流通品升級至未流通或評級品，請先閱讀「買第一枚收藏幣前：新手實用檢查清單」。
+
+## 讓收藏保持可驗證
+
+每次補一枚幣時，記下：面值、年份、設計、材質、狀態、來源、價格和照片。這能幫你避免重複購買，也能在看到「罕見錯版」時回到資料而非跟隨宣傳。香港錢幣收藏的價值不只在價格，而在於你能否說清楚每一枚在整個系列中的位置。`,
+          },
+          {
+            slug: 'reading-coin-auction-records',
+            title: '如何閱讀錢幣拍賣成交紀錄：把價格放回脈絡',
+            category: '拍賣',
+            imageUrl: '/guides/auction-records-guide.svg',
+            excerpt: '成交價是有用的市場訊號，但必須連同品相、佣金、時間和來源閱讀，才不會把單一數字誤當估值答案。',
+            content: `拍賣成交紀錄能幫助收藏者理解市場，不過它回答的是「某一枚具體錢幣在某個時間、某個場次以多少價格成交」，不是「所有同名錢幣都值多少」。正確閱讀成交紀錄，重點在於找出可比性和成本，而不是收集最高價截圖。
+
+## 先辨認紀錄中的四個價格
+
+同一成交頁可能同時出現估價、起拍價、落槌價和含佣成交價。估價是拍賣方的預期範圍；落槌價是競投停止時的數字；含佣成交價才較接近買方在該場次支付的價格。若你要比較不同拍賣行或不同平台，必須確認各自是否已包括買家佣金、稅項或其他費用。
+
+## 找到真正可比的標的
+
+建立自己的比較欄位，而不只是保存連結。最少包括幣種、年份、版別、材質、評級／品相、是否有清洗或修補、拍賣日期、落槌價和含佣價。只選擇相近的紀錄，寧可少而準；相隔多年、不同版別或品相跨度很大的價格，最多只能作背景參考。
+
+| 檢查欄位 | 為何重要 |
+|----------|----------|
+| 版別與細節 | 同一年份可能有截然不同的稀有度與需求 |
+| 品相與表面 | 分數相近也可能因清洗、彩虹包漿或刮痕而差異很大 |
+| 來源與證書 | 有清楚來源、舊藏標籤或認證資料的錢幣，市場反應可能不同 |
+| 時間與地點 | 匯率、季節、專題拍賣和買家群體都會影響一場成交 |
+
+## 用範圍代替單一「市價」
+
+把最接近的多筆紀錄整理成範圍，並記下中位數或常見區間；若只有一筆紀錄，誠實標示樣本不足。高價成交可能是兩位買家剛好激烈競爭，也可能反映特殊來源；低價成交也可能來自照片不足、描述保守或場次受眾較少。成交價是談判和出價的參考，不是保證日後出售一定能複製的回報。
+
+## 把紀錄用在出價決策
+
+在出價前，從可比成交的含佣範圍倒推你的最高落槌價，再加上自己的保存、運送和風險預留。若看不懂圖錄資料或無法找到可比紀錄，最穩妥的選擇是降低上限或暫不參與。實際競投的步驟可閱讀「錢幣拍賣出價前的七個準備」。`,
+          },
         ];
-        for (const a of seedArticles) {
-          await pool.execute(
-            'INSERT IGNORE INTO articles (slug, title, excerpt, content, category, isPublished, publishedAt) VALUES (?, ?, ?, ?, ?, 1, NOW())',
-            [a.slug, a.title, a.excerpt, a.content, a.category]
-          );
-        }
+      const defaultArticleImages: Record<string, string> = {
+        'coin-collecting-guide': '/guides/coin-collecting-guide.svg',
+        'pcgs-ngc-grading-guide': '/guides/authenticity-grading-guide.svg',
+        'proxy-bidding-guide': '/guides/auction-buying-guide.svg',
+        'coin-storage-guide': '/guides/coin-storage-guide.svg',
+        'republican-silver-coins-guide': '/guides/authenticity-grading-guide.svg',
+      };
+      for (const a of seedArticles) {
+        const imageUrl = a.imageUrl ?? defaultArticleImages[a.slug] ?? null;
+        await pool.execute(
+          `INSERT INTO articles (slug, title, excerpt, content, imageUrl, category, isPublished, publishedAt)
+           VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+           ON DUPLICATE KEY UPDATE imageUrl = COALESCE(imageUrl, VALUES(imageUrl))`,
+          [a.slug, a.title, a.excerpt, a.content, imageUrl, a.category]
+        );
       }
     } catch (e) { console.warn('[Bootstrap] articles seed skipped:', (e as Error).message); }
     // proxyBids: 加 unique constraint 防止 setProxyBid 重複插入（onDuplicateKeyUpdate 需要 unique key 才能 upsert）
@@ -9111,23 +9328,243 @@ export async function getMatchingWTBsForListing(game: string, cardApiId?: string
 }
 
 // ─── Knowledge Base Articles CRUD ────────────────────────────────────────────
+let articlesReadyPromise: Promise<void> | null = null;
+
+async function ensureArticlesReady(): Promise<void> {
+  // Keep public knowledge-base reads isolated from deposit and auction bootstrap
+  // work. This initializer only ever touches the articles table.
+  if (!articlesReadyPromise) {
+    articlesReadyPromise = (async () => {
+      const database = await getDb();
+      if (!database) throw new Error("Knowledge base database is not available");
+
+      await database.execute(sql`CREATE TABLE IF NOT EXISTS articles (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        slug VARCHAR(200) NOT NULL UNIQUE,
+        title VARCHAR(200) NOT NULL,
+        excerpt TEXT,
+        content TEXT NOT NULL,
+        imageUrl VARCHAR(500),
+        category VARCHAR(50),
+        isPublished INT NOT NULL DEFAULT 0,
+        publishedAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT NOW(),
+        updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW()
+      )`);
+      const pool = await getRawPool();
+      const [imageUrlColumns] = await pool.query("SHOW COLUMNS FROM articles LIKE 'imageUrl'");
+      if (Array.isArray(imageUrlColumns) && imageUrlColumns.length === 0) {
+        await pool.execute("ALTER TABLE articles ADD COLUMN imageUrl VARCHAR(500) NULL");
+      }
+
+      const seedArticles = [
+      {
+        slug: 'first-coin-purchase-checklist',
+        title: '買第一枚收藏幣前：新手實用檢查清單',
+        category: '入門',
+        imageUrl: '/guides/coin-collecting-guide.svg',
+        excerpt: '把預算、規格、來源和退出方案逐項寫下，讓第一次購買成為有根據的開始，而不是衝動交易。',
+        content: `第一次買收藏幣，最容易被「只差一點就錯過」的氣氛推動。真正適合長期收藏的第一枚錢幣，未必是最罕有或最昂貴的一枚，而是你知道自己為甚麼買、看過哪些資料、可以安心保管的一枚。以下清單可在看貨、出價和收貨三個階段使用。
+
+## 購買前：先定下範圍
+
+先寫下一個可承受的總預算，並預留運費、手續費、幣盒及可能的鑑定費。然後只選一個小題目，例如某一版香港流通硬幣、某個年份的紀念幣，或一枚已評級的常見銀元。題目越清楚，越容易比較同類品相和成交價。
+
+- **收藏目標**：是為歷史、設計、完整年份套裝，還是流通性？答案會影響你對品相和認證的取捨。
+- **可接受狀態**：列出不能接受的問題，例如清洗、鑲補、嚴重刮痕、鏽蝕或不明修補。
+- **資料來源**：至少看兩個來源，包括公開拍賣成交紀錄、專業目錄、可信賣家的詳細照片或第三方評級查詢。
+
+## 看貨時：把描述變成可核對的事實
+
+不要只看正面主圖。要求或尋找正、背、邊齒和不同角度的清晰照片；對於有膠盒的評級幣，也要看盒身有否裂痕、標籤資料是否完整。將年份、版別、面值、材質、重量和直徑逐項記下，再與可靠目錄比對。
+
+| 項目 | 要問的問題 | 有用的證據 |
+|------|------------|------------|
+| 身份 | 年份、版別、鑄造地是否一致？ | 目錄編號、標籤、清晰局部圖 |
+| 品相 | 磨損在哪裡？有否清洗或修補？ | 斜光照片、放大細節 |
+| 真偽 | 來源是否可追溯？ | 收據、評級查詢、退貨條款 |
+| 價格 | 比的是同版、近似品相嗎？ | 多筆成交紀錄，而非單一叫價 |
+
+## 出價前與收貨後
+
+拍賣的真正成本不是落槌價。加上買家佣金、運費、保險、匯率和可能的進口費後，才是你實際支付的數字。出價前寫下最高總成本，競投時只依這個數字行事。收貨時保留包裝、收據和原始照片，並建立一張紀錄卡：購入日期、來源、價格、描述、已知瑕疵和儲存位置。這份資料日後有助保險、轉讓及核對來源。`,
+      },
+      {
+        slug: 'coin-authenticity-workflow',
+        title: '收藏幣真偽判讀流程：由規格、工藝到來源',
+        category: '評級',
+        imageUrl: '/guides/authenticity-grading-guide.svg',
+        excerpt: '辨偽不是單靠磁鐵、聲音或一張照片；用可重複的檢查流程，才知道何時應停止交易並尋求專業意見。',
+        content: `錢幣辨偽最重要的原則，是不要讓任何一項測試單獨決定結果。重量接近標準不代表一定真，膠盒存在亦不等於標籤和內容物從未被動過。收藏者可以先做非破壞性的基礎檢查，再把有疑問的錢幣交給有經驗的鑑定人士或合適的評級服務。
+
+## 第一步：確認你手上應該是甚麼
+
+先從可信目錄或博物館、學會資料找出該幣的年份、面值、材質、標準重量、直徑和邊部形式。相同主題的錢幣可能有不同版別，不能以看起來像作比較。記下參考資料的版本和圖片來源，避免把另一版的規格套用到手上的錢幣。
+
+## 第二步：做不傷幣的實測
+
+使用校準過的電子磅和游標卡尺，測量重量及直徑；測量時不要磨邊、刮表面或使用酸性試劑。把量度結果視為範圍而非絕對值：正常流通、輕微磨損或官方容差都會帶來差異，但明顯偏離是需要停下來查證的訊號。
+
+- **圖文與工藝**：字體筆畫、珠圈、邊齒、圖案高點和模具裂紋是否與同版真品一致。
+- **表面狀態**：自然包漿通常在高低處有層次；均一覆蓋物或露出新金屬的凹位，都值得提高警覺。
+- **邊部**：除了看齒是否均勻，也要看有否接縫、重壓、修補或不合理的磨損。
+- **磁性與密度**：可作初步排除，不能代替完整鑑定。
+
+## 第三步：把來源納入判斷
+
+問清楚錢幣來自哪裡、賣家是否可提供購入紀錄、是否容許在合理時間內檢驗和退貨。對於已評級幣，應以評級機構官方查詢頁核對編號、幣種、分數和影像；如資料不符、標籤有異常或盒身有被開啟痕跡，先不要付款。若金額超出你可承受的學費、版別罕見、照片無法判讀，最好的決定是暫緩交易並尋求專業協助。`,
+      },
+      {
+        slug: 'coin-storage-practical-guide',
+        title: '錢幣保存與防潮實作指南：從幣套到收納紀錄',
+        category: '保養',
+        imageUrl: '/guides/coin-storage-guide.svg',
+        excerpt: '香港潮濕環境下，正確保護比清潔更重要：選材、濕度、拿取方式和定期檢查都要有一致程序。',
+        content: `收藏幣的保存目標不是令它看起來更新，而是減慢環境、人手和不當包裝造成的變化。很多無法挽回的損害，來自好意的清洗、普通膠袋的揮發物，或把硬幣長期放在忽冷忽熱的地方。建立簡單、穩定的保存程序，比購買昂貴器材更重要。
+
+## 先選對接觸錢幣的材料
+
+未評級幣可使用標明不含 PVC 的硬幣套、紙套、硬殼或密封膠囊；不同大小要配合硬幣直徑，過緊會刮邊，過鬆會令硬幣在內部磨擦。評級幣保持在原裝幣盒內即可，額外套袋的作用是防刮盒身，而不是把它壓在不透氣的包裝中。
+
+- **適合**：無 PVC 收納套、惰性塑膠膠囊、無酸紙材、專用收藏盒。
+- **避免**：軟身不明膠套、橡筋、膠紙、含硫紙張、木盒內直接接觸硬幣。
+- **拿取**：洗淨及完全抹乾雙手後，只拿邊緣；處理高價值或鏡面幣時可用不掉毛手套或軟頭夾。
+
+## 控制環境，而不是密封一切
+
+收納櫃應遠離廚房、浴室、窗邊和日照位置；如藏品量較多，可使用可讀取濕度的防潮箱或密封收納箱配合可再生乾燥劑。重點是穩定，而不是一味追求極低濕度。
+
+| 項目 | 實作做法 |
+|------|----------|
+| 濕度 | 以約 40–50% RH 為常見起點，並觀察藏品與盒材狀況 |
+| 溫度 | 避免長期高溫和急劇升降，不要把收藏盒留在車內 |
+| 光線 | 避免直射陽光和強燈長時間照射紙鈔、彩色包裝或標籤 |
+| 檢查 | 每 3–6 個月查看一次，不必頻繁翻動或擦拭 |
+
+## 面對氧化、污漬和舊包漿
+
+銀幣、銅幣的自然變色並不一定是問題；對某些收藏者而言，原始表面和自然包漿反而是價值的一部分。看到變色時先拍照、記錄日期，判斷是否屬於活性鏽蝕、黏性殘留或快速擴散的問題。不要用牙膏、銀布、化學浸液或金屬刷自行處理；對高價值錢幣，先向具經驗的保育人士或評級服務諮詢。`,
+      },
+      {
+        slug: 'auction-bidding-preparation',
+        title: '錢幣拍賣出價前的七個準備',
+        category: '拍賣',
+        imageUrl: '/guides/auction-buying-guide.svg',
+        excerpt: '從閱讀圖錄、計算總成本到設定止損價，七個步驟幫你在競投時保持判斷，而非被倒數牽着走。',
+        content: `拍賣提供了接觸不同錢幣的機會，也把時間壓力、競爭和費用放在同一個畫面。成功競投不等於每次都贏到標的，而是在你贏得時，仍知道實際成本、風險和下一步安排。以下步驟適用於網上與現場拍賣。
+
+## 1. 讀完整圖錄，不只看封面照片
+
+把錢幣的年份、版別、重量、尺寸、評級、來源、瑕疵註記和退貨條款抄下。圖錄形容詞如漂亮、罕見可作參考，不能代替你對同版資料和照片的核對。影像不足時，先提出問題或放棄出價。
+
+## 2. 核實出價單位與費用
+
+不同平台可能以港元、外幣或不同最小加價幅度計算。落槌後的買家佣金、支付手續費、運費、保險和匯兌成本，會令總額明顯高於螢幕數字。出價前用以下概念估算：最高總成本等於最高落槌價加上佣金、付款費、運送與保險及稅費預留。
+
+## 3. 只比較可比的成交
+
+成交紀錄必須同時接近：同一版別、相近品相、相同是否已評級、相近拍賣時間和近似市場。把一枚罕見高分幣的價格套在普通流通品，或以零售標價代替成交價，都會把估值帶偏。
+
+## 4. 寫下最高落槌價
+
+先從總成本倒推最高落槌價，寫在紙上或備忘錄中。代理出價可以幫你守住上限，但前提是上限已經過計算；它不是用來追價的工具。若有多個標的，要把總預算分配好，避免前幾項已耗盡後面真正想要的錢幣。
+
+## 5. 檢查規則、6. 保持節奏、7. 得標後整理
+
+確認付款期限、退貨或爭議流程、跨境寄送限制和保險責任。最後數分鐘最容易被情緒帶動；若已達上限，不要因為只多一次而改變規則。得標後保存圖錄截圖、成交頁、付款紀錄、包裝照片和收據，收貨時核對標的、評級編號和描述，再把資料加進藏品紀錄。`,
+      },
+      {
+        slug: 'hong-kong-coins-collecting-guide',
+        title: '香港流通硬幣收藏導讀：從年份、設計到套裝',
+        category: '知識',
+        imageUrl: '/guides/hong-kong-coins-guide.svg',
+        excerpt: '以日常港幣硬幣作起點，認識年份、君主肖像、面值和發行包裝如何形成可研究的香港收藏主題。',
+        content: `香港流通硬幣是很適合入門的本地收藏題目：資料相對容易找到、面值系統清楚，而且每枚硬幣都連結到不同時期的公共生活。它不必從稀有年份或高價版別開始；一套自己親手整理、來源清楚的常見年份，也可以帶來完整的研究樂趣。
+
+## 先建立面值乘年份的收藏框架
+
+把目標拆成一張表：先列出你想收藏的面值，再列年份和設計類型。香港硬幣曾出現不同君主肖像及多次設計調整；同一面值在不同時期亦可能有材質、直徑或邊部差異。使用香港金融管理局、博物館或可靠目錄的資料，為每個格子留下來源註記，而不是憑印象填寫。
+
+| 收藏方法 | 適合誰 | 注意事項 |
+|----------|--------|----------|
+| 年份套裝 | 喜歡完成感的新手 | 先決定是否包括所有面值、紀念發行及不同設計 |
+| 設計主題 | 對肖像、植物或紋章有興趣 | 應分辨流通版、紀念版與樣幣資料 |
+| 未流通套裝 | 重視原裝包裝與品相 | 觀察外包裝、封條和硬幣是否受潮變質 |
+| 錯版研究 | 已熟悉正常版別的收藏者 | 必須以可驗證資料排除人為損傷 |
+
+## 看懂常見與難找的差別
+
+年份較早不必然罕有，發行量少也不必然價格高。實際可得性、保存狀態、是否有大量存貨釋出，以及本地需求都會影響市場。比較時要分清散幣、原卷、官方套裝和已評級品；同一日期的硬幣，在這些狀態下並不是同一種商品。
+
+## 從找零開始的正確做法
+
+日常找零可以是有趣的來源，但不要用清潔劑、拋光布或硬物把舊幣翻新。先放入無 PVC 的紙套或小容器，記下取得日期和大概來源；有趣的年份、明顯不同的設計或疑似錯版，才另外拍照研究。每次補一枚幣時，記下面值、年份、設計、材質、狀態、來源、價格和照片，讓收藏保持可驗證。`,
+      },
+      {
+        slug: 'reading-coin-auction-records',
+        title: '如何閱讀錢幣拍賣成交紀錄：把價格放回脈絡',
+        category: '拍賣',
+        imageUrl: '/guides/auction-records-guide.svg',
+        excerpt: '成交價是有用的市場訊號，但必須連同品相、佣金、時間和來源閱讀，才不會把單一數字誤當估值答案。',
+        content: `拍賣成交紀錄能幫助收藏者理解市場，不過它回答的是某一枚具體錢幣在某個時間、某個場次以多少價格成交，不是所有同名錢幣都值多少。正確閱讀成交紀錄，重點在於找出可比性和成本，而不是收集最高價截圖。
+
+## 先辨認紀錄中的四個價格
+
+同一成交頁可能同時出現估價、起拍價、落槌價和含佣成交價。估價是拍賣方的預期範圍；落槌價是競投停止時的數字；含佣成交價才較接近買方在該場次支付的價格。若你要比較不同拍賣行或不同平台，必須確認各自是否已包括買家佣金、稅項或其他費用。
+
+## 找到真正可比的標的
+
+建立自己的比較欄位，而不只是保存連結。最少包括幣種、年份、版別、材質、評級或品相、是否有清洗或修補、拍賣日期、落槌價和含佣價。只選擇相近的紀錄，寧可少而準；相隔多年、不同版別或品相跨度很大的價格，最多只能作背景參考。
+
+| 檢查欄位 | 為何重要 |
+|----------|----------|
+| 版別與細節 | 同一年份可能有截然不同的稀有度與需求 |
+| 品相與表面 | 分數相近也可能因清洗、彩虹包漿或刮痕而差異很大 |
+| 來源與證書 | 有清楚來源、舊藏標籤或認證資料的錢幣，市場反應可能不同 |
+| 時間與地點 | 匯率、季節、專題拍賣和買家群體都會影響一場成交 |
+
+## 用範圍代替單一市價
+
+把最接近的多筆紀錄整理成範圍，並記下中位數或常見區間；若只有一筆紀錄，誠實標示樣本不足。高價成交可能是兩位買家剛好激烈競爭，也可能反映特殊來源；低價成交也可能來自照片不足、描述保守或場次受眾較少。成交價是談判和出價的參考，不是保證日後出售一定能複製的回報。`,
+      },
+      ];
+
+      for (const article of seedArticles) {
+        await pool.execute(
+          `INSERT INTO articles (slug, title, excerpt, content, imageUrl, category, isPublished, publishedAt)
+           VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+           ON DUPLICATE KEY UPDATE imageUrl = COALESCE(imageUrl, VALUES(imageUrl))`,
+          [article.slug, article.title, article.excerpt, article.content, article.imageUrl, article.category]
+        );
+      }
+    })().catch((error) => {
+      articlesReadyPromise = null;
+      throw error;
+    });
+  }
+  await articlesReadyPromise;
+}
+
 export async function getAllArticles(): Promise<any[]> {
+  await ensureArticlesReady();
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
-    'SELECT id, slug, title, excerpt, category, isPublished, publishedAt, createdAt, updatedAt FROM articles ORDER BY createdAt DESC'
+    'SELECT id, slug, title, excerpt, imageUrl, category, isPublished, publishedAt, createdAt, updatedAt FROM articles ORDER BY createdAt DESC'
   );
   return rows ?? [];
 }
 
 export async function getPublishedArticles(): Promise<any[]> {
+  await ensureArticlesReady();
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
-    'SELECT id, slug, title, excerpt, category, publishedAt, createdAt FROM articles WHERE isPublished = 1 ORDER BY publishedAt DESC, createdAt DESC'
+    'SELECT id, slug, title, excerpt, imageUrl, category, publishedAt, updatedAt, createdAt FROM articles WHERE isPublished = 1 ORDER BY publishedAt DESC, createdAt DESC'
   );
   return rows ?? [];
 }
 
 export async function getArticleBySlug(slug: string): Promise<any | null> {
+  await ensureArticlesReady();
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
     'SELECT * FROM articles WHERE slug = ? AND isPublished = 1 LIMIT 1',
@@ -9138,12 +9575,13 @@ export async function getArticleBySlug(slug: string): Promise<any | null> {
 
 export async function createArticle(data: {
   slug: string; title: string; excerpt?: string; content: string;
-  category?: string; isPublished: number;
+  imageUrl?: string; category?: string; isPublished: number;
 }): Promise<number> {
+  await ensureArticlesReady();
   const pool = await getRawPool();
   const [result]: any = await pool.execute(
-    'INSERT INTO articles (slug, title, excerpt, content, category, isPublished, publishedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [data.slug, data.title, data.excerpt ?? null, data.content, data.category ?? null,
+    'INSERT INTO articles (slug, title, excerpt, content, imageUrl, category, isPublished, publishedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [data.slug, data.title, data.excerpt ?? null, data.content, data.imageUrl ?? null, data.category ?? null,
      data.isPublished, data.isPublished ? new Date() : null]
   );
   return result.insertId;
@@ -9151,8 +9589,9 @@ export async function createArticle(data: {
 
 export async function updateArticle(id: number, data: {
   slug?: string; title?: string; excerpt?: string | null; content?: string;
-  category?: string | null; isPublished?: number;
+  imageUrl?: string | null; category?: string | null; isPublished?: number;
 }): Promise<void> {
+  await ensureArticlesReady();
   const pool = await getRawPool();
   const sets: string[] = [];
   const params: any[] = [];
@@ -9160,6 +9599,7 @@ export async function updateArticle(id: number, data: {
   if (data.title !== undefined) { sets.push('title = ?'); params.push(data.title); }
   if (data.excerpt !== undefined) { sets.push('excerpt = ?'); params.push(data.excerpt); }
   if (data.content !== undefined) { sets.push('content = ?'); params.push(data.content); }
+  if (data.imageUrl !== undefined) { sets.push('imageUrl = ?'); params.push(data.imageUrl); }
   if (data.category !== undefined) { sets.push('category = ?'); params.push(data.category); }
   if (data.isPublished !== undefined) {
     sets.push('isPublished = ?'); params.push(data.isPublished);
@@ -9171,6 +9611,7 @@ export async function updateArticle(id: number, data: {
 }
 
 export async function deleteArticle(id: number): Promise<void> {
+  await ensureArticlesReady();
   const pool = await getRawPool();
   await pool.execute('DELETE FROM articles WHERE id = ?', [id]);
 }

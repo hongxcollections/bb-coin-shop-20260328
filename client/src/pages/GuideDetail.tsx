@@ -1,6 +1,6 @@
 import { Link, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { BookOpen, ChevronLeft, Tag, Calendar } from "lucide-react";
+import { BookOpen, ChevronLeft, Tag, Calendar, ShieldCheck, UserRound } from "lucide-react";
 import AdSenseAd from "@/components/AdSenseAd";
 import { useSeoMeta } from "@/lib/useSeoMeta";
 
@@ -110,6 +110,7 @@ export default function GuideDetail() {
   const { data: article, isLoading, error } = trpc.articles.get.useQuery({ slug: params.slug ?? '' }, {
     enabled: !!params.slug,
   });
+  const { data: allArticles = [] } = trpc.articles.list.useQuery();
   const articleContent = typeof article?.content === "string" ? article.content : "";
   const articleDescription = article?.excerpt
     || articleContent.replace(/[#|*_`>-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 155)
@@ -142,6 +143,11 @@ export default function GuideDetail() {
     );
   }
 
+  const relatedArticles = (allArticles as any[])
+    .filter((candidate) => candidate.slug !== article.slug)
+    .sort((a, b) => Number(b.category === article.category) - Number(a.category === article.category))
+    .slice(0, 3);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-3xl mx-auto pt-10 pb-24 px-4">
@@ -160,9 +166,13 @@ export default function GuideDetail() {
           {(article as any).publishedAt && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              {new Date((article as any).publishedAt).toLocaleDateString("zh-HK")}
+              更新於 {new Date((article as any).updatedAt ?? (article as any).publishedAt).toLocaleDateString("zh-HK")}
             </span>
           )}
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <UserRound className="w-3 h-3" />
+            香港錢幣研究編輯部
+          </span>
         </div>
 
         {/* Title */}
@@ -173,10 +183,44 @@ export default function GuideDetail() {
           </p>
         )}
 
+        {(article as any).imageUrl && (
+          <figure className="mb-6 overflow-hidden rounded-2xl border border-amber-100 bg-amber-50">
+            <img
+              src={(article as any).imageUrl}
+              alt={`${(article as any).title}的編輯插畫`}
+              className="block aspect-[1200/520] w-full object-cover"
+            />
+            <figcaption className="border-t border-amber-100 bg-white px-3 py-2 text-xs text-muted-foreground">
+              知識庫原創編輯插畫
+            </figcaption>
+          </figure>
+        )}
+
         {/* Content */}
         <article className="prose-sm max-w-none">
           {renderContent(articleContent)}
         </article>
+
+        {relatedArticles.length > 0 && (
+          <section className="mt-9 rounded-2xl border border-amber-100 bg-amber-50/60 p-4" aria-labelledby="related-guides">
+            <div className="mb-3 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-amber-600" />
+              <h2 id="related-guides" className="font-semibold text-gray-900">延伸閱讀</h2>
+            </div>
+            <div className="space-y-2">
+              {relatedArticles.map((related) => (
+                <Link
+                  key={related.id}
+                  href={`/guides/${related.slug}`}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 text-sm font-medium text-gray-800 transition-colors hover:text-amber-700"
+                >
+                  <span className="line-clamp-1">{related.title}</span>
+                  <ChevronLeft className="h-4 w-4 shrink-0 rotate-180 text-amber-500" />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Only show one ad after a substantial article, never before the content. */}
         {articleContent.trim().length >= 600 && (
@@ -187,7 +231,10 @@ export default function GuideDetail() {
 
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-border">
-          <p className="text-xs text-muted-foreground mb-3">本文由 hongxcollections.com 知識庫提供，歡迎分享。</p>
+          <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+            本文由香港錢幣研究編輯部審閱，供收藏研究參考；交易前請自行核實資料。
+          </p>
           <div className="flex gap-4 text-xs text-muted-foreground">
           <Link href="/guides" className="hover:text-amber-600 transition-colors underline">更多文章</Link>
           <Link href="/" className="hover:text-amber-600 transition-colors underline">返回首頁</Link>

@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { BookOpen, ChevronRight, Tag } from "lucide-react";
+import { BookOpen, ChevronRight, Tag, ShieldCheck } from "lucide-react";
 
 const CATEGORY_COLORS: Record<string, string> = {
   入門: "bg-green-100 text-green-700",
@@ -23,8 +23,12 @@ export default function Guides() {
             <h1 className="text-2xl font-bold">錢幣知識庫</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            收藏入門、評級攻略、保養指南——一站式錢幣收藏知識
+            由站方審閱的原創文章：收藏入門、評級、保存與拍賣實用指南
           </p>
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            每篇文章均按公開資料與收藏實務整理
+          </div>
         </div>
 
         {isLoading ? (
@@ -43,6 +47,14 @@ export default function Guides() {
                 className="block bg-white border border-amber-100 rounded-2xl p-4 hover:border-amber-300 hover:shadow-sm transition-all group"
               >
                 <div className="flex items-start justify-between gap-3">
+                  {a.imageUrl && (
+                    <img
+                      src={a.imageUrl}
+                      alt=""
+                      className="h-20 w-28 shrink-0 rounded-xl border border-amber-100 bg-amber-50 object-cover"
+                      loading="lazy"
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       {a.category && (
@@ -52,7 +64,7 @@ export default function Guides() {
                       )}
                       {a.publishedAt && (
                         <span className="text-xs text-muted-foreground">
-                          {new Date(a.publishedAt).toLocaleDateString("zh-HK")}
+                          更新於 {new Date(a.updatedAt ?? a.publishedAt).toLocaleDateString("zh-HK")}
                         </span>
                       )}
                     </div>

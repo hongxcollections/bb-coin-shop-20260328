@@ -764,7 +764,7 @@ export default function MerchantSettings() {
                   <Textarea
                     id="fbShareTemplate"
                     rows={5}
-                    placeholder={"{title}\n目前出價 {price}\n結標時間：{endTime}\n@所有人 歡迎登入網站齊來競拍！\n\n（此為預設格式，可自由修改）"}
+                    placeholder={"{title}\n目前出價 {price}\n結標時間：{endTime}\n@每個人 歡迎登入網站齊來競拍！\n\n（此為預設格式，可自由修改）"}
                     value={fbShareTemplate}
                     onChange={(e) => setFbShareTemplate(e.target.value)}
                     className="text-sm font-mono resize-none"
@@ -787,7 +787,7 @@ export default function MerchantSettings() {
                   <Textarea
                     id="fbShareTemplateProduct"
                     rows={5}
-                    placeholder={"{title}\n售價 {price}\n@所有人 歡迎登入網站齊來選購！\n\n（此為預設格式，可自由修改）"}
+                    placeholder={"{title}\n售價 {price}\n@每個人 歡迎登入網站齊來選購！\n\n（此為預設格式，可自由修改）"}
                     value={fbShareTemplateProduct}
                     onChange={(e) => setFbShareTemplateProduct(e.target.value)}
                     className="text-sm font-mono resize-none"

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">香港錢幣收藏入門插畫</title>
+  <desc id="desc">金色硬幣、放大鏡和收藏盒的編輯插畫</desc>
+  <defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#fff7e6"/><stop offset="1" stop-color="#f5dfb1"/></linearGradient><linearGradient id="coin" x1="0" x2="1"><stop stop-color="#f9d878"/><stop offset="1" stop-color="#b87822"/></linearGradient></defs>
+  <rect width="1200" height="520" rx="32" fill="url(#bg)"/>
+  <circle cx="875" cy="255" r="158" fill="url(#coin)" stroke="#7a4a16" stroke-width="10"/>
+  <circle cx="875" cy="255" r="128" fill="none" stroke="#fbe7a2" stroke-width="5"/>
+  <path d="M820 295c32-18 75-20 111 0M839 205c21-23 51-23 72 0M854 218h43v65h-43z" fill="none" stroke="#7a4a16" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="260" cy="365" r="90" fill="#c8d2d0" stroke="#52605e" stroke-width="9"/>
+  <circle cx="260" cy="365" r="67" fill="none" stroke="#f3f6f1" stroke-width="5"/>
+  <path d="M230 365h60M260 335v60" stroke="#52605e" stroke-width="7" stroke-linecap="round"/>
+  <path d="M475 390l116-116" stroke="#52605e" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="430" cy="435" r="92" fill="none" stroke="#52605e" stroke-width="18"/>
+  <rect x="100" y="92" width="440" height="82" rx="18" fill="#fff" opacity=".84"/>
+  <text x="140" y="145" font-family="sans-serif" font-size="42" font-weight="700" fill="#5b3b19">收藏，從理解開始</text>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">錢幣真偽與評級插畫</title>
+  <desc id="desc">放大鏡檢視硬幣細節與評級卡的編輯插畫</desc>
+  <defs><linearGradient id="bg" x1="0" x2="1"><stop stop-color="#eef6ff"/><stop offset="1" stop-color="#c8ddf4"/></linearGradient><linearGradient id="silver" x1="0" x2="1"><stop stop-color="#e6edf2"/><stop offset="1" stop-color="#8697a4"/></linearGradient></defs>
+  <rect width="1200" height="520" rx="32" fill="url(#bg)"/>
+  <rect x="820" y="92" width="210" height="338" rx="18" fill="#fff" stroke="#42637e" stroke-width="9"/>
+  <rect x="845" y="120" width="160" height="30" rx="8" fill="#32638e"/>
+  <circle cx="925" cy="230" r="70" fill="url(#silver)" stroke="#526b7d" stroke-width="8"/>
+  <circle cx="925" cy="230" r="53" fill="none" stroke="#edf5fb" stroke-width="4"/>
+  <text x="866" y="350" font-family="sans-serif" font-size="30" font-weight="700" fill="#263f53">MS 64</text>
+  <text x="852" y="392" font-family="sans-serif" font-size="20" fill="#526b7d">認證只是一項工具</text>
+  <path d="M500 338l116-116" stroke="#42637e" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="450" cy="388" r="104" fill="none" stroke="#42637e" stroke-width="20"/>
+  <circle cx="450" cy="388" r="76" fill="#fff" opacity=".55"/>
+  <circle cx="450" cy="388" r="54" fill="url(#silver)" stroke="#526b7d" stroke-width="6"/>
+  <path d="M420 388h60M450 358v60" stroke="#526b7d" stroke-width="6" stroke-linecap="round"/>
+  <text x="110" y="145" font-family="sans-serif" font-size="42" font-weight="700" fill="#2e536f">先看細節，再談分數</text>
+</svg>

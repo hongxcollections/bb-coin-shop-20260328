@@ -203,6 +203,7 @@ export const appRouter = router({
         title: z.string().min(1).max(200),
         excerpt: z.string().max(500).optional(),
         content: z.string().min(1).max(20000),
+        imageUrl: z.string().max(500).optional(),
         category: z.string().max(50).optional(),
         isPublished: z.number().int().min(0).max(1),
       }))
@@ -217,6 +218,7 @@ export const appRouter = router({
         title: z.string().min(1).max(200).optional(),
         excerpt: z.string().max(500).nullable().optional(),
         content: z.string().min(1).max(20000).optional(),
+        imageUrl: z.string().max(500).nullable().optional(),
         category: z.string().max(50).nullable().optional(),
         isPublished: z.number().int().min(0).max(1).optional(),
       }))

@@ -24,11 +24,12 @@ interface ArticleForm {
   title: string;
   excerpt: string;
   content: string;
+  imageUrl: string;
   category: string;
   isPublished: boolean;
 }
 
-const BLANK: ArticleForm = { slug: '', title: '', excerpt: '', content: '', category: '入門', isPublished: true };
+const BLANK: ArticleForm = { slug: '', title: '', excerpt: '', content: '', imageUrl: '', category: '入門', isPublished: true };
 
 export default function AdminArticles() {
   const utils = trpc.useUtils();
@@ -52,7 +53,7 @@ export default function AdminArticles() {
   const openNew = () => setEditing({ id: null, form: { ...BLANK } });
   const openEdit = (a: any) => setEditing({
     id: a.id,
-    form: { slug: a.slug, title: a.title, excerpt: a.excerpt ?? '', content: a.content ?? '', category: a.category ?? '入門', isPublished: !!a.isPublished },
+    form: { slug: a.slug, title: a.title, excerpt: a.excerpt ?? '', content: a.content ?? '', imageUrl: a.imageUrl ?? '', category: a.category ?? '入門', isPublished: !!a.isPublished },
   });
 
   const handleSave = () => {
@@ -61,7 +62,7 @@ export default function AdminArticles() {
     if (!f.title.trim()) { toast.error("請填寫標題"); return; }
     if (!f.slug.trim()) { toast.error("請填寫 Slug"); return; }
     if (!f.content.trim()) { toast.error("請填寫內容"); return; }
-    const payload = { slug: f.slug.trim(), title: f.title.trim(), excerpt: f.excerpt.trim() || undefined, content: f.content.trim(), category: f.category || undefined, isPublished: f.isPublished ? 1 : 0 };
+    const payload = { slug: f.slug.trim(), title: f.title.trim(), excerpt: f.excerpt.trim() || undefined, content: f.content.trim(), imageUrl: f.imageUrl.trim() || undefined, category: f.category || undefined, isPublished: f.isPublished ? 1 : 0 };
     if (editing.id == null) create.mutate(payload);
     else update.mutate({ id: editing.id, ...payload });
   };
@@ -165,6 +166,10 @@ export default function AdminArticles() {
                 <div className="col-span-2 space-y-1.5">
                   <Label className="text-xs">摘要（顯示於列表頁）</Label>
                   <Textarea value={editing.form.excerpt} onChange={e => setF('excerpt', e.target.value)} rows={2} maxLength={500} placeholder="一句話介紹文章內容…" />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs">封面圖片 URL <span className="text-muted-foreground font-normal">（建議使用自有或已獲授權的圖片）</span></Label>
+                  <Input value={editing.form.imageUrl} onChange={e => setF('imageUrl', e.target.value)} placeholder="/guides/article-cover.svg 或 https://…" maxLength={500} />
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label className="text-xs">內文 * <span className="text-muted-foreground font-normal">（支援 ## 標題、**粗體**、- 列表）</span></Label>

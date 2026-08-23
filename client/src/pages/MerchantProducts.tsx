@@ -2312,7 +2312,7 @@ export default function MerchantProducts() {
                   const currency = p.currency ?? "HKD";
                   const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
                   const sym2 = currency === "USD" ? "US$" : currency === "CNY" ? "¥" : "HK$";
-                  return `${p.title}\n售價 ${sym2}${price.toLocaleString()}\n@所有人 歡迎登入網站齊來選購！\nhttps://share.hongxcollections.com/merchant-products/${p.id}`;
+                  return `${p.title}\n售價 ${sym2}${price.toLocaleString()}\n@每個人 歡迎登入網站齊來選購！\nhttps://share.hongxcollections.com/merchant-products/${p.id}`;
                 }).join("\n\n---\n\n");
                 await navigator.clipboard.writeText(allText);
                 setProductCopiedAll(true);
@@ -2332,7 +2332,7 @@ export default function MerchantProducts() {
               const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
               const sym = currency === "USD" ? "US$" : currency === "CNY" ? "¥" : "HK$";
               const fbTpl = (merchantSettings as { fbShareTemplateProduct?: string | null } | undefined)?.fbShareTemplateProduct;
-              const tpl = fbTpl?.trim() || "{title}\n售價 {price}\n@所有人 歡迎登入網站齊來選購！";
+              const tpl = fbTpl?.trim() || "{title}\n售價 {price}\n@每個人 歡迎登入網站齊來選購！";
               const tplText = tpl
                 .replace(/\{title\}/g, p.title)
                 .replace(/\{price\}/g, `${sym}${price.toLocaleString()}`);
