@@ -575,6 +575,8 @@ export default function AuctionDetail() {
     return bid.username ?? `用戶 #${bid.userId}`;
   };
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
+  const reservePrice = Number((auction as { reservePrice?: string | number | null }).reservePrice ?? 0);
+  const reserveNotMet = !isActive && reservePrice > 0 && Number(auction.currentPrice ?? 0) < reservePrice;
   // 商戶擁有者或管理員可睇完整真實紀錄
   const isPrivileged = user?.role === "admin" || user?.id === (auction as { createdBy?: number }).createdBy;
 
@@ -583,7 +585,7 @@ export default function AuctionDetail() {
     const fbImages = images.map((img: { id: number; imageUrl: string }) => ({ imageUrl: img.imageUrl }));
     const topBid = bids.length > 0 ? bids[0] : null;
     // Only show highest bidder name when reserve price is met (highestBidderId is set)
-    const fbHighestBidderName = (topBid && auction.highestBidderId)
+    const fbHighestBidderName = (topBid && auction.highestBidderId && !reserveNotMet)
       ? (topBid.isAnonymous === 1 ? "🕵️ 匿名買家" : (topBid.username ?? null))
       : null;
     return (
@@ -600,7 +602,7 @@ export default function AuctionDetail() {
             currency={(auction as any).currency}
             isEnded={!isActive}
             bidCount={bids.length}
-            highestBidderId={auction.highestBidderId ?? undefined}
+            highestBidderId={reserveNotMet ? undefined : (auction.highestBidderId ?? undefined)}
             highestBidderName={fbHighestBidderName}
             currentUserId={user?.id}
             sellerName={(auction as any).sellerName ?? null}
@@ -849,8 +851,10 @@ export default function AuctionDetail() {
                 <div className="flex items-end justify-between mb-1">
                   <div>
                     <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5 flex-wrap">
-                      {!isActive && bids.length === 0 ? (
-                        <span className="text-gray-400 font-medium">流拍－未有出價</span>
+                      {!isActive && (bids.length === 0 || reserveNotMet) ? (
+                        <span className="text-gray-400 font-medium">
+                          {reserveNotMet ? "流拍－底價未達" : "流拍－未有出價"}
+                        </span>
                       ) : !isActive && bids.length > 0 ? (
                         <>
                           成交價

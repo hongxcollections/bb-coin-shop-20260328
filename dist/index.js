@@ -12070,7 +12070,7 @@ async function checkAndUpdateAuctionStatus(auctionId, origin = "") {
     if (!db) return;
     try {
       const reservePrice = auction.reservePrice ? Number(auction.reservePrice) : null;
-      const reserveNotMet = reservePrice !== null && reservePrice > 0 && auction.highestBidderId === null;
+      const reserveNotMet = reservePrice !== null && reservePrice > 0 && parseFloat(auction.currentPrice.toString()) < reservePrice;
       await db.update(auctions).set({ status: "ended" }).where(eq5(auctions.id, auctionId));
       if (reserveNotMet) {
         console.log(`[Auctions] Auction #${auctionId} reserve not met (reserve: ${reservePrice}, highestBidderId: null) \u2014 \u6D41\u62CD`);
@@ -15635,7 +15635,9 @@ var appRouter = router({
         if (initialAmt > 0 && input.maxAmount >= initialAmt) {
           const db = await getDb();
           if (db) {
-            await db.update(auctions).set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id }).where(eq8(auctions.id, input.auctionId));
+            const reservePrice = auction.reservePrice ? Number(auction.reservePrice) : null;
+            const initialBelowReserve = reservePrice !== null && reservePrice > 0 && initialAmt < reservePrice;
+            await db.update(auctions).set({ currentPrice: initialAmt.toString(), highestBidderId: initialBelowReserve ? null : ctx.user.id }).where(eq8(auctions.id, input.auctionId));
             await placeBid({ auctionId: input.auctionId, userId: ctx.user.id, bidAmount: initialAmt.toString(), isAnonymous: 0 });
             try {
               const linkedItems = await db.select().from(groupAuctionItems).where(eq8(groupAuctionItems.linkedAuctionId, input.auctionId)).limit(1);

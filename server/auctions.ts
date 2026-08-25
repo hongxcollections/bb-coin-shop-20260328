@@ -632,7 +632,8 @@ export async function checkAndUpdateAuctionStatus(auctionId: number, origin = ''
       // 注意：用 highestBidderId 判斷比用 currentPrice 更準確，因為在底價機制下
       // currentPrice 可能已被系統自動加一口至接近或等於底價，但仍未有人真正超越底價
       const reservePrice = (auction as any).reservePrice ? Number((auction as any).reservePrice) : null;
-      const reserveNotMet = reservePrice !== null && reservePrice > 0 && auction.highestBidderId === null;
+      const reserveNotMet = reservePrice !== null && reservePrice > 0
+        && parseFloat(auction.currentPrice.toString()) < reservePrice;
 
       await db
         .update(auctionsTable)

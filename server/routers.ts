@@ -1262,8 +1262,10 @@ export const appRouter = router({
           if (initialAmt > 0 && input.maxAmount >= initialAmt) {
             const db = await getDb();
             if (db) {
+              const reservePrice = auction.reservePrice ? Number(auction.reservePrice) : null;
+              const initialBelowReserve = reservePrice !== null && reservePrice > 0 && initialAmt < reservePrice;
               await db.update(auctions)
-                .set({ currentPrice: initialAmt.toString(), highestBidderId: ctx.user.id })
+                .set({ currentPrice: initialAmt.toString(), highestBidderId: initialBelowReserve ? null : ctx.user.id })
                 .where(eq(auctions.id, input.auctionId));
               await dbPlaceBid({ auctionId: input.auctionId, userId: ctx.user.id, bidAmount: initialAmt.toString(), isAnonymous: 0 });
               // 若此主頁拍賣係由團拍匯出，反向同步初始代理出價至 groupAuctionBids
