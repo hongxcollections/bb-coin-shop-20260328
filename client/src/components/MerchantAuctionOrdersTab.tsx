@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon, RotateCcw, Copy } from "lucide-react";
-import ChatButton from "@/components/ChatButton";
 
 const DEFAULT_CLOSING = "煩請待回覆 相約交收地點及時間 多謝支持!";
 
@@ -249,13 +248,6 @@ export function MerchantAuctionOrdersTab() {
 
                 {o.status === "pending" && (
                   <div className="space-y-2 pt-1">
-                    <ChatButton
-                      auctionId={o.auctionId}
-                      merchantId={o.merchantId}
-                      winnerId={o.buyerId}
-                      auctionEnded
-                      auctionTitle={o.title}
-                    />
                     <button
                       onClick={() => {
                         const msg = buildAuctionMessage(o, o.merchantClosingMessage);

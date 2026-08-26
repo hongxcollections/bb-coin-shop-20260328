@@ -6228,7 +6228,7 @@ export async function getMerchantAuctionOrders(merchantId: number, status?: stri
   }
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
-    `SELECT a.id AS auctionId, a.createdBy AS merchantId, a.title, a.currency, a.currentPrice, a.startingPrice,
+    `SELECT a.id AS auctionId, a.title, a.currency, a.currentPrice, a.startingPrice,
             a.endTime, a.highestBidderId AS buyerId,
             a.auctionOrderStatus AS status, a.auctionOrderConfirmedAt AS confirmedAt,
             a.auctionOrderCancelledAt AS cancelledAt, a.auctionOrderCancelReason AS cancelReason,
