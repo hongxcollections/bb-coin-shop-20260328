@@ -929,6 +929,7 @@ export default function AuctionDetail() {
                     <ChatButton
                       auctionId={auctionId}
                       merchantId={auction.createdBy}
+                      winnerId={reserveNotMet ? null : auction.highestBidderId}
                       auctionEnded={!isActive}
                       auctionTitle={auction.title}
                       compact

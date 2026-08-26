@@ -265,6 +265,8 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, o
     data.auction.status === "ended" ||
     (data.auction.endTime ? new Date(data.auction.endTime).getTime() < nowTick : false)
   );
+  const canMessageAfterEnd = data?.canMessage ?? false;
+  const readOnly = auctionEnded && !canMessageAfterEnd;
 
   // 為快速查 reactions 而 group
   const reactionsByMsg = useMemo(() => {
@@ -466,7 +468,7 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, o
                         <button
                           type="button"
                           onClick={() => {
-                            if (auctionEnded) return;
+                            if (readOnly) return;
                             // 圖片訊息：點擊泡泡 = 睇大圖；emoji picker 用旁邊嘅 SmilePlus button 觸發
                             if (m.messageType === "image" && m.imageUrl) {
                               setLightboxImg(m.imageUrl);
@@ -482,7 +484,7 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, o
                                 : mine
                                   ? "bg-amber-500 text-white"
                                   : "bg-white text-gray-800 border border-gray-200"
-                          } ${isHighlighted ? "ring-2 ring-amber-400" : ""} ${!auctionEnded ? "active:opacity-80" : ""}`}
+                          } ${isHighlighted ? "ring-2 ring-amber-400" : ""} ${!readOnly ? "active:opacity-80" : ""}`}
                         >
                           {m.messageType === "image" && m.imageUrl ? (
                             <img src={m.imageUrl} alt="" className="max-w-[220px] max-h-[280px] object-contain rounded-xl block" />
@@ -499,7 +501,7 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, o
                             </span>
                           )}
                         </button>
-                        {!auctionEnded && (
+                        {!readOnly && (
                           <button
                             type="button"
                             onClick={() => setPickerForMessageId(pickerForMessageId === m.id ? null : m.id)}
@@ -534,8 +536,8 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, o
                             <button
                               key={emo}
                               type="button"
-                              onClick={() => !auctionEnded && handleToggleReaction(m.id, emo)}
-                              disabled={auctionEnded}
+                              onClick={() => !readOnly && handleToggleReaction(m.id, emo)}
+                              disabled={readOnly}
                               className={`text-[11px] rounded-full px-1.5 py-0.5 border transition-colors ${
                                 info.mine
                                   ? "bg-amber-100 border-amber-300 text-amber-800"
@@ -559,7 +561,7 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, o
         </div>
 
         {/* 底部輸入欄 */}
-        {auctionEnded ? (
+        {readOnly ? (
           <div className="border-t border-gray-200 bg-gray-100 px-4 py-3 flex-shrink-0">
             <div className="flex items-center gap-2 text-gray-600 text-sm justify-center">
               <Lock className="w-4 h-4 text-gray-500" />

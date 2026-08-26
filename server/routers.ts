@@ -85,6 +85,18 @@ function getEmailOrigin(req?: IncomingMessage): string {
   return '';
 }
 
+function isEndedAuctionForChat(auction: { status?: string | null; endTime?: Date | string | null } | null): boolean {
+  if (!auction) return false;
+  return auction.status === 'ended' || (!!auction.endTime && new Date(auction.endTime).getTime() < Date.now());
+}
+
+function isEndedAuctionChatParticipant(
+  auction: { createdBy?: number | null; highestBidderId?: number | null } | null,
+  userId: number,
+): boolean {
+  return !!auction && (auction.createdBy === userId || auction.highestBidderId === userId);
+}
+
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
 export const bidDebounceMap = new Map<string, number>();
@@ -7895,19 +7907,23 @@ ${kb}`;
         const auction = await getAuctionById(input.auctionId);
         if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到呢個拍賣' });
 
-        // 拍賣已結束就唔可以再開新對話 (read-only)
-        const ended = auction.status === 'ended' || (auction.endTime && new Date(auction.endTime).getTime() < Date.now());
-        if (ended) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: '拍賣已結束，唔可以再開新對話' });
+        const ended = isEndedAuctionForChat(auction);
+        const isMerchant = auction.createdBy === ctx.user.id;
+        const isWinner = auction.highestBidderId === ctx.user.id;
+        if (ended && !auction.highestBidderId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣未有得標者，無法開啟成交對話' });
+        }
+        if (ended && !isMerchant && !isWinner) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有得標者同商戶可以喺結拍後對話' });
         }
 
         // 商戶自己唔可以同自己 chat
-        if (auction.createdBy === ctx.user.id) {
+        if (!ended && isMerchant) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '你係呢個拍賣嘅商戶，唔需要同自己對話' });
         }
 
         // 銀牌+ gate (admin 例外)
-        if (ctx.user.role !== 'admin') {
+        if (!ended && ctx.user.role !== 'admin') {
           const lvl = await getUserMemberLevel(ctx.user.id);
           if (lvl !== 'silver' && lvl !== 'gold' && lvl !== 'vip') {
             throw new TRPCError({
@@ -7917,10 +7933,12 @@ ${kb}`;
           }
         }
 
-        const result = await getOrCreateChatRoom(input.auctionId, ctx.user.id, auction.createdBy);
+        // 結拍後由商戶開啟時，聊天室仍以得標者作 bidder，避免建立自己對自己嘅房間。
+        const bidderId = ended && isMerchant ? auction.highestBidderId! : ctx.user.id;
+        const result = await getOrCreateChatRoom(input.auctionId, bidderId, auction.createdBy);
         if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
         // ── Facebook CAPI：Contact（買家首次開對話） ─────────────────────────
-        if (result.isNew) {
+        if (result.isNew && !isMerchant) {
           const contactEventId = crypto.randomUUID();
           sendCapiContact({
             eventId: contactEventId,
@@ -7980,12 +7998,18 @@ ${kb}`;
         const { getChatRoomById, listChatMessages, getAuctionById, getUserById, markChatRoomRead } = await import('./db');
         const room = await getChatRoomById(input.roomId);
         if (!room) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到對話' });
-        if (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== 'admin') {
+        if (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '冇權查看呢個對話' });
         }
 
-        const [auction, bidder, merchant, messages, reactions] = await Promise.all([
-          getAuctionById(room.auctionId),
+        const auction = await getAuctionById(room.auctionId);
+        const ended = isEndedAuctionForChat(auction);
+        const isEndedParticipant = isEndedAuctionChatParticipant(auction, ctx.user.id);
+        if (ended && !isEndedParticipant) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有得標者同商戶可以查看結拍後對話' });
+        }
+
+        const [bidder, merchant, messages, reactions] = await Promise.all([
           getUserById(room.bidderId),
           getUserById(room.merchantId),
           listChatMessages(input.roomId, input.limit),
@@ -8000,6 +8024,7 @@ ${kb}`;
         return {
           room,
           auction: auction ? { id: auction.id, title: auction.title, status: auction.status, currentPrice: auction.currentPrice, currency: auction.currency, endTime: auction.endTime } : null,
+          canMessage: !ended || isEndedParticipant,
           myRole,
           other: other ? { id: other.id, name: other.name, photoUrl: other.photoUrl } : null,
           messages,
@@ -8023,11 +8048,10 @@ ${kb}`;
         const room = await getChatRoomById(input.roomId);
         if (!room) throw new TRPCError({ code: 'NOT_FOUND', message: '對話不存在' });
 
-        // 拍賣結束後對話變 read-only，唔可以再發訊息（admin 都唔可以，避免擾亂買家）
         const auction = await getAuctionById(room.auctionId);
-        const ended = auction && (auction.status === 'ended' || (auction.endTime && new Date(auction.endTime).getTime() < Date.now()));
-        if (ended) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: '拍賣已結束，呢個對話已封存，只可瀏覽歷史訊息' });
+        const ended = isEndedAuctionForChat(auction);
+        if (ended && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有得標者同商戶可以喺結拍後對話' });
         }
 
         let senderRole: 'bidder' | 'merchant';
@@ -8036,7 +8060,7 @@ ${kb}`;
           senderRole = 'bidder';
           recipientId = room.merchantId;
           // Bidder 必須維持 silver+ (admin 例外)
-          if (ctx.user.role !== 'admin') {
+          if (!ended && ctx.user.role !== 'admin') {
             const lvl = await getUserMemberLevel(ctx.user.id);
             if (lvl !== 'silver' && lvl !== 'gold' && lvl !== 'vip') {
               throw new TRPCError({ code: 'FORBIDDEN', message: '只有銀牌或以上會員可以發送訊息' });
@@ -8118,18 +8142,23 @@ ${kb}`;
         if (!ALLOWED.includes(input.emoji)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援嘅 emoji' });
         }
-        const { getChatRoomById, getUserMemberLevel, getMessageRoomId } = await import('./db');
+        const { getChatRoomById, getUserMemberLevel, getMessageRoomId, getAuctionById } = await import('./db');
         const { notifyReactionChanged } = await import('./_core/chatWebSocket');
 
         const targetRoomId = await getMessageRoomId(input.messageId);
         if (!targetRoomId) throw new TRPCError({ code: 'NOT_FOUND', message: '訊息不存在' });
 
         const room = await getChatRoomById(targetRoomId);
-        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== 'admin')) {
+        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '冇權喺呢個對話加表情' });
         }
+        const auction = await getAuctionById(room.auctionId);
+        const ended = isEndedAuctionForChat(auction);
+        if (ended && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有得標者同商戶可以喺結拍後對話' });
+        }
         // Bidder 必須維持 silver+
-        if (room.bidderId === ctx.user.id && ctx.user.role !== 'admin') {
+        if (!ended && room.bidderId === ctx.user.id && ctx.user.role !== 'admin') {
           const lvl = await getUserMemberLevel(ctx.user.id);
           if (lvl !== 'silver' && lvl !== 'gold' && lvl !== 'vip') {
             throw new TRPCError({ code: 'FORBIDDEN', message: '只有銀牌或以上會員可以加表情' });
@@ -8152,10 +8181,14 @@ ${kb}`;
     searchInRoom: protectedProcedure
       .input(z.object({ roomId: z.number(), query: z.string().min(1).max(100), limit: z.number().default(50) }))
       .query(async ({ input, ctx }) => {
-        const { getChatRoomById } = await import('./db');
+        const { getChatRoomById, getAuctionById } = await import('./db');
         const room = await getChatRoomById(input.roomId);
-        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== 'admin')) {
+        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '冇權搜尋呢個對話' });
+        }
+        const auction = await getAuctionById(room.auctionId);
+        if (isEndedAuctionForChat(auction) && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有得標者同商戶可以查看結拍後對話' });
         }
         const messages = await searchChatMessagesInRoom(input.roomId, input.query, input.limit);
         return { messages };
@@ -8173,7 +8206,15 @@ ${kb}`;
     markRead: protectedProcedure
       .input(z.object({ roomId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        const { markChatRoomRead } = await import('./db');
+        const { markChatRoomRead, getChatRoomById, getAuctionById } = await import('./db');
+        const room = await getChatRoomById(input.roomId);
+        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '冇權查看呢個對話' });
+        }
+        const auction = await getAuctionById(room.auctionId);
+        if (isEndedAuctionForChat(auction) && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有得標者同商戶可以查看結拍後對話' });
+        }
         const ok = await markChatRoomRead(input.roomId, ctx.user.id);
         return { success: ok };
       }),
@@ -8198,11 +8239,10 @@ ${kb}`;
         if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '冇權上傳到呢個對話' });
         }
-        // 拍賣結束後對話變 read-only，唔可以再上傳圖片
         const auction = await getAuctionById(room.auctionId);
-        const ended = auction && (auction.status === 'ended' || (auction.endTime && new Date(auction.endTime).getTime() < Date.now()));
-        if (ended) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: '拍賣已結束，呢個對話已封存，只可瀏覽歷史訊息' });
+        const ended = isEndedAuctionForChat(auction);
+        if (ended && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有得標者同商戶可以喺結拍後對話' });
         }
         const rawChatBuf = Buffer.from(input.imageData, 'base64');
         if (rawChatBuf.length > 5 * 1024 * 1024) {

@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
@@ -1110,7 +1110,13 @@ async function injectGalleryOgMeta(html: string, reqPath: string, reqQuery: Reco
   }
 }
 
-export async function setupVite(app: Express, server: Server) {
+type ViteHtmlHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
+
+export async function setupVite(
+  app: Express,
+  server: Server,
+  options: { registerHtmlFallback?: boolean } = {},
+): Promise<ViteHtmlHandler> {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -1125,7 +1131,7 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
+  const handleHtml: ViteHtmlHandler = async (req, res, next) => {
     const url = req.originalUrl;
 
     try {
@@ -1177,7 +1183,11 @@ export async function setupVite(app: Express, server: Server) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
     }
-  });
+  };
+  if (options.registerHtmlFallback !== false) {
+    app.use("*", handleHtml);
+  }
+  return handleHtml;
 }
 
 export function serveStatic(app: Express) {

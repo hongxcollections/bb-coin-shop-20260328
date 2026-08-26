@@ -7209,8 +7209,15 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
            (r.merchantId = ? AND r.merchantDeleted = 0)
          )
          AND EXISTS (SELECT 1 FROM auctionChatMessages m WHERE m.roomId = r.id)
+         AND (
+           r.auctionId < 0
+           OR a.id IS NULL
+           OR NOT (a.status = 'ended' OR (a.endTime IS NOT NULL AND a.endTime < NOW()))
+           OR a.createdBy = ?
+           OR a.highestBidderId = ?
+         )
        ORDER BY r.lastMessageAt DESC`,
-      [userId, userId, userId, userId, userId, userId],
+      [userId, userId, userId, userId, userId, userId, userId, userId],
     );
     const now = Date.now();
     return rows.map((r: any) => {
@@ -7361,12 +7368,20 @@ export async function getMyChatUnreadTotal(userId: number): Promise<number> {
     if (!pool) return 0;
     const [rows]: any = await pool.execute(
       `SELECT COALESCE(SUM(
-         CASE WHEN bidderId = ? THEN bidderUnreadCount
-              WHEN merchantId = ? THEN merchantUnreadCount
+         CASE WHEN r.bidderId = ? THEN r.bidderUnreadCount
+              WHEN r.merchantId = ? THEN r.merchantUnreadCount
               ELSE 0 END), 0) as total
-       FROM auctionChatRooms
-       WHERE (bidderId = ? OR merchantId = ?)`,
-      [userId, userId, userId, userId],
+       FROM auctionChatRooms r
+       LEFT JOIN auctions a ON a.id = r.auctionId
+       WHERE (r.bidderId = ? OR r.merchantId = ?)
+         AND (
+           r.auctionId < 0
+           OR a.id IS NULL
+           OR NOT (a.status = 'ended' OR (a.endTime IS NOT NULL AND a.endTime < NOW()))
+           OR a.createdBy = ?
+           OR a.highestBidderId = ?
+         )`,
+      [userId, userId, userId, userId, userId, userId],
     );
     return Number(rows[0]?.total ?? 0);
   } catch (e) {
@@ -7644,9 +7659,16 @@ export async function searchChatMessagesAcrossMyRooms(userId: number, query: str
        WHERE (r.bidderId = ? OR r.merchantId = ?)
          AND m.content IS NOT NULL
          AND m.content LIKE ?
+         AND (
+           r.auctionId < 0
+           OR a.id IS NULL
+           OR NOT (a.status = 'ended' OR (a.endTime IS NOT NULL AND a.endTime < NOW()))
+           OR a.createdBy = ?
+           OR a.highestBidderId = ?
+         )
        ORDER BY m.createdAt DESC
        LIMIT ?`,
-      [userId, userId, userId, userId, q, limit],
+      [userId, userId, userId, userId, q, userId, userId, limit],
     );
     return rows.map((r: any) => ({
       messageId: Number(r.messageId),

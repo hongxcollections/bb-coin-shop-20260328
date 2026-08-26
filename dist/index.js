@@ -6985,8 +6985,15 @@ async function listMyChatRooms(userId) {
            (r.merchantId = ? AND r.merchantDeleted = 0)
          )
          AND EXISTS (SELECT 1 FROM auctionChatMessages m WHERE m.roomId = r.id)
+         AND (
+           r.auctionId < 0
+           OR a.id IS NULL
+           OR NOT (a.status = 'ended' OR (a.endTime IS NOT NULL AND a.endTime < NOW()))
+           OR a.createdBy = ?
+           OR a.highestBidderId = ?
+         )
        ORDER BY r.lastMessageAt DESC`,
-      [userId, userId, userId, userId, userId, userId]
+      [userId, userId, userId, userId, userId, userId, userId, userId]
     );
     const now = Date.now();
     return rows.map((r) => {
@@ -7092,12 +7099,20 @@ async function getMyChatUnreadTotal(userId) {
     if (!pool) return 0;
     const [rows] = await pool.execute(
       `SELECT COALESCE(SUM(
-         CASE WHEN bidderId = ? THEN bidderUnreadCount
-              WHEN merchantId = ? THEN merchantUnreadCount
+         CASE WHEN r.bidderId = ? THEN r.bidderUnreadCount
+              WHEN r.merchantId = ? THEN r.merchantUnreadCount
               ELSE 0 END), 0) as total
-       FROM auctionChatRooms
-       WHERE (bidderId = ? OR merchantId = ?)`,
-      [userId, userId, userId, userId]
+       FROM auctionChatRooms r
+       LEFT JOIN auctions a ON a.id = r.auctionId
+       WHERE (r.bidderId = ? OR r.merchantId = ?)
+         AND (
+           r.auctionId < 0
+           OR a.id IS NULL
+           OR NOT (a.status = 'ended' OR (a.endTime IS NOT NULL AND a.endTime < NOW()))
+           OR a.createdBy = ?
+           OR a.highestBidderId = ?
+         )`,
+      [userId, userId, userId, userId, userId, userId]
     );
     return Number(rows[0]?.total ?? 0);
   } catch (e) {
@@ -7301,9 +7316,16 @@ async function searchChatMessagesAcrossMyRooms(userId, query, limit = 50) {
        WHERE (r.bidderId = ? OR r.merchantId = ?)
          AND m.content IS NOT NULL
          AND m.content LIKE ?
+         AND (
+           r.auctionId < 0
+           OR a.id IS NULL
+           OR NOT (a.status = 'ended' OR (a.endTime IS NOT NULL AND a.endTime < NOW()))
+           OR a.createdBy = ?
+           OR a.highestBidderId = ?
+         )
        ORDER BY m.createdAt DESC
        LIMIT ?`,
-      [userId, userId, userId, userId, q, limit]
+      [userId, userId, userId, userId, q, userId, userId, limit]
     );
     return rows.map((r) => ({
       messageId: Number(r.messageId),
@@ -14658,6 +14680,13 @@ function getEmailOrigin(req) {
   }
   return "";
 }
+function isEndedAuctionForChat(auction) {
+  if (!auction) return false;
+  return auction.status === "ended" || !!auction.endTime && new Date(auction.endTime).getTime() < Date.now();
+}
+function isEndedAuctionChatParticipant(auction, userId) {
+  return !!auction && (auction.createdBy === userId || auction.highestBidderId === userId);
+}
 var bidDebounceMap = /* @__PURE__ */ new Map();
 async function generateUniqueSessionSlug(merchantUserId, source) {
   const base = (source || "session").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-").slice(0, 60) || "session";
@@ -21206,14 +21235,19 @@ ${kb}`;
       const { getOrCreateChatRoom: getOrCreateChatRoom2, getUserMemberLevel: getUserMemberLevel2, getAuctionById: getAuctionById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const auction = await getAuctionById2(input.auctionId);
       if (!auction) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u5514\u5230\u5462\u500B\u62CD\u8CE3" });
-      const ended = auction.status === "ended" || auction.endTime && new Date(auction.endTime).getTime() < Date.now();
-      if (ended) {
-        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u62CD\u8CE3\u5DF2\u7D50\u675F\uFF0C\u5514\u53EF\u4EE5\u518D\u958B\u65B0\u5C0D\u8A71" });
+      const ended = isEndedAuctionForChat(auction);
+      const isMerchant = auction.createdBy === ctx.user.id;
+      const isWinner = auction.highestBidderId === ctx.user.id;
+      if (ended && !auction.highestBidderId) {
+        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u6B64\u62CD\u8CE3\u672A\u6709\u5F97\u6A19\u8005\uFF0C\u7121\u6CD5\u958B\u555F\u6210\u4EA4\u5C0D\u8A71" });
       }
-      if (auction.createdBy === ctx.user.id) {
+      if (ended && !isMerchant && !isWinner) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5F97\u6A19\u8005\u540C\u5546\u6236\u53EF\u4EE5\u55BA\u7D50\u62CD\u5F8C\u5C0D\u8A71" });
+      }
+      if (!ended && isMerchant) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u4F60\u4FC2\u5462\u500B\u62CD\u8CE3\u5605\u5546\u6236\uFF0C\u5514\u9700\u8981\u540C\u81EA\u5DF1\u5C0D\u8A71" });
       }
-      if (ctx.user.role !== "admin") {
+      if (!ended && ctx.user.role !== "admin") {
         const lvl = await getUserMemberLevel2(ctx.user.id);
         if (lvl !== "silver" && lvl !== "gold" && lvl !== "vip") {
           throw new TRPCError3({
@@ -21222,9 +21256,10 @@ ${kb}`;
           });
         }
       }
-      const result = await getOrCreateChatRoom2(input.auctionId, ctx.user.id, auction.createdBy);
+      const bidderId = ended && isMerchant ? auction.highestBidderId : ctx.user.id;
+      const result = await getOrCreateChatRoom2(input.auctionId, bidderId, auction.createdBy);
       if (!result) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "\u5EFA\u7ACB\u5C0D\u8A71\u5931\u6557" });
-      if (result.isNew) {
+      if (result.isNew && !isMerchant) {
         const contactEventId = crypto.randomUUID();
         sendCapiContact({
           eventId: contactEventId,
@@ -21276,11 +21311,16 @@ ${kb}`;
       const { getChatRoomById: getChatRoomById2, listChatMessages: listChatMessages3, getAuctionById: getAuctionById2, getUserById: getUserById2, markChatRoomRead: markChatRoomRead2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const room = await getChatRoomById2(input.roomId);
       if (!room) throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u5514\u5230\u5C0D\u8A71" });
-      if (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== "admin") {
+      if (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u5187\u6B0A\u67E5\u770B\u5462\u500B\u5C0D\u8A71" });
       }
-      const [auction, bidder, merchant, messages, reactions] = await Promise.all([
-        getAuctionById2(room.auctionId),
+      const auction = await getAuctionById2(room.auctionId);
+      const ended = isEndedAuctionForChat(auction);
+      const isEndedParticipant = isEndedAuctionChatParticipant(auction, ctx.user.id);
+      if (ended && !isEndedParticipant) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5F97\u6A19\u8005\u540C\u5546\u6236\u53EF\u4EE5\u67E5\u770B\u7D50\u62CD\u5F8C\u5C0D\u8A71" });
+      }
+      const [bidder, merchant, messages, reactions] = await Promise.all([
         getUserById2(room.bidderId),
         getUserById2(room.merchantId),
         listChatMessages3(input.roomId, input.limit),
@@ -21292,6 +21332,7 @@ ${kb}`;
       return {
         room,
         auction: auction ? { id: auction.id, title: auction.title, status: auction.status, currentPrice: auction.currentPrice, currency: auction.currency, endTime: auction.endTime } : null,
+        canMessage: !ended || isEndedParticipant,
         myRole,
         other: other ? { id: other.id, name: other.name, photoUrl: other.photoUrl } : null,
         messages,
@@ -21312,16 +21353,16 @@ ${kb}`;
       const room = await getChatRoomById2(input.roomId);
       if (!room) throw new TRPCError3({ code: "NOT_FOUND", message: "\u5C0D\u8A71\u4E0D\u5B58\u5728" });
       const auction = await getAuctionById2(room.auctionId);
-      const ended = auction && (auction.status === "ended" || auction.endTime && new Date(auction.endTime).getTime() < Date.now());
-      if (ended) {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "\u62CD\u8CE3\u5DF2\u7D50\u675F\uFF0C\u5462\u500B\u5C0D\u8A71\u5DF2\u5C01\u5B58\uFF0C\u53EA\u53EF\u700F\u89BD\u6B77\u53F2\u8A0A\u606F" });
+      const ended = isEndedAuctionForChat(auction);
+      if (ended && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5F97\u6A19\u8005\u540C\u5546\u6236\u53EF\u4EE5\u55BA\u7D50\u62CD\u5F8C\u5C0D\u8A71" });
       }
       let senderRole;
       let recipientId;
       if (room.bidderId === ctx.user.id) {
         senderRole = "bidder";
         recipientId = room.merchantId;
-        if (ctx.user.role !== "admin") {
+        if (!ended && ctx.user.role !== "admin") {
           const lvl = await getUserMemberLevel2(ctx.user.id);
           if (lvl !== "silver" && lvl !== "gold" && lvl !== "vip") {
             throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u9280\u724C\u6216\u4EE5\u4E0A\u6703\u54E1\u53EF\u4EE5\u767C\u9001\u8A0A\u606F" });
@@ -21394,15 +21435,20 @@ ${kb}`;
       if (!ALLOWED.includes(input.emoji)) {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\u4E0D\u652F\u63F4\u5605 emoji" });
       }
-      const { getChatRoomById: getChatRoomById2, getUserMemberLevel: getUserMemberLevel2, getMessageRoomId: getMessageRoomId2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const { getChatRoomById: getChatRoomById2, getUserMemberLevel: getUserMemberLevel2, getMessageRoomId: getMessageRoomId2, getAuctionById: getAuctionById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const { notifyReactionChanged: notifyReactionChanged2 } = await Promise.resolve().then(() => (init_chatWebSocket(), chatWebSocket_exports));
       const targetRoomId = await getMessageRoomId2(input.messageId);
       if (!targetRoomId) throw new TRPCError3({ code: "NOT_FOUND", message: "\u8A0A\u606F\u4E0D\u5B58\u5728" });
       const room = await getChatRoomById2(targetRoomId);
-      if (!room || room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== "admin") {
+      if (!room || room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u5187\u6B0A\u55BA\u5462\u500B\u5C0D\u8A71\u52A0\u8868\u60C5" });
       }
-      if (room.bidderId === ctx.user.id && ctx.user.role !== "admin") {
+      const auction = await getAuctionById2(room.auctionId);
+      const ended = isEndedAuctionForChat(auction);
+      if (ended && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5F97\u6A19\u8005\u540C\u5546\u6236\u53EF\u4EE5\u55BA\u7D50\u62CD\u5F8C\u5C0D\u8A71" });
+      }
+      if (!ended && room.bidderId === ctx.user.id && ctx.user.role !== "admin") {
         const lvl = await getUserMemberLevel2(ctx.user.id);
         if (lvl !== "silver" && lvl !== "gold" && lvl !== "vip") {
           throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u9280\u724C\u6216\u4EE5\u4E0A\u6703\u54E1\u53EF\u4EE5\u52A0\u8868\u60C5" });
@@ -21421,10 +21467,14 @@ ${kb}`;
     }),
     /** 喺指定 room 內搜尋訊息（必須係參與者）。 */
     searchInRoom: protectedProcedure.input(z2.object({ roomId: z2.number(), query: z2.string().min(1).max(100), limit: z2.number().default(50) })).query(async ({ input, ctx }) => {
-      const { getChatRoomById: getChatRoomById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const { getChatRoomById: getChatRoomById2, getAuctionById: getAuctionById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
       const room = await getChatRoomById2(input.roomId);
-      if (!room || room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== "admin") {
+      if (!room || room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u5187\u6B0A\u641C\u5C0B\u5462\u500B\u5C0D\u8A71" });
+      }
+      const auction = await getAuctionById2(room.auctionId);
+      if (isEndedAuctionForChat(auction) && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5F97\u6A19\u8005\u540C\u5546\u6236\u53EF\u4EE5\u67E5\u770B\u7D50\u62CD\u5F8C\u5C0D\u8A71" });
       }
       const messages = await searchChatMessagesInRoom(input.roomId, input.query, input.limit);
       return { messages };
@@ -21436,7 +21486,15 @@ ${kb}`;
     }),
     /** 標記為已讀 */
     markRead: protectedProcedure.input(z2.object({ roomId: z2.number() })).mutation(async ({ input, ctx }) => {
-      const { markChatRoomRead: markChatRoomRead2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const { markChatRoomRead: markChatRoomRead2, getChatRoomById: getChatRoomById2, getAuctionById: getAuctionById2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+      const room = await getChatRoomById2(input.roomId);
+      if (!room || room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u5187\u6B0A\u67E5\u770B\u5462\u500B\u5C0D\u8A71" });
+      }
+      const auction = await getAuctionById2(room.auctionId);
+      if (isEndedAuctionForChat(auction) && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5F97\u6A19\u8005\u540C\u5546\u6236\u53EF\u4EE5\u67E5\u770B\u7D50\u62CD\u5F8C\u5C0D\u8A71" });
+      }
       const ok = await markChatRoomRead2(input.roomId, ctx.user.id);
       return { success: ok };
     }),
@@ -21459,9 +21517,9 @@ ${kb}`;
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u5187\u6B0A\u4E0A\u50B3\u5230\u5462\u500B\u5C0D\u8A71" });
       }
       const auction = await getAuctionById2(room.auctionId);
-      const ended = auction && (auction.status === "ended" || auction.endTime && new Date(auction.endTime).getTime() < Date.now());
-      if (ended) {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "\u62CD\u8CE3\u5DF2\u7D50\u675F\uFF0C\u5462\u500B\u5C0D\u8A71\u5DF2\u5C01\u5B58\uFF0C\u53EA\u53EF\u700F\u89BD\u6B77\u53F2\u8A0A\u606F" });
+      const ended = isEndedAuctionForChat(auction);
+      if (ended && !isEndedAuctionChatParticipant(auction, ctx.user.id)) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u53EA\u6709\u5F97\u6A19\u8005\u540C\u5546\u6236\u53EF\u4EE5\u55BA\u7D50\u62CD\u5F8C\u5C0D\u8A71" });
       }
       const rawChatBuf = Buffer.from(input.imageData, "base64");
       if (rawChatBuf.length > 5 * 1024 * 1024) {
@@ -29147,7 +29205,7 @@ async function injectGalleryOgMeta(html, reqPath, reqQuery, protocol, host) {
     return null;
   }
 }
-async function setupVite(app, server) {
+async function setupVite(app, server, options = {}) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -29160,7 +29218,7 @@ async function setupVite(app, server) {
     appType: "custom"
   });
   app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
+  const handleHtml = async (req, res, next) => {
     const url = req.originalUrl;
     try {
       const clientTemplate = path3.resolve(
@@ -29194,7 +29252,11 @@ async function setupVite(app, server) {
       vite.ssrFixStacktrace(e);
       next(e);
     }
-  });
+  };
+  if (options.registerHtmlFallback !== false) {
+    app.use("*", handleHtml);
+  }
+  return handleHtml;
 }
 function serveStatic(app) {
   const possiblePaths = [
@@ -30451,6 +30513,16 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+  let viteHtmlHandler;
+  if (process.env.NODE_ENV === "development") {
+    viteHtmlHandler = await setupVite(app, server, { registerHtmlFallback: false });
+    app.use((req, res, next) => {
+      if (req.path === "/" || req.path === "/auctions") {
+        return viteHtmlHandler(req, res, next);
+      }
+      next();
+    });
+  }
   await bootstrapMissingColumns();
   await runMigrations();
   try {
@@ -31569,7 +31641,7 @@ ${allEntries.join("\n")}
     }
   });
   if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
+    app.use("*", viteHtmlHandler);
   } else {
     serveStatic(app);
   }
