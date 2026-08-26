@@ -1285,20 +1285,6 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
   });
 
-  // Make the artifact preview usable while the database bootstrap continues.
-  // Keep the same Vite HTML handler used below, but only expose the two public
-  // entry routes early so API and server-owned routes retain their ordering.
-  let viteHtmlHandler: Awaited<ReturnType<typeof setupVite>> | undefined;
-  if (process.env.NODE_ENV === "development") {
-    viteHtmlHandler = await setupVite(app, server, { registerHtmlFallback: false });
-    app.use((req, res, next) => {
-      if (req.path === "/" || req.path === "/auctions") {
-        return viteHtmlHandler!(req, res, next);
-      }
-      next();
-    });
-  }
-
   // ── 現在才跑 bootstrap / migration（伺服器已在監聽，/health 回應正常）──
   await bootstrapMissingColumns();
   await runMigrations();
@@ -2372,7 +2358,7 @@ Output ONLY the JSON, nothing else.`;
 
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
-    app.use("*", viteHtmlHandler!);
+    await setupVite(app, server);
   } else {
     serveStatic(app);
   }

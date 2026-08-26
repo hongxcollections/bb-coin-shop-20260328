@@ -29205,7 +29205,7 @@ async function injectGalleryOgMeta(html, reqPath, reqQuery, protocol, host) {
     return null;
   }
 }
-async function setupVite(app, server, options = {}) {
+async function setupVite(app, server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -29218,7 +29218,7 @@ async function setupVite(app, server, options = {}) {
     appType: "custom"
   });
   app.use(vite.middlewares);
-  const handleHtml = async (req, res, next) => {
+  app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
     try {
       const clientTemplate = path3.resolve(
@@ -29252,11 +29252,7 @@ async function setupVite(app, server, options = {}) {
       vite.ssrFixStacktrace(e);
       next(e);
     }
-  };
-  if (options.registerHtmlFallback !== false) {
-    app.use("*", handleHtml);
-  }
-  return handleHtml;
+  });
 }
 function serveStatic(app) {
   const possiblePaths = [
@@ -30513,16 +30509,6 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
-  let viteHtmlHandler;
-  if (process.env.NODE_ENV === "development") {
-    viteHtmlHandler = await setupVite(app, server, { registerHtmlFallback: false });
-    app.use((req, res, next) => {
-      if (req.path === "/" || req.path === "/auctions") {
-        return viteHtmlHandler(req, res, next);
-      }
-      next();
-    });
-  }
   await bootstrapMissingColumns();
   await runMigrations();
   try {
@@ -31641,7 +31627,7 @@ ${allEntries.join("\n")}
     }
   });
   if (process.env.NODE_ENV === "development") {
-    app.use("*", viteHtmlHandler);
+    await setupVite(app, server);
   } else {
     serveStatic(app);
   }
