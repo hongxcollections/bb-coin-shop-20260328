@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { BookOpen, ChevronRight, Tag, ShieldCheck } from "lucide-react";
+import { useSeoMeta } from "@/lib/useSeoMeta";
 
 const CATEGORY_COLORS: Record<string, string> = {
   入門: "bg-green-100 text-green-700",
@@ -12,6 +13,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function Guides() {
   const { data: articles = [], isLoading } = trpc.articles.list.useQuery();
+  useSeoMeta({
+    title: "香港錢幣收藏知識庫",
+    description: "由香港錢幣研究編輯部整理的原創收藏指南，涵蓋錢幣辨偽、PCGS 與 NGC 評級、保存防潮、香港硬幣及拍賣出價實務。",
+    ogUrl: "/guides",
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,6 +34,14 @@ export default function Guides() {
           <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800">
             <ShieldCheck className="h-3.5 w-3.5" />
             每篇文章均按公開資料與收藏實務整理
+          </div>
+          <div className="mt-5 space-y-3 rounded-2xl border border-amber-100 bg-white p-4 text-sm leading-relaxed text-gray-700">
+            <p>
+              錢幣收藏不只是比較價格。年份、版別、材質、鑄造工藝、保存狀態與來源紀錄，都會影響一枚錢幣的研究價值及市場表現。本知識庫以香港收藏者常見的實際問題為起點，提供可逐步核對的整理方法。
+            </p>
+            <p>
+              初次收藏可由購買清單和香港流通硬幣開始；準備競投前，應先理解成交紀錄、費用與代理出價；處理高價或存疑錢幣時，則應閱讀辨偽、評級及防潮保存指南。文章只作收藏教育參考，不取代實物鑑定或專業意見。
+            </p>
           </div>
         </div>
 
@@ -81,6 +95,15 @@ export default function Guides() {
             ))}
           </div>
         )}
+
+        <section className="mt-10 rounded-2xl bg-amber-50/70 p-5" aria-labelledby="editorial-standard">
+          <h2 id="editorial-standard" className="mb-3 text-lg font-semibold text-gray-900">我們如何整理收藏資料</h2>
+          <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-gray-700">
+            <li>把規格、品相、來源與成交背景分開說明，避免用單一價格概括所有同名錢幣。</li>
+            <li>優先提供不會損害藏品的檢查及保存方法；有真偽疑問時，建議停止交易並尋求實物鑑定。</li>
+            <li>文章會按公開資料與收藏實務更新，並在頁面標示最近更新日期及延伸閱讀。</li>
+          </ul>
+        </section>
 
         <div className="mt-8 pt-6 border-t border-border text-xs text-muted-foreground flex gap-4">
           <Link href="/about" className="hover:text-amber-600 transition-colors underline">關於我們</Link>

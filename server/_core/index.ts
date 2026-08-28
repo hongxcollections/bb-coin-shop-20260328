@@ -2311,6 +2311,7 @@ Output ONLY the JSON, nothing else.`;
 
       const staticPages = [
         { loc: `${base}/`,                  changefreq: 'daily',   priority: '1.0', lastmod: now },
+        { loc: `${base}/guides`,            changefreq: 'weekly',  priority: '0.9', lastmod: now },
         { loc: `${base}/auctions`,          changefreq: 'hourly',  priority: '0.9', lastmod: now },
         { loc: `${base}/merchants`,         changefreq: 'daily',   priority: '0.7', lastmod: now },
         { loc: `${base}/plans`,             changefreq: 'monthly', priority: '0.5', lastmod: now },
@@ -2318,6 +2319,14 @@ Output ONLY the JSON, nothing else.`;
         { loc: `${base}/daily-challenge`,   changefreq: 'daily',   priority: '0.5', lastmod: now },
         { loc: `${base}/cardzx/market`,     changefreq: 'hourly',  priority: '0.8', lastmod: now },
       ];
+
+      let articleRows: Array<{ slug: string; updatedAt: Date | null; publishedAt: Date | null; createdAt: Date | null }> = [];
+      try {
+        const { getPublishedArticles } = await import('../db');
+        articleRows = await getPublishedArticles();
+      } catch (error) {
+        console.error('[Sitemap] article list failed:', error);
+      }
 
       const toEntry = (loc: string, lastmod: string, changefreq: string, priority: string) =>
         `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
@@ -2345,7 +2354,13 @@ Output ONLY the JSON, nothing else.`;
         return toEntry(`${base}/collection-square/${c.id}`, lastmod, 'weekly', '0.6');
       });
 
-      const allEntries = [...staticEntries, ...auctionEntries, ...productEntries, ...collectionEntries];
+      const articleEntries = articleRows.map((article) => {
+        const lastmodSource = article.updatedAt ?? article.publishedAt ?? article.createdAt;
+        const lastmod = lastmodSource ? new Date(lastmodSource).toISOString().split('T')[0] : now;
+        return toEntry(`${base}/guides/${encodeURIComponent(article.slug)}`, lastmod, 'monthly', '0.8');
+      });
+
+      const allEntries = [...staticEntries, ...articleEntries, ...auctionEntries, ...productEntries, ...collectionEntries];
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${allEntries.join('\n')}\n</urlset>`;
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
       res.setHeader('Cache-Control', 'public, max-age=3600');

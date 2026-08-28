@@ -28388,6 +28388,11 @@ function injectStaticPageMeta(html, reqPath, base) {
       description: "\u9999\u6E2F\u9322\u5E63\u5546\u6236\u4E00\u89BD\uFF0C\u9078\u8CFC\u53E4\u5E63\u3001\u7D00\u5FF5\u5E63\u3001\u8A55\u7D1A\u5E63\u53CA\u5404\u985E\u6536\u85CF\u54C1\uFF0C\u5B89\u5168\u53EF\u9760\uFF0C\u76F4\u63A5\u8207\u5546\u6236\u4EA4\u6613\u3002",
       canonical: `${base}/merchants`
     },
+    "/guides": {
+      title: "\u9999\u6E2F\u9322\u5E63\u6536\u85CF\u77E5\u8B58\u5EAB \u2014 hongxcollections",
+      description: "\u7531\u9999\u6E2F\u9322\u5E63\u7814\u7A76\u7DE8\u8F2F\u90E8\u6574\u7406\u7684\u539F\u5275\u6536\u85CF\u6307\u5357\uFF0C\u6DB5\u84CB\u9322\u5E63\u8FA8\u507D\u3001PCGS \u8207 NGC \u8A55\u7D1A\u3001\u4FDD\u5B58\u9632\u6F6E\u3001\u9999\u6E2F\u786C\u5E63\u53CA\u62CD\u8CE3\u51FA\u50F9\u5BE6\u52D9\u3002",
+      canonical: `${base}/guides`
+    },
     "/plans": {
       title: "\u6703\u54E1\u53CA\u5546\u6236\u65B9\u6848 \u2014 hongxcollections",
       description: "\u4E86\u89E3 hongxcollections \u5404\u7D1A\u6703\u54E1\u53CA\u5546\u6236\u8A02\u95B1\u65B9\u6848\uFF0C\u4EAB\u53D7\u66F4\u591A\u7AF6\u6295\u512A\u60E0\u3001\u512A\u5148\u9810\u89BD\u53CA\u5546\u6236\u520A\u767B\u529F\u80FD\u3002",
@@ -28430,6 +28435,97 @@ function injectStaticPageMeta(html, reqPath, base) {
     ${metaTags}`) : result.replace("</head>", () => `    ${metaTags}
   </head>`);
   return result;
+}
+async function injectGuideArticleMeta(html, reqPath, protocol, host) {
+  const match = reqPath.match(/^\/guides\/([a-z0-9-]+)$/i);
+  if (!match) return null;
+  try {
+    const article = await getArticleBySlug(match[1]);
+    if (!article) return null;
+    const esc = (value) => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const plainContent = String(article.content ?? "").replace(/[#|*_`>-]/g, " ").replace(/\s+/g, " ").trim();
+    const description = String(article.excerpt ?? "").trim() || `${plainContent.slice(0, 155)}${plainContent.length > 155 ? "\u2026" : ""}`;
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+    const imageUrl = article.imageUrl ? String(article.imageUrl).startsWith("http") ? String(article.imageUrl) : `${protocol}://${host}${String(article.imageUrl).startsWith("/") ? "" : "/"}${article.imageUrl}` : `${protocol}://${host}/og-default.jpg`;
+    const publishedAt = article.publishedAt ? new Date(article.publishedAt).toISOString() : void 0;
+    const updatedAt = article.updatedAt ? new Date(article.updatedAt).toISOString() : publishedAt;
+    const title = `${article.title}\uFF5C\u9322\u5E63\u77E5\u8B58\u5EAB`;
+    const jsonLd = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": article.title,
+      "description": description,
+      "url": fullUrl,
+      "mainEntityOfPage": fullUrl,
+      "image": imageUrl,
+      "inLanguage": "zh-HK",
+      "articleSection": article.category || "\u9322\u5E63\u6536\u85CF",
+      "author": {
+        "@type": "Organization",
+        "name": "\u9999\u6E2F\u9322\u5E63\u7814\u7A76\u7DE8\u8F2F\u90E8"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "hongxcollections",
+        "url": `${protocol}://${host}`
+      },
+      ...publishedAt ? { "datePublished": publishedAt } : {},
+      ...updatedAt ? { "dateModified": updatedAt } : {}
+    });
+    const metaTags = [
+      `<title>${esc(title)}</title>`,
+      `<meta name="description" content="${esc(description)}" />`,
+      `<meta name="robots" content="index, follow, max-image-preview:large" />`,
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<meta property="og:type" content="article" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(title)}" />`,
+      `<meta property="og:description" content="${esc(description)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:image" content="${esc(imageUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      publishedAt ? `<meta property="article:published_time" content="${esc(publishedAt)}" />` : "",
+      updatedAt ? `<meta property="article:modified_time" content="${esc(updatedAt)}" />` : "",
+      `<meta name="twitter:card" content="summary_large_image" />`,
+      `<meta name="twitter:title" content="${esc(title)}" />`,
+      `<meta name="twitter:description" content="${esc(description)}" />`,
+      `<meta name="twitter:image" content="${esc(imageUrl)}" />`,
+      `<script type="application/ld+json">${jsonLd}</script>`
+    ].filter(Boolean).join("\n    ");
+    let result = html.replace(/<title>[^<]*<\/title>/gi, "").replace(/<meta\s+(?:property|name)="(?:og:|twitter:|article:)[^"]*"[^>]*\/?>/gi, "").replace(/<meta\s+(?:name|property)="(?:description|robots)"[^>]*\/?>/gi, "").replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "").replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result) ? result.replace(viewportRe, (viewport) => `${viewport}
+    ${metaTags}`) : result.replace("</head>", () => `    ${metaTags}
+  </head>`);
+    return result;
+  } catch (error) {
+    console.error("[SEO] Guide article meta injection failed:", error);
+    return null;
+  }
+}
+function applyIndexingPolicy(html, reqPath) {
+  const noIndexPatterns = [
+    /^\/admin(?:\/|$)/,
+    /^\/login\/?$/,
+    /^\/profile\/?$/,
+    /^\/bid-history\/?$/,
+    /^\/favorites\/?$/,
+    /^\/messages(?:\/|$)/,
+    /^\/merchant(?:\/|$)/,
+    /^\/merchant-(?:apply|dashboard|orders|refund-requests|settings|auctions|sessions)(?:\/|$)/,
+    /^\/merchant-products\/?$/,
+    /^\/collection-square\/new\/?$/,
+    /^\/cardzx\/collection\/?$/,
+    /^\/cardzx\/market\/(?:my|sell|wtb)\/?$/,
+    /^\/group\/\d+\/(?:edit|flyer)\/?$/
+  ];
+  if (!noIndexPatterns.some((pattern) => pattern.test(reqPath))) return html;
+  const robotsTag = `<meta name="robots" content="noindex, nofollow, noarchive" />`;
+  const cleaned = html.replace(/<meta\s+(?:name|property)="robots"[^>]*\/?>/gi, "");
+  const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+  return viewportRe.test(cleaned) ? cleaned.replace(viewportRe, (viewport) => `${viewport}
+    ${robotsTag}`) : cleaned.replace("</head>", () => `    ${robotsTag}
+  </head>`);
 }
 async function injectSessionOgMeta(html, reqPath, protocol, host) {
   let decodedPath = reqPath;
@@ -29236,17 +29332,18 @@ async function setupVite(app, server) {
       const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
       const host = req.get("host") || "";
       const base = `${protocol}://${host}`;
-      const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
-      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectCardMarketListingOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectCardMarketWTBOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
-      if (ogHtml) {
+      const _cleanPath = req.originalUrl.split("?")[0].replace(/\/+$/, "") || "/";
+      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host) ?? await injectProductOgMeta(template, _cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host) ?? await injectGuideArticleMeta(template, _cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectCardMarketListingOgMeta(template, _cleanPath, req.query, protocol, host) ?? await injectCardMarketWTBOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(template, _cleanPath, base);
+      const indexedHtml = applyIndexingPolicy(ogHtml ?? template, _cleanPath);
+      if (ogHtml || indexedHtml !== template) {
         const ua = req.headers["user-agent"] ?? "";
         const isBot = /facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Slackbot|ia_archiver|msnbot|googlebot|bingbot/i.test(ua);
         if (isBot) {
-          res.status(200).set({ "Content-Type": "text/html" }).end(ogHtml);
+          res.status(200).set({ "Content-Type": "text/html" }).end(indexedHtml);
           return;
         }
       }
-      const page = await vite.transformIndexHtml(url, ogHtml ?? template);
+      const page = await vite.transformIndexHtml(url, indexedHtml);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e);
@@ -29374,9 +29471,10 @@ function serveStatic(app) {
     const base = `${protocol}://${host}`;
     const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
     let html = await fs2.promises.readFile(indexPath, "utf-8");
-    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectCardMarketListingOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectCardMarketWTBOgMeta(html, cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
-    if (ogHtml) {
-      res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
+    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host) ?? await injectProductOgMeta(html, cleanPath, protocol, host) ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host) ?? await injectGuideArticleMeta(html, cleanPath, protocol, host) ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host) ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectGalleryOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectCardMarketListingOgMeta(html, cleanPath, req.query, protocol, host) ?? await injectCardMarketWTBOgMeta(html, cleanPath, req.query, protocol, host) ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query, protocol, host) ?? injectStaticPageMeta(html, cleanPath, base);
+    const indexedHtml = applyIndexingPolicy(ogHtml ?? html, cleanPath);
+    if (ogHtml || indexedHtml !== html) {
+      res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(indexedHtml);
       return;
     }
     res.set(noCacheHeaders).sendFile(indexPath, (err) => {
@@ -31587,6 +31685,7 @@ Output ONLY the JSON, nothing else.`;
       }
       const staticPages = [
         { loc: `${base}/`, changefreq: "daily", priority: "1.0", lastmod: now },
+        { loc: `${base}/guides`, changefreq: "weekly", priority: "0.9", lastmod: now },
         { loc: `${base}/auctions`, changefreq: "hourly", priority: "0.9", lastmod: now },
         { loc: `${base}/merchants`, changefreq: "daily", priority: "0.7", lastmod: now },
         { loc: `${base}/plans`, changefreq: "monthly", priority: "0.5", lastmod: now },
@@ -31594,6 +31693,13 @@ Output ONLY the JSON, nothing else.`;
         { loc: `${base}/daily-challenge`, changefreq: "daily", priority: "0.5", lastmod: now },
         { loc: `${base}/cardzx/market`, changefreq: "hourly", priority: "0.8", lastmod: now }
       ];
+      let articleRows = [];
+      try {
+        const { getPublishedArticles: getPublishedArticles2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+        articleRows = await getPublishedArticles2();
+      } catch (error) {
+        console.error("[Sitemap] article list failed:", error);
+      }
       const toEntry = (loc, lastmod, changefreq, priority) => `  <url>
     <loc>${loc}</loc>
     <lastmod>${lastmod}</lastmod>
@@ -31613,7 +31719,12 @@ Output ONLY the JSON, nothing else.`;
         const lastmod = c.updatedAt ? new Date(c.updatedAt).toISOString().split("T")[0] : c.createdAt ? new Date(c.createdAt).toISOString().split("T")[0] : now;
         return toEntry(`${base}/collection-square/${c.id}`, lastmod, "weekly", "0.6");
       });
-      const allEntries = [...staticEntries, ...auctionEntries, ...productEntries, ...collectionEntries];
+      const articleEntries = articleRows.map((article) => {
+        const lastmodSource = article.updatedAt ?? article.publishedAt ?? article.createdAt;
+        const lastmod = lastmodSource ? new Date(lastmodSource).toISOString().split("T")[0] : now;
+        return toEntry(`${base}/guides/${encodeURIComponent(article.slug)}`, lastmod, "monthly", "0.8");
+      });
+      const allEntries = [...staticEntries, ...articleEntries, ...auctionEntries, ...productEntries, ...collectionEntries];
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${allEntries.join("\n")}

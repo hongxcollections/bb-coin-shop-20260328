@@ -223,7 +223,7 @@ export default function GuideDetail() {
         )}
 
         {/* Only show one ad after a substantial article, never before the content. */}
-        {articleContent.trim().length >= 600 && (
+        {articleContent.trim().length >= 1000 && (
           <div className="mt-8">
             <AdSenseAd slot="9658476126" format="auto" className="rounded-xl overflow-hidden" />
           </div>

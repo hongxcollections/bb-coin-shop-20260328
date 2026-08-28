@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
-import { getAuctionById, getAuctionImages, getMerchantProduct, getProductGallery, listProductGalleryItems, getProductGalleryItem } from "../db";
+import { getArticleBySlug, getAuctionById, getAuctionImages, getMerchantProduct, getProductGallery, listProductGalleryItems, getProductGalleryItem } from "../db";
 import { getCollectionPostForOg } from "../community";
 import { getCurrencySymbol } from "./currency";
 
@@ -97,6 +97,11 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
       description: "香港錢幣商戶一覽，選購古幣、紀念幣、評級幣及各類收藏品，安全可靠，直接與商戶交易。",
       canonical: `${base}/merchants`,
     },
+    "/guides": {
+      title: "香港錢幣收藏知識庫 — hongxcollections",
+      description: "由香港錢幣研究編輯部整理的原創收藏指南，涵蓋錢幣辨偽、PCGS 與 NGC 評級、保存防潮、香港硬幣及拍賣出價實務。",
+      canonical: `${base}/guides`,
+    },
     "/plans": {
       title: "會員及商戶方案 — hongxcollections",
       description: "了解 hongxcollections 各級會員及商戶訂閱方案，享受更多競投優惠、優先預覽及商戶刊登功能。",
@@ -154,6 +159,121 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
     ? result.replace(viewportRe, (m) => `${m}\n    ${metaTags}`)
     : result.replace("</head>", () => `    ${metaTags}\n  </head>`);
   return result;
+}
+
+async function injectGuideArticleMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  const match = reqPath.match(/^\/guides\/([a-z0-9-]+)$/i);
+  if (!match) return null;
+
+  try {
+    const article = await getArticleBySlug(match[1]);
+    if (!article) return null;
+
+    const esc = (value: string) => value
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    const plainContent = String(article.content ?? "")
+      .replace(/[#|*_`>-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const description = String(article.excerpt ?? "").trim()
+      || `${plainContent.slice(0, 155)}${plainContent.length > 155 ? "…" : ""}`;
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+    const imageUrl = article.imageUrl
+      ? (String(article.imageUrl).startsWith("http")
+        ? String(article.imageUrl)
+        : `${protocol}://${host}${String(article.imageUrl).startsWith("/") ? "" : "/"}${article.imageUrl}`)
+      : `${protocol}://${host}/og-default.jpg`;
+    const publishedAt = article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined;
+    const updatedAt = article.updatedAt ? new Date(article.updatedAt).toISOString() : publishedAt;
+    const title = `${article.title}｜錢幣知識庫`;
+    const jsonLd = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": article.title,
+      "description": description,
+      "url": fullUrl,
+      "mainEntityOfPage": fullUrl,
+      "image": imageUrl,
+      "inLanguage": "zh-HK",
+      "articleSection": article.category || "錢幣收藏",
+      "author": {
+        "@type": "Organization",
+        "name": "香港錢幣研究編輯部",
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "hongxcollections",
+        "url": `${protocol}://${host}`,
+      },
+      ...(publishedAt ? { "datePublished": publishedAt } : {}),
+      ...(updatedAt ? { "dateModified": updatedAt } : {}),
+    });
+
+    const metaTags = [
+      `<title>${esc(title)}</title>`,
+      `<meta name="description" content="${esc(description)}" />`,
+      `<meta name="robots" content="index, follow, max-image-preview:large" />`,
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<meta property="og:type" content="article" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(title)}" />`,
+      `<meta property="og:description" content="${esc(description)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:image" content="${esc(imageUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      publishedAt ? `<meta property="article:published_time" content="${esc(publishedAt)}" />` : "",
+      updatedAt ? `<meta property="article:modified_time" content="${esc(updatedAt)}" />` : "",
+      `<meta name="twitter:card" content="summary_large_image" />`,
+      `<meta name="twitter:title" content="${esc(title)}" />`,
+      `<meta name="twitter:description" content="${esc(description)}" />`,
+      `<meta name="twitter:image" content="${esc(imageUrl)}" />`,
+      `<script type="application/ld+json">${jsonLd}</script>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:|article:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="(?:description|robots)"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+      .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, (viewport) => `${viewport}\n    ${metaTags}`)
+      : result.replace("</head>", () => `    ${metaTags}\n  </head>`);
+    return result;
+  } catch (error) {
+    console.error("[SEO] Guide article meta injection failed:", error);
+    return null;
+  }
+}
+
+function applyIndexingPolicy(html: string, reqPath: string): string {
+  const noIndexPatterns = [
+    /^\/admin(?:\/|$)/,
+    /^\/login\/?$/,
+    /^\/profile\/?$/,
+    /^\/bid-history\/?$/,
+    /^\/favorites\/?$/,
+    /^\/messages(?:\/|$)/,
+    /^\/merchant(?:\/|$)/,
+    /^\/merchant-(?:apply|dashboard|orders|refund-requests|settings|auctions|sessions)(?:\/|$)/,
+    /^\/merchant-products\/?$/,
+    /^\/collection-square\/new\/?$/,
+    /^\/cardzx\/collection\/?$/,
+    /^\/cardzx\/market\/(?:my|sell|wtb)\/?$/,
+    /^\/group\/\d+\/(?:edit|flyer)\/?$/,
+  ];
+  if (!noIndexPatterns.some((pattern) => pattern.test(reqPath))) return html;
+
+  const robotsTag = `<meta name="robots" content="noindex, nofollow, noarchive" />`;
+  const cleaned = html.replace(/<meta\s+(?:name|property)="robots"[^>]*\/?>/gi, "");
+  const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+  return viewportRe.test(cleaned)
+    ? cleaned.replace(viewportRe, (viewport) => `${viewport}\n    ${robotsTag}`)
+    : cleaned.replace("</head>", () => `    ${robotsTag}\n  </head>`);
 }
 
 async function injectSessionOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
@@ -1150,10 +1270,11 @@ export async function setupVite(app: Express, server: Server) {
       const base = `${protocol}://${host}`;
 
       // Try auction-specific OG injection first, then static page meta
-      const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
+      const _cleanPath = req.originalUrl.split("?")[0].replace(/\/+$/, "") || "/";
       const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host)
         ?? await injectProductOgMeta(template, _cleanPath, protocol, host)
         ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host)
+        ?? await injectGuideArticleMeta(template, _cleanPath, protocol, host)
         ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host)
         ?? await injectGroupAuctionItemOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? await injectGalleryOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
@@ -1161,17 +1282,18 @@ export async function setupVite(app: Express, server: Server) {
         ?? await injectCardMarketWTBOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? injectCardMarketBrowseOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
-      if (ogHtml) {
+      const indexedHtml = applyIndexingPolicy(ogHtml ?? template, _cleanPath);
+      if (ogHtml || indexedHtml !== template) {
         // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
         const ua = req.headers["user-agent"] ?? "";
         const isBot = /facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Slackbot|ia_archiver|msnbot|googlebot|bingbot/i.test(ua);
         if (isBot) {
-          res.status(200).set({ "Content-Type": "text/html" }).end(ogHtml);
+          res.status(200).set({ "Content-Type": "text/html" }).end(indexedHtml);
           return;
         }
       }
 
-      const page = await vite.transformIndexHtml(url, ogHtml ?? template);
+      const page = await vite.transformIndexHtml(url, indexedHtml);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
@@ -1337,6 +1459,7 @@ export function serveStatic(app: Express) {
     const ogHtml = await injectOgMeta(html, cleanPath, protocol, host)
       ?? await injectProductOgMeta(html, cleanPath, protocol, host)
       ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host)
+      ?? await injectGuideArticleMeta(html, cleanPath, protocol, host)
       ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host)
       ?? await injectGroupAuctionItemOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? await injectGalleryOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
@@ -1344,8 +1467,9 @@ export function serveStatic(app: Express) {
       ?? await injectCardMarketWTBOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? injectCardMarketBrowseOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
-    if (ogHtml) {
-      res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
+    const indexedHtml = applyIndexingPolicy(ogHtml ?? html, cleanPath);
+    if (ogHtml || indexedHtml !== html) {
+      res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(indexedHtml);
       return;
     }
 
