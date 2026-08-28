@@ -1,7 +1,7 @@
 FROM node:20-alpine
 WORKDIR /app
-# Install pnpm
-RUN npm install -g pnpm
+# Keep the build image aligned with packageManager in package.json.
+RUN npm install -g pnpm@10.4.1
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 # Copy patches directory if it exists
