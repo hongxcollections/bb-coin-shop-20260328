@@ -6184,7 +6184,7 @@ async function getMerchantAuctionOrders(merchantId, status) {
   }
   const pool = await getRawPool();
   const [rows] = await pool.execute(
-    `SELECT a.id AS auctionId, a.title, a.currency, a.currentPrice, a.startingPrice,
+    `SELECT a.id AS auctionId, a.createdBy AS merchantId, a.title, a.currency, a.currentPrice, a.startingPrice,
             a.endTime, a.highestBidderId AS buyerId,
             a.auctionOrderStatus AS status, a.auctionOrderConfirmedAt AS confirmedAt,
             a.auctionOrderCancelledAt AS cancelledAt, a.auctionOrderCancelReason AS cancelReason,
@@ -18069,6 +18069,65 @@ var appRouter = router({
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u975E\u5546\u6236\u6703\u54E1" });
       }
       return listMerchantProducts({ merchantId: ctx.user.id, status: "all" });
+    }),
+    /** 商戶：將已上架商品複製為拍賣草稿 */
+    exportProductToAuction: protectedProcedure.input(z2.object({ productId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== "approved" && ctx.user.role !== "admin") {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u975E\u5546\u6236\u6703\u54E1" });
+      }
+      const product = await getMerchantProduct(input.productId);
+      if (!product || product.merchantId !== ctx.user.id) {
+        throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u4E0D\u5230\u6B64\u5546\u54C1" });
+      }
+      if (product.status !== "active") {
+        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u53EA\u6709\u5DF2\u4E0A\u67B6\u5546\u54C1\u53EF\u4EE5\u532F\u51FA\u81F3\u62CD\u8CE3" });
+      }
+      const startingPrice = Number(product.price ?? 0);
+      if (!Number.isFinite(startingPrice) || startingPrice < 0) {
+        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5546\u54C1\u50F9\u683C\u7121\u6548\uFF0C\u7121\u6CD5\u532F\u51FA\u81F3\u62CD\u8CE3" });
+      }
+      let imageUrls = [];
+      if (product.images) {
+        try {
+          const parsed = JSON.parse(product.images);
+          if (!Array.isArray(parsed) || parsed.some((url) => typeof url !== "string")) {
+            throw new Error("invalid image list");
+          }
+          imageUrls = parsed.filter((url) => url.trim().length > 0);
+        } catch {
+          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5546\u54C1\u5716\u7247\u8CC7\u6599\u7121\u6548\uFF0C\u7121\u6CD5\u532F\u51FA\u81F3\u62CD\u8CE3" });
+        }
+      }
+      const settings = await getMerchantSettings(ctx.user.id);
+      const bidIncrement = Math.min(5e3, Math.max(10, Number(settings.defaultBidIncrement) || 30));
+      const antiSnipeMinutes = Math.min(60, Math.max(0, Number(settings.defaultAntiSnipeMinutes) || 0));
+      const extendMinutes = Math.min(60, Math.max(1, Number(settings.defaultExtendMinutes) || 3));
+      const antiSnipeEnabled = Number(settings.defaultAntiSnipeEnabled) === 0 ? 0 : 1;
+      const supportedCurrencies = ["HKD", "USD", "CNY", "GBP", "EUR", "JPY"];
+      const currency = supportedCurrencies.includes(product.currency) ? product.currency : "HKD";
+      const newAuction = await createAuction({
+        title: product.title,
+        description: product.description ?? void 0,
+        startingPrice: startingPrice.toFixed(2),
+        currentPrice: startingPrice.toFixed(2),
+        endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3),
+        status: "draft",
+        bidIncrement,
+        currency,
+        createdBy: ctx.user.id,
+        category: product.category ?? void 0,
+        antiSnipeEnabled,
+        antiSnipeMinutes,
+        extendMinutes,
+        videoUrl: product.videoUrl ?? null
+      });
+      await Promise.all(
+        imageUrls.map(
+          (imageUrl, displayOrder) => addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder })
+        )
+      );
+      return { success: true, auctionId: newAuction.id, imageCount: imageUrls.length };
     }),
     /** 商戶：新增商品（需通過保證金 + 公佈額度檢查） */
     addProduct: protectedProcedure.input(z2.object({

@@ -20,7 +20,7 @@ import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
   ShoppingBag, CheckCircle2, XCircle, Clock, Flame, RotateCcw, Tag,
-  Facebook, Copy, Check, CreditCard, Sparkles, Mic, Share2,
+  Facebook, Copy, Check, CreditCard, Sparkles, Mic, Share2, Gavel,
 } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
 import { ProductShareMenu } from "@/components/ShareMenu";
@@ -898,6 +898,7 @@ export default function MerchantProducts() {
   const [productBatchShareOpen, setProductBatchShareOpen] = useState(false);
   const [productCopiedIds, setProductCopiedIds] = useState<Set<number>>(new Set());
   const [productSelectedShareIds, setProductSelectedShareIds] = useState<Set<number>>(new Set());
+  const [exportingProductId, setExportingProductId] = useState<number | null>(null);
   const [aiCopyMap, setAiCopyMap] = useState<Record<number, string>>({});
   const [aiCopyLoadingId, setAiCopyLoadingId] = useState<number | null>(null);
   const [aiScriptDialog, setAiScriptDialog] = useState<{ id: number; title: string; text: string } | null>(null);
@@ -949,6 +950,18 @@ export default function MerchantProducts() {
   const updateStatus = trpc.merchants.updateProduct.useMutation({
     onSuccess: () => { utils.merchants.myProducts.invalidate(); utils.merchants.myProducts.refetch(); },
     onError: (e) => toast.error(e.message),
+  });
+
+  const exportProductToAuction = trpc.merchants.exportProductToAuction.useMutation({
+    onSuccess: () => {
+      setExportingProductId(null);
+      toast.success("已匯出至拍賣草稿");
+      window.location.href = "/merchant-auctions";
+    },
+    onError: (e) => {
+      setExportingProductId(null);
+      toast.error(e.message);
+    },
   });
 
   const deleteProduct = trpc.merchants.deleteProduct.useMutation({
@@ -1228,6 +1241,40 @@ export default function MerchantProducts() {
   async function hideFromSold(p: any) {
     await updateStatus.mutateAsync({ id: p.id, status: "hidden" });
     toast.success("商品已下架");
+  }
+
+  function exportToAuction(p: any) {
+    if (exportingProductId !== null || exportProductToAuction.isPending) return;
+    setExportingProductId(p.id);
+    exportProductToAuction.mutate({ productId: p.id });
+  }
+
+  function renderExportButton(p: any, mode: "list" | "big" | "grid2" | "grid3") {
+    if (p.status !== "active") return null;
+    const isExporting = exportingProductId === p.id;
+    const compact = mode === "grid3";
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); exportToAuction(p); }}
+        disabled={exportProductToAuction.isPending}
+        aria-label={compact ? "匯出去拍賣" : undefined}
+        title="匯出去拍賣"
+        className={
+          mode === "list"
+            ? "flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50"
+            : mode === "big"
+              ? "flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors flex-1 justify-center disabled:opacity-50"
+              : mode === "grid2"
+                ? "flex-1 text-[10px] py-1 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors text-center disabled:opacity-50"
+                : "text-[9px] px-1 py-0.5 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors disabled:opacity-50"
+        }
+        style={mode === "list" ? { background: '#FFFBEB', color: '#B45309', borderColor: '#FDE68A' } : undefined}
+      >
+        {isExporting ? <Loader2 className={compact ? "w-2.5 h-2.5 animate-spin" : "w-3 h-3 animate-spin"} /> : <Gavel className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />}
+        {!compact && "匯出拍賣"}
+      </button>
+    );
   }
 
   if (!isAuthenticated) {
@@ -1693,6 +1740,7 @@ export default function MerchantProducts() {
                           <Sparkles className="w-3 h-3" />分享去藏品社區
                         </a>
                       )}
+                      {renderExportButton(p, "list")}
                       {/* 申請主打 */}
                       {isActive && !isFeatured && !queued && (
                         <button
@@ -1871,6 +1919,7 @@ export default function MerchantProducts() {
                           <Sparkles className="w-3 h-3" />分享去藏品社區
                         </a>
                       )}
+                      {renderExportButton(p, "big")}
                     </div>
                     </div>{/* end buttons container */}
                   </div>
@@ -1949,6 +1998,7 @@ export default function MerchantProducts() {
                           <Sparkles className="w-3 h-3" />
                         </a>
                       )}
+                      {renderExportButton(p, "grid2")}
                     </div>
                     </div>{/* end buttons container */}
                   </div>
@@ -2023,6 +2073,7 @@ export default function MerchantProducts() {
                           <Sparkles className="w-2.5 h-2.5" />
                         </a>
                       )}
+                      {renderExportButton(p, "grid3")}
                     </div>
                     </div>{/* end buttons container */}
                   </div>

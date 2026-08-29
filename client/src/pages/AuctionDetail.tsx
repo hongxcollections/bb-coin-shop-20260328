@@ -565,9 +565,16 @@ export default function AuctionDetail() {
   const lightboxIndex = hasVideo ? Math.max(0, selectedImage - 1) : selectedImage;
   const bids = auction.bidHistory as Array<{ id: number; userId: number; bidAmount: string; createdAt: Date; username?: string | null; isAnonymous?: number | null; memberLevel?: string | null }>;
   // 輔助函數：根據 isAnonymous 欄位決定顯示名稱
-  // 若是自己的匿名出價，顯示「🕵️ 匿名出價 - 你自己」，讓用戶知道自己是最高出價者
-  const displayName = (bid: { userId: number; username?: string | null; isAnonymous?: number | null }, currentUserId?: number | null) => {
+  // 商戶查看自己的商品時可揭示匿名出價者姓名；其他觀看者維持匿名規則
+  const displayName = (
+    bid: { userId: number; username?: string | null; isAnonymous?: number | null },
+    currentUserId?: number | null,
+    revealAnonymous = false,
+  ) => {
     if (bid.isAnonymous === 1) {
+      if (revealAnonymous) {
+        return bid.username ?? `用戶 #${bid.userId}`;
+      }
       return currentUserId && bid.userId === currentUserId
         ? '🕵️ 匿名出價 - 你自己'
         : '🕵️ 匿名買家';
@@ -1316,11 +1323,11 @@ export default function AuctionDetail() {
                           const isWinnerRow = i === 0 && !isActive;
                           const isCurrentUserWinner = bid.userId === user?.id;
                           const canSeeWinner = isPrivileged || isCurrentUserWinner;
-                          const shownName = !isActive && i > 0
-                            ? isPrivileged ? displayName(bid, user?.id) : "出價者"
+                          const shownName = !isActive && i > 0 && !isPrivileged
+                            ? "出價者"
                             : isWinnerRow && !canSeeWinner
                               ? "得標者 ***"
-                              : displayName(bid, user?.id);
+                              : displayName(bid, user?.id, isPrivileged);
                           return (
                             <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
                               <div className="flex items-center gap-2">
