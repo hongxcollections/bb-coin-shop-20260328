@@ -18145,6 +18145,9 @@ var appRouter = router({
     }),
     /** 商戶：將自己的已上架商品匯出成拍賣草稿 */
     exportProductToAuctionDraft: protectedProcedure.input(z2.object({ productId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      if (ctx.user.isBanned) {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u5E33\u6236\u5DF2\u88AB\u505C\u6B0A\uFF0C\u7121\u6CD5\u5EFA\u7ACB\u62CD\u8CE3\u8349\u7A3F" });
+      }
       const app = await getMerchantApplicationByUser(ctx.user.id);
       if (app?.status !== "approved") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u975E\u5546\u6236\u6703\u54E1" });

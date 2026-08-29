@@ -4205,6 +4205,9 @@ export const appRouter = router({
     exportProductToAuctionDraft: protectedProcedure
       .input(z.object({ productId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
+        if (ctx.user.isBanned) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '帳戶已被停權，無法建立拍賣草稿' });
+        }
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
