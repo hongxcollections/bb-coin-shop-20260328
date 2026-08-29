@@ -3,6 +3,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
+import { exportMerchantProductToAuctionDraft } from "./db";
 import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, sendWinnerAutoReply, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
@@ -4200,75 +4201,40 @@ export const appRouter = router({
       return listMerchantProducts({ merchantId: ctx.user.id, status: 'all' });
     }),
 
-    /** 商戶：將已上架商品複製為拍賣草稿 */
-    exportProductToAuction: protectedProcedure
+    /** 商戶：將自己的已上架商品匯出成拍賣草稿 */
+    exportProductToAuctionDraft: protectedProcedure
       .input(z.object({ productId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
-        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        if (app?.status !== 'approved') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
 
         const product = await getMerchantProduct(input.productId);
         if (!product || product.merchantId !== ctx.user.id) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: '找不到此商品' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
         }
         if (product.status !== 'active') {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已上架商品可以匯出至拍賣' });
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只可以將已上架商品匯出去拍賣' });
         }
 
-        const startingPrice = Number(product.price ?? 0);
-        if (!Number.isFinite(startingPrice) || startingPrice < 0) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: '商品價格無效，無法匯出至拍賣' });
-        }
-
-        let imageUrls: string[] = [];
-        if (product.images) {
-          try {
-            const parsed = JSON.parse(product.images);
-            if (!Array.isArray(parsed) || parsed.some((url) => typeof url !== 'string')) {
-              throw new Error('invalid image list');
-            }
-            imageUrls = parsed.filter((url): url is string => url.trim().length > 0);
-          } catch {
-            throw new TRPCError({ code: 'BAD_REQUEST', message: '商品圖片資料無效，無法匯出至拍賣' });
-          }
-        }
-
-        const settings = await getMerchantSettings(ctx.user.id);
-        const bidIncrement = Math.min(5000, Math.max(10, Number(settings.defaultBidIncrement) || 30));
-        const antiSnipeMinutes = Math.min(60, Math.max(0, Number(settings.defaultAntiSnipeMinutes) || 0));
-        const extendMinutes = Math.min(60, Math.max(1, Number(settings.defaultExtendMinutes) || 3));
-        const antiSnipeEnabled = Number(settings.defaultAntiSnipeEnabled) === 0 ? 0 : 1;
         const supportedCurrencies = ['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY'] as const;
-        const currency = supportedCurrencies.includes(product.currency as typeof supportedCurrencies[number])
-          ? product.currency as typeof supportedCurrencies[number]
-          : 'HKD';
+        if (!(supportedCurrencies as readonly string[]).includes(product.currency)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '商品幣種不支援拍賣，請先編輯商品' });
+        }
 
-        const newAuction = await createAuction({
-          title: product.title,
-          description: product.description ?? undefined,
-          startingPrice: startingPrice.toFixed(2),
-          currentPrice: startingPrice.toFixed(2),
-          endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          status: 'draft',
-          bidIncrement,
-          currency,
-          createdBy: ctx.user.id,
-          category: product.category ?? undefined,
-          antiSnipeEnabled,
-          antiSnipeMinutes,
-          extendMinutes,
-          videoUrl: product.videoUrl ?? null,
-        });
-
-        await Promise.all(
-          imageUrls.map((imageUrl, displayOrder) =>
-            addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder }),
-          ),
-        );
-
-        return { success: true, auctionId: newAuction.id, imageCount: imageUrls.length };
+        try {
+          const settings = await getMerchantSettings(ctx.user.id);
+          const result = await exportMerchantProductToAuctionDraft(input.productId, ctx.user.id, settings);
+          if (!result) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: '商品已不再上架，請重新整理後再試' });
+          }
+          return result;
+        } catch (error) {
+          if (error instanceof TRPCError) throw error;
+          console.error('[Router] Failed to export product to auction draft:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '匯出拍賣草稿失敗，請稍後再試' });
+        }
       }),
 
     /** 商戶：新增商品（需通過保證金 + 公佈額度檢查） */

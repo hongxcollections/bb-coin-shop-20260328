@@ -20,7 +20,8 @@ import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
   ShoppingBag, CheckCircle2, XCircle, Clock, Flame, RotateCcw, Tag,
-  Facebook, Copy, Check, CreditCard, Sparkles, Mic, Share2, Gavel,
+  Facebook, Copy, Check, CreditCard, Sparkles, Mic, Share2,
+  Gavel,
 } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
 import { ProductShareMenu } from "@/components/ShareMenu";
@@ -898,7 +899,6 @@ export default function MerchantProducts() {
   const [productBatchShareOpen, setProductBatchShareOpen] = useState(false);
   const [productCopiedIds, setProductCopiedIds] = useState<Set<number>>(new Set());
   const [productSelectedShareIds, setProductSelectedShareIds] = useState<Set<number>>(new Set());
-  const [exportingProductId, setExportingProductId] = useState<number | null>(null);
   const [aiCopyMap, setAiCopyMap] = useState<Record<number, string>>({});
   const [aiCopyLoadingId, setAiCopyLoadingId] = useState<number | null>(null);
   const [aiScriptDialog, setAiScriptDialog] = useState<{ id: number; title: string; text: string } | null>(null);
@@ -952,17 +952,15 @@ export default function MerchantProducts() {
     onError: (e) => toast.error(e.message),
   });
 
-  const exportProductToAuction = trpc.merchants.exportProductToAuction.useMutation({
-    onSuccess: () => {
-      setExportingProductId(null);
-      toast.success("已匯出至拍賣草稿");
-      window.location.href = "/merchant-auctions";
+  const exportProductMutation = trpc.merchants.exportProductToAuctionDraft.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已匯出去拍賣草稿${data.imageCount > 0 ? `（${data.imageCount} 張圖片）` : ""}，可到拍賣管理「草稿」編輯及發布`);
+      utils.merchants.myProducts.invalidate();
+      utils.merchants.myDrafts.invalidate();
     },
-    onError: (e) => {
-      setExportingProductId(null);
-      toast.error(e.message);
-    },
+    onError: (e) => toast.error(e.message || "匯出拍賣草稿失敗"),
   });
+  const [exportingProductId, setExportingProductId] = useState<number | null>(null);
 
   const deleteProduct = trpc.merchants.deleteProduct.useMutation({
     onSuccess: () => { utils.merchants.myProducts.invalidate(); toast.success("商品已刪除"); },
@@ -1243,38 +1241,16 @@ export default function MerchantProducts() {
     toast.success("商品已下架");
   }
 
-  function exportToAuction(p: any) {
-    if (exportingProductId !== null || exportProductToAuction.isPending) return;
+  async function exportProductToAuction(p: any) {
+    if (exportProductMutation.isPending) return;
     setExportingProductId(p.id);
-    exportProductToAuction.mutate({ productId: p.id });
-  }
-
-  function renderExportButton(p: any, mode: "list" | "big" | "grid2" | "grid3") {
-    if (p.status !== "active") return null;
-    const isExporting = exportingProductId === p.id;
-    const compact = mode === "grid3";
-    return (
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); exportToAuction(p); }}
-        disabled={exportProductToAuction.isPending}
-        aria-label={compact ? "匯出去拍賣" : undefined}
-        title="匯出去拍賣"
-        className={
-          mode === "list"
-            ? "flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50"
-            : mode === "big"
-              ? "flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors flex-1 justify-center disabled:opacity-50"
-              : mode === "grid2"
-                ? "flex-1 text-[10px] py-1 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors text-center disabled:opacity-50"
-                : "text-[9px] px-1 py-0.5 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors disabled:opacity-50"
-        }
-        style={mode === "list" ? { background: '#FFFBEB', color: '#B45309', borderColor: '#FDE68A' } : undefined}
-      >
-        {isExporting ? <Loader2 className={compact ? "w-2.5 h-2.5 animate-spin" : "w-3 h-3 animate-spin"} /> : <Gavel className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />}
-        {!compact && "匯出拍賣"}
-      </button>
-    );
+    try {
+      await exportProductMutation.mutateAsync({ productId: p.id });
+    } catch {
+      // The mutation callback already shows the server's clear error message.
+    } finally {
+      setExportingProductId(null);
+    }
   }
 
   if (!isAuthenticated) {
@@ -1740,7 +1716,17 @@ export default function MerchantProducts() {
                           <Sparkles className="w-3 h-3" />分享去藏品社區
                         </a>
                       )}
-                      {renderExportButton(p, "list")}
+                      {isActive && (
+                        <button
+                          onClick={() => exportProductToAuction(p)}
+                          disabled={exportProductMutation.isPending}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors disabled:opacity-50"
+                          style={{ background: '#FFFBEB', color: '#B45309', borderColor: '#FDE68A' }}
+                        >
+                          {exportingProductId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Gavel className="w-3 h-3" />}
+                          {exportingProductId === p.id ? "匯出中…" : "匯出去拍賣"}
+                        </button>
+                      )}
                       {/* 申請主打 */}
                       {isActive && !isFeatured && !queued && (
                         <button
@@ -1883,6 +1869,12 @@ export default function MerchantProducts() {
                           <Tag className="w-3 h-3" />已售出
                         </button>
                       )}
+                      {p.status === "active" && (
+                        <button onClick={() => exportProductToAuction(p)} disabled={exportProductMutation.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors flex-1 justify-center disabled:opacity-50">
+                          {exportingProductId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Gavel className="w-3 h-3" />}
+                          {exportingProductId === p.id ? "匯出中…" : "匯出去拍賣"}
+                        </button>
+                      )}
                       {p.status === "hidden" && (
                         <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors flex-1 justify-center disabled:opacity-50">
                           <Eye className="w-3 h-3" />上架
@@ -1919,7 +1911,6 @@ export default function MerchantProducts() {
                           <Sparkles className="w-3 h-3" />分享去藏品社區
                         </a>
                       )}
-                      {renderExportButton(p, "big")}
                     </div>
                     </div>{/* end buttons container */}
                   </div>
@@ -1966,6 +1957,12 @@ export default function MerchantProducts() {
                           已售出
                         </button>
                       )}
+                      {p.status === "active" && (
+                        <button onClick={() => exportProductToAuction(p)} disabled={exportProductMutation.isPending} className="flex-1 text-[10px] py-1 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors text-center disabled:opacity-50">
+                          {exportingProductId === p.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : <Gavel className="w-3 h-3 inline" />}
+                          {exportingProductId === p.id ? "匯出中…" : "匯出去拍賣"}
+                        </button>
+                      )}
                       {p.status === "hidden" && (
                         <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-center disabled:opacity-50">
                           上架
@@ -1998,7 +1995,6 @@ export default function MerchantProducts() {
                           <Sparkles className="w-3 h-3" />
                         </a>
                       )}
-                      {renderExportButton(p, "grid2")}
                     </div>
                     </div>{/* end buttons container */}
                   </div>
@@ -2044,6 +2040,12 @@ export default function MerchantProducts() {
                           售出
                         </button>
                       )}
+                      {p.status === "active" && (
+                        <button onClick={() => exportProductToAuction(p)} disabled={exportProductMutation.isPending} className="flex-1 text-[9px] py-0.5 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors text-center disabled:opacity-50">
+                          {exportingProductId === p.id ? <Loader2 className="w-2.5 h-2.5 animate-spin inline" /> : <Gavel className="w-2.5 h-2.5 inline" />}
+                          {exportingProductId === p.id ? "匯出中…" : "匯出去拍賣"}
+                        </button>
+                      )}
                       {p.status === "hidden" && (
                         <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors text-center disabled:opacity-50">
                           上架
@@ -2073,7 +2075,6 @@ export default function MerchantProducts() {
                           <Sparkles className="w-2.5 h-2.5" />
                         </a>
                       )}
-                      {renderExportButton(p, "grid3")}
                     </div>
                     </div>{/* end buttons container */}
                   </div>
