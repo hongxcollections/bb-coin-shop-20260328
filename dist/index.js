@@ -18143,8 +18143,8 @@ var appRouter = router({
       }
       return listMerchantProducts({ merchantId: ctx.user.id, status: "all" });
     }),
-    /** 商戶：將自己的已上架商品匯出成拍賣草稿 */
-    exportProductToAuctionDraft: protectedProcedure.input(z2.object({ productId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
+    /** 商戶：將已上架商品複製為拍賣草稿 */
+    exportProductToAuction: protectedProcedure.input(z2.object({ productId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
       if (ctx.user.isBanned) {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u5E33\u6236\u5DF2\u88AB\u505C\u6B0A\uFF0C\u7121\u6CD5\u5EFA\u7ACB\u62CD\u8CE3\u8349\u7A3F" });
       }
@@ -18169,7 +18169,7 @@ var appRouter = router({
         if (!result) {
           throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5546\u54C1\u5DF2\u4E0D\u518D\u4E0A\u67B6\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406\u5F8C\u518D\u8A66" });
         }
-        return result;
+        return { success: true, ...result };
       } catch (error) {
         if (error instanceof TRPCError3) throw error;
         console.error("[Router] Failed to export product to auction draft:", error);

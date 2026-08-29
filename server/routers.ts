@@ -4201,8 +4201,8 @@ export const appRouter = router({
       return listMerchantProducts({ merchantId: ctx.user.id, status: 'all' });
     }),
 
-    /** 商戶：將自己的已上架商品匯出成拍賣草稿 */
-    exportProductToAuctionDraft: protectedProcedure
+    /** 商戶：將已上架商品複製為拍賣草稿 */
+    exportProductToAuction: protectedProcedure
       .input(z.object({ productId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.isBanned) {
@@ -4232,7 +4232,7 @@ export const appRouter = router({
           if (!result) {
             throw new TRPCError({ code: 'BAD_REQUEST', message: '商品已不再上架，請重新整理後再試' });
           }
-          return result;
+          return { success: true, ...result };
         } catch (error) {
           if (error instanceof TRPCError) throw error;
           console.error('[Router] Failed to export product to auction draft:', error);
