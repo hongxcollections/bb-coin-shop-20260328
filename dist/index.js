@@ -23231,10 +23231,12 @@ EXAMPLE OUTPUT (exact format):
         [ctx.user.id, input.content, tagsStr, contactsStr || null, entryAtStr]
       );
       const journalId = result.insertId;
-      for (let i = 0; i < input.imageUrls.length; i++) {
+      if (input.imageUrls.length > 0) {
+        const imagePlaceholders = input.imageUrls.map(() => "(?, ?, ?)").join(", ");
+        const imageParams = input.imageUrls.flatMap((imageUrl, index) => [journalId, imageUrl, index]);
         await pool.execute(
-          "INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES (?, ?, ?)",
-          [journalId, input.imageUrls[i], i]
+          `INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES ${imagePlaceholders}`,
+          imageParams
         );
       }
       for (const name of input.contacts) {
@@ -23271,10 +23273,12 @@ EXAMPLE OUTPUT (exact format):
       );
       if (input.imageUrls !== void 0) {
         await pool.execute("DELETE FROM merchantJournalImages WHERE journalId = ?", [input.id]);
-        for (let i = 0; i < input.imageUrls.length; i++) {
+        if (input.imageUrls.length > 0) {
+          const imagePlaceholders = input.imageUrls.map(() => "(?, ?, ?)").join(", ");
+          const imageParams = input.imageUrls.flatMap((imageUrl, index) => [input.id, imageUrl, index]);
           await pool.execute(
-            "INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES (?, ?, ?)",
-            [input.id, input.imageUrls[i], i]
+            `INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES ${imagePlaceholders}`,
+            imageParams
           );
         }
       }

@@ -16,6 +16,99 @@ import GroupImageLightbox from "@/components/GroupImageLightbox";
 
 const TAGS = ["交收", "送評", "入貨", "拍賣", "其他"];
 const MAX_IMAGES = 20;
+const JOURNAL_IMAGE_MAX_DIMENSION = 1200;
+const JOURNAL_UPLOAD_CONCURRENCY = 4;
+
+type JournalImageUploader = (input: {
+  imageData: string;
+  fileName: string;
+  mimeType: string;
+}) => Promise<{ url: string }>;
+
+/**
+ * 日誌圖片只需要在手機及後台閱讀，先在瀏覽器壓縮可避免將原圖（尤其手機相片）
+ * 直接上載到 Storage。GIF/HEIC 交由伺服器保留原格式處理。
+ */
+async function compressJournalImage(file: File): Promise<File> {
+  const mime = file.type.toLowerCase();
+  if (mime === "image/gif" || mime === "image/heic" || mime === "image/heif") return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(
+      1,
+      JOURNAL_IMAGE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height),
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) {
+      bitmap.close();
+      return file;
+    }
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>(resolve =>
+      canvas.toBlob(resolve, "image/webp", 0.8),
+    );
+    if (!blob) return file;
+
+    const baseName = file.name.replace(/\.[^/.]+$/, "") || "journal-image";
+    return new File([blob], `${baseName}.webp`, {
+      type: "image/webp",
+      lastModified: file.lastModified,
+    });
+  } catch {
+    // 部分瀏覽器未能解碼 HEIC 等格式，保留原檔交由伺服器處理。
+    return file;
+  }
+}
+
+/** 以有限並行數上載，避免手機一次開 20 個連線造成更慢或失敗。 */
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      const commaIndex = result.indexOf(",");
+      resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("讀取圖片失敗"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadJournalImages(
+  files: File[],
+  uploadImage: JournalImageUploader,
+): Promise<string[]> {
+  const urls = new Array<string>(files.length);
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while (nextIndex < files.length) {
+      const index = nextIndex++;
+      const file = files[index];
+      const imageData = await fileToBase64(file);
+      const { url } = await uploadImage({
+        imageData,
+        fileName: file.name,
+        mimeType: file.type || "image/jpeg",
+      });
+      urls[index] = url;
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(JOURNAL_UPLOAD_CONCURRENCY, files.length) },
+      () => worker(),
+    ),
+  );
+  return urls;
+}
 
 const HK_TZ = "Asia/Hong_Kong";
 function toLocalDatetimeValue(d?: Date | string | null): string {
@@ -276,6 +369,8 @@ export default function MerchantJournal() {
   const [editExistingImages, setEditExistingImages] = useState<string[]>([]);
   const [editNewImages, setEditNewImages] = useState<{ file: File; preview: string }[]>([]);
   const [editIsSubmitting, setEditIsSubmitting] = useState(false);
+  const [isPreparingImages, setIsPreparingImages] = useState(false);
+  const [isPreparingEditImages, setIsPreparingEditImages] = useState(false);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
   function startEditEntry(entry: any) {
@@ -298,20 +393,24 @@ export default function MerchantJournal() {
     if (!files.length) return;
     const remaining = MAX_IMAGES - editExistingImages.length - editNewImages.length;
     const toAdd = files.slice(0, remaining);
-    setEditNewImages(prev => [...prev, ...toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }))]);
     if (editFileInputRef.current) editFileInputRef.current.value = "";
+    setIsPreparingEditImages(true);
+    Promise.all(toAdd.map(async file => {
+      const prepared = await compressJournalImage(file);
+      return { file: prepared, preview: URL.createObjectURL(prepared) };
+    })).then(prepared => {
+      setEditNewImages(prev => [...prev, ...prepared]);
+    }).finally(() => setIsPreparingEditImages(false));
   };
 
   const handleSaveEdit = async (entryId: number) => {
     if (!editContent.trim()) { toast.error("內容不能為空"); return; }
     setEditIsSubmitting(true);
     try {
-      const newUrls: string[] = [];
-      for (const { file } of editNewImages) {
-        const { uploadUrl, publicUrl } = await getImageUploadUrl.mutateAsync({ filename: file.name, mimeType: file.type || "image/jpeg" });
-        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
-        newUrls.push(publicUrl);
-      }
+      const newUrls = await uploadJournalImages(
+        editNewImages.map(({ file }) => file),
+        uploadImage.mutateAsync,
+      );
       await updateEntry.mutateAsync({
         id: entryId,
         content: editContent.trim(),
@@ -329,7 +428,6 @@ export default function MerchantJournal() {
 
   // ── Mutations ──
   const uploadImage = trpc.merchantJournal.uploadImage.useMutation();
-  const getImageUploadUrl = trpc.merchantJournal.getImageUploadUrl.useMutation();
   const createEntry = trpc.merchantJournal.create.useMutation({
     onSuccess: () => {
       utils.merchantJournal.list.invalidate();
@@ -439,12 +537,21 @@ export default function MerchantJournal() {
   }, [editMentionQuery]);
 
   // ── Images ──
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     const toAdd = files.slice(0, MAX_IMAGES - imageFiles.length);
-    setImageFiles(prev => [...prev, ...toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }))]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    setIsPreparingImages(true);
+    try {
+      const prepared = await Promise.all(toAdd.map(async file => {
+        const compressed = await compressJournalImage(file);
+        return { file: compressed, preview: URL.createObjectURL(compressed) };
+      }));
+      setImageFiles(prev => [...prev, ...prepared]);
+    } finally {
+      setIsPreparingImages(false);
+    }
   };
   const removeImage = (idx: number) =>
     setImageFiles(prev => { URL.revokeObjectURL(prev[idx].preview); return prev.filter((_, i) => i !== idx); });
@@ -454,12 +561,10 @@ export default function MerchantJournal() {
     if (!content.trim()) { toast.error("請輸入日誌內容"); return; }
     setIsSubmitting(true);
     try {
-      const urls: string[] = [];
-      for (const { file } of imageFiles) {
-        const { uploadUrl, publicUrl } = await getImageUploadUrl.mutateAsync({ filename: file.name, mimeType: file.type || "image/jpeg" });
-        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
-        urls.push(publicUrl);
-      }
+      const urls = await uploadJournalImages(
+        imageFiles.map(({ file }) => file),
+        uploadImage.mutateAsync,
+      );
       const mentions = extractMentions(content.trim());
       await createEntry.mutateAsync({
         content: content.trim(),
@@ -609,11 +714,11 @@ export default function MerchantJournal() {
               <span className="text-xs text-muted-foreground">{MAX_IMAGES} 張已達上限</span>
             )}
             <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
-            <Button size="sm" onClick={handleSubmit}
-              disabled={isSubmitting || !content.trim()}
+             <Button size="sm" onClick={handleSubmit}
+               disabled={isSubmitting || isPreparingImages || !content.trim()}
               className="gold-gradient text-white font-bold text-xs px-4"
             >
-              {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5 mr-1" />記錄</>}
+               {isSubmitting || isPreparingImages ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5 mr-1" />記錄</>}
             </Button>
           </div>
         </div>
@@ -798,10 +903,12 @@ export default function MerchantJournal() {
                       <div className="flex items-center justify-between">
                         {editExistingImages.length + editNewImages.length < MAX_IMAGES ? (
                           <button
-                            onClick={() => editFileInputRef.current?.click()}
+                             onClick={() => editFileInputRef.current?.click()}
+                             disabled={isPreparingEditImages}
                             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-600 transition-colors"
                           >
-                            <ImageIcon className="w-3.5 h-3.5" />加圖片（{editExistingImages.length + editNewImages.length}/{MAX_IMAGES}）
+                             {isPreparingEditImages ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                             {isPreparingEditImages ? "圖片處理中…" : `加圖片（${editExistingImages.length + editNewImages.length}/${MAX_IMAGES}）`}
                           </button>
                         ) : (
                           <span className="text-xs text-muted-foreground">{MAX_IMAGES} 張已達上限</span>
@@ -809,7 +916,7 @@ export default function MerchantJournal() {
                         <input ref={editFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleEditFileSelect} />
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" className="text-xs" onClick={cancelEditEntry} disabled={editIsSubmitting}>取消</Button>
-                          <Button size="sm" className="gold-gradient text-white text-xs" onClick={() => handleSaveEdit(entry.id)} disabled={editIsSubmitting || !editContent.trim()}>
+                           <Button size="sm" className="gold-gradient text-white text-xs" onClick={() => handleSaveEdit(entry.id)} disabled={editIsSubmitting || isPreparingEditImages || !editContent.trim()}>
                             {editIsSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "儲存"}
                           </Button>
                         </div>
