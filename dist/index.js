@@ -1091,7 +1091,6 @@ __export(db_exports, {
   ensureProductGalleriesTable: () => ensureProductGalleriesTable,
   expireOverdueSubscriptions: () => expireOverdueSubscriptions,
   expireStaleOffers: () => expireStaleOffers,
-  exportMerchantProductToAuctionDraft: () => exportMerchantProductToAuctionDraft,
   exportPackagesData: () => exportPackagesData,
   getActiveAuctionsEndingSoon: () => getActiveAuctionsEndingSoon,
   getActiveBuyerOfferForProduct: () => getActiveBuyerOfferForProduct,
@@ -5623,77 +5622,6 @@ async function getMerchantProduct(id) {
   if (!db) throw new Error("DB unavailable");
   const rows = await db.select().from(merchantProducts).where(eq(merchantProducts.id, id));
   return rows[0] ?? null;
-}
-async function exportMerchantProductToAuctionDraft(productId, merchantId, settings) {
-  await ensureMerchantProductsTable();
-  const db = await getDb();
-  if (!db) throw new Error("DB unavailable");
-  const result = await db.transaction(async (tx) => {
-    const rows = await tx.select().from(merchantProducts).where(and(
-      eq(merchantProducts.id, productId),
-      eq(merchantProducts.merchantId, merchantId),
-      eq(merchantProducts.status, "active")
-    )).limit(1);
-    const product = rows[0];
-    if (!product) return null;
-    let imageUrls = [];
-    try {
-      const parsed = JSON.parse(product.images ?? "[]");
-      if (Array.isArray(parsed)) {
-        imageUrls = parsed.map((image) => {
-          if (typeof image === "string") return image;
-          if (image && typeof image === "object") {
-            const value = image;
-            return typeof value.url === "string" ? value.url : value.imageUrl;
-          }
-          return null;
-        }).filter((url) => typeof url === "string" && url.length > 0);
-      }
-    } catch {
-    }
-    const price = Number(product.price);
-    if (!Number.isFinite(price) || price < 0) {
-      throw new Error("\u5546\u54C1\u50F9\u683C\u7121\u6548\uFF0C\u7121\u6CD5\u532F\u51FA\u62CD\u8CE3\u8349\u7A3F");
-    }
-    const [inserted] = await tx.insert(auctions).values({
-      title: product.title,
-      description: product.description ?? null,
-      startingPrice: price.toFixed(2),
-      currentPrice: price.toFixed(2),
-      highestBidderId: null,
-      endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3),
-      status: "draft",
-      bidIncrement: settings.defaultBidIncrement,
-      currency: product.currency,
-      createdBy: merchantId,
-      archived: 0,
-      category: product.category ?? null,
-      antiSnipeEnabled: settings.defaultAntiSnipeEnabled,
-      antiSnipeMinutes: settings.defaultAntiSnipeMinutes,
-      extendMinutes: settings.defaultExtendMinutes,
-      antiSnipeMemberLevels: "all",
-      videoUrl: product.videoUrl ?? null,
-      privateNote: null,
-      reservePrice: null
-    });
-    const auctionId = Number(inserted.insertId);
-    if (!auctionId) throw new Error("\u5EFA\u7ACB\u62CD\u8CE3\u8349\u7A3F\u5931\u6557");
-    if (imageUrls.length > 0) {
-      await tx.insert(auctionImages).values(imageUrls.map((imageUrl, displayOrder) => ({
-        auctionId,
-        imageUrl,
-        displayOrder
-      })));
-    }
-    return { auctionId, imageCount: imageUrls.length };
-  });
-  if (result) {
-    try {
-      pingAuctionOg(result.auctionId);
-    } catch {
-    }
-  }
-  return result;
 }
 async function createMerchantProduct(data) {
   await ensureMerchantProductsTable();
@@ -14131,7 +14059,6 @@ var systemRouter = router({
 
 // server/routers.ts
 init_db();
-init_db();
 init_schema();
 import { z as z2 } from "zod";
 
@@ -18145,36 +18072,62 @@ var appRouter = router({
     }),
     /** 商戶：將已上架商品複製為拍賣草稿 */
     exportProductToAuction: protectedProcedure.input(z2.object({ productId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
-      if (ctx.user.isBanned) {
-        throw new TRPCError3({ code: "FORBIDDEN", message: "\u5E33\u6236\u5DF2\u88AB\u505C\u6B0A\uFF0C\u7121\u6CD5\u5EFA\u7ACB\u62CD\u8CE3\u8349\u7A3F" });
-      }
       const app = await getMerchantApplicationByUser(ctx.user.id);
-      if (app?.status !== "approved") {
+      if (app?.status !== "approved" && ctx.user.role !== "admin") {
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u975E\u5546\u6236\u6703\u54E1" });
       }
       const product = await getMerchantProduct(input.productId);
       if (!product || product.merchantId !== ctx.user.id) {
-        throw new TRPCError3({ code: "NOT_FOUND", message: "\u5546\u54C1\u4E0D\u5B58\u5728" });
+        throw new TRPCError3({ code: "NOT_FOUND", message: "\u627E\u4E0D\u5230\u6B64\u5546\u54C1" });
       }
       if (product.status !== "active") {
-        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u53EA\u53EF\u4EE5\u5C07\u5DF2\u4E0A\u67B6\u5546\u54C1\u532F\u51FA\u53BB\u62CD\u8CE3" });
+        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u53EA\u6709\u5DF2\u4E0A\u67B6\u5546\u54C1\u53EF\u4EE5\u532F\u51FA\u81F3\u62CD\u8CE3" });
       }
-      const supportedCurrencies = ["HKD", "USD", "CNY", "GBP", "EUR", "JPY"];
-      if (!supportedCurrencies.includes(product.currency)) {
-        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5546\u54C1\u5E63\u7A2E\u4E0D\u652F\u63F4\u62CD\u8CE3\uFF0C\u8ACB\u5148\u7DE8\u8F2F\u5546\u54C1" });
+      const startingPrice = Number(product.price ?? 0);
+      if (!Number.isFinite(startingPrice) || startingPrice < 0) {
+        throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5546\u54C1\u50F9\u683C\u7121\u6548\uFF0C\u7121\u6CD5\u532F\u51FA\u81F3\u62CD\u8CE3" });
       }
-      try {
-        const settings = await getMerchantSettings(ctx.user.id);
-        const result = await exportMerchantProductToAuctionDraft(input.productId, ctx.user.id, settings);
-        if (!result) {
-          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5546\u54C1\u5DF2\u4E0D\u518D\u4E0A\u67B6\uFF0C\u8ACB\u91CD\u65B0\u6574\u7406\u5F8C\u518D\u8A66" });
+      let imageUrls = [];
+      if (product.images) {
+        try {
+          const parsed = JSON.parse(product.images);
+          if (!Array.isArray(parsed) || parsed.some((url) => typeof url !== "string")) {
+            throw new Error("invalid image list");
+          }
+          imageUrls = parsed.filter((url) => url.trim().length > 0);
+        } catch {
+          throw new TRPCError3({ code: "BAD_REQUEST", message: "\u5546\u54C1\u5716\u7247\u8CC7\u6599\u7121\u6548\uFF0C\u7121\u6CD5\u532F\u51FA\u81F3\u62CD\u8CE3" });
         }
-        return { success: true, ...result };
-      } catch (error) {
-        if (error instanceof TRPCError3) throw error;
-        console.error("[Router] Failed to export product to auction draft:", error);
-        throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "\u532F\u51FA\u62CD\u8CE3\u8349\u7A3F\u5931\u6557\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66" });
       }
+      const settings = await getMerchantSettings(ctx.user.id);
+      const bidIncrement = Math.min(5e3, Math.max(10, Number(settings.defaultBidIncrement) || 30));
+      const antiSnipeMinutes = Math.min(60, Math.max(0, Number(settings.defaultAntiSnipeMinutes) || 0));
+      const extendMinutes = Math.min(60, Math.max(1, Number(settings.defaultExtendMinutes) || 3));
+      const antiSnipeEnabled = Number(settings.defaultAntiSnipeEnabled) === 0 ? 0 : 1;
+      const supportedCurrencies = ["HKD", "USD", "CNY", "GBP", "EUR", "JPY"];
+      const currency = supportedCurrencies.includes(product.currency) ? product.currency : "HKD";
+      const newAuction = await createAuction({
+        title: product.title,
+        description: product.description ?? void 0,
+        startingPrice: startingPrice.toFixed(2),
+        currentPrice: startingPrice.toFixed(2),
+        endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3),
+        status: "draft",
+        bidIncrement,
+        currency,
+        createdBy: ctx.user.id,
+        category: product.category ?? void 0,
+        antiSnipeEnabled,
+        antiSnipeMinutes,
+        extendMinutes,
+        videoUrl: product.videoUrl ?? null
+      });
+      await Promise.all(
+        imageUrls.map(
+          (imageUrl, displayOrder) => addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder })
+        )
+      );
+      return { success: true, auctionId: newAuction.id, imageCount: imageUrls.length };
     }),
     /** 商戶：新增商品（需通過保證金 + 公佈額度檢查） */
     addProduct: protectedProcedure.input(z2.object({
@@ -29547,7 +29500,7 @@ function serveStatic(app) {
     etag: false,
     lastModified: false
   }));
-  app.use(express.static(distPath, { maxAge: "1h" }));
+  app.use(express.static(distPath, { maxAge: "1h", index: false }));
   app.use(async (req, res, next) => {
     if (req.path.startsWith("/api")) {
       return next();

@@ -953,11 +953,10 @@ export default function MerchantProducts() {
   });
 
   const exportProductToAuction = trpc.merchants.exportProductToAuction.useMutation({
-    onSuccess: (data) => {
+    onSuccess: () => {
       setExportingProductId(null);
-      toast.success(`已匯出去拍賣草稿${data.imageCount > 0 ? `（${data.imageCount} 張圖片）` : ""}，可到拍賣管理「草稿」編輯及發布`);
-      utils.merchants.myProducts.invalidate();
-      utils.merchants.myDrafts.invalidate();
+      toast.success("已匯出至拍賣草稿");
+      window.location.href = "/merchant-auctions";
     },
     onError: (e) => {
       setExportingProductId(null);
@@ -1273,7 +1272,7 @@ export default function MerchantProducts() {
         style={mode === "list" ? { background: '#FFFBEB', color: '#B45309', borderColor: '#FDE68A' } : undefined}
       >
         {isExporting ? <Loader2 className={compact ? "w-2.5 h-2.5 animate-spin" : "w-3 h-3 animate-spin"} /> : <Gavel className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />}
-        {!compact && (isExporting ? "匯出中…" : "匯出去拍賣")}
+        {!compact && "匯出拍賣"}
       </button>
     );
   }

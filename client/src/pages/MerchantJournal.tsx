@@ -827,21 +827,29 @@ export default function MerchantJournal() {
                             <span key={tag} className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-medium">{tag}</span>
                           ))}
                         </div>
-                        <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                          <button
-                            onClick={() => startEditEntry(entry)}
-                            className="text-gray-300 hover:text-amber-500 transition-colors"
-                            title="修改"
-                          ><Pencil className="w-3.5 h-3.5" /></button>
+                        <div className="flex items-center gap-2 shrink-0 mt-0.5">
                           <button
                             onClick={async () => {
-                              const ok = await confirmDialog({ title: "確認刪除？", description: "刪除後不能復原。", tone: "danger" });
+                              const ok = await confirmDialog({
+                                title: "最後確認拆除日誌？",
+                                description: "確定要拆除這條日誌嗎？拆除後不能復原。",
+                                confirmText: "確認拆除",
+                                cancelText: "保留日誌",
+                                tone: "danger",
+                              });
                               if (!ok) return;
                               deleteEntry.mutate({ id: entry.id });
                             }}
                             className="text-gray-300 hover:text-red-400 transition-colors"
-                            title="刪除"
+                            title="拆除"
+                            aria-label="拆除日誌"
                           ><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button
+                            onClick={() => startEditEntry(entry)}
+                            className="text-gray-300 hover:text-amber-500 transition-colors"
+                            title="修改"
+                            aria-label="修改日誌"
+                          ><Pencil className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
 

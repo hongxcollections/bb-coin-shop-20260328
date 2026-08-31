@@ -1411,7 +1411,7 @@ export function serveStatic(app: Express) {
     lastModified: false,
   }));
   // Everything else (favicon, robots.txt, etc.) — short cache
-  app.use(express.static(distPath, { maxAge: '1h' }));
+  app.use(express.static(distPath, { maxAge: '1h', index: false }));
 
   // For all non-API routes, serve index.html to support React Router client-side routing
   app.use(async (req, res, next) => {
