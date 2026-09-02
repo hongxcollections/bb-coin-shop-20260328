@@ -1222,6 +1222,7 @@ __export(db_exports, {
   markChatRoomRead: () => markChatRoomRead,
   markOfferPurchased: () => markOfferPurchased,
   migrateGalleryItemImages: () => migrateGalleryItemImages,
+  permanentlyDeleteConfirmedMerchantAuction: () => permanentlyDeleteConfirmedMerchantAuction,
   placeBid: () => placeBid,
   purgeActiveFeaturedListings: () => purgeActiveFeaturedListings,
   purgeMerchantAuctionData: () => purgeMerchantAuctionData,
@@ -1643,6 +1644,18 @@ async function deleteAuction(id) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   try {
+    const rooms = await db.select({ id: auctionChatRooms.id }).from(auctionChatRooms).where(eq(auctionChatRooms.auctionId, id));
+    if (rooms.length > 0) {
+      const roomIds = rooms.map((room) => room.id);
+      await db.delete(auctionChatMessageReactions).where(inArray(auctionChatMessageReactions.roomId, roomIds));
+      await db.delete(auctionChatMessages).where(inArray(auctionChatMessages.roomId, roomIds));
+      await db.delete(auctionChatRooms).where(inArray(auctionChatRooms.id, roomIds));
+    }
+    await db.delete(auctionComments).where(eq(auctionComments.auctionId, id));
+    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.auctionId, id));
+    await db.delete(proxyBids).where(eq(proxyBids.auctionId, id));
+    await db.delete(favorites).where(eq(favorites.auctionId, id));
+    await db.delete(merchantAuctionSessionItems).where(eq(merchantAuctionSessionItems.auctionId, id));
     await db.delete(auctionImages).where(eq(auctionImages.auctionId, id));
     await db.delete(bids).where(eq(bids.auctionId, id));
     const result = await db.delete(auctions).where(eq(auctions.id, id));
@@ -6202,6 +6215,22 @@ async function getMerchantAuctionOrders(merchantId, status) {
   );
   return rows ?? [];
 }
+async function permanentlyDeleteConfirmedMerchantAuction(auctionId, merchantId, isAdmin = false) {
+  const pool = await getRawPool();
+  const [rows] = await pool.execute(
+    `SELECT id, createdBy, status, highestBidderId, auctionOrderStatus
+     FROM auctions WHERE id = ? LIMIT 1`,
+    [auctionId]
+  );
+  const auction = (rows ?? [])[0];
+  if (!auction) return { ok: false, error: "\u627E\u4E0D\u5230\u6B64\u62CD\u8CE3\u8A02\u55AE" };
+  if (!isAdmin && Number(auction.createdBy) !== merchantId) return { ok: false, error: "\u7121\u6B0A\u64CD\u4F5C" };
+  if (auction.status !== "ended" || !auction.highestBidderId || auction.auctionOrderStatus !== "confirmed") {
+    return { ok: false, error: "\u53EA\u6709\u5DF2\u78BA\u8A8D\u7684\u62CD\u8CE3\u8A02\u55AE\u53EF\u4EE5\u6C38\u4E45\u62C6\u9664" };
+  }
+  await deleteAuction(auctionId);
+  return { ok: true };
+}
 async function confirmMerchantAuctionOrder(auctionId, merchantId, isAdmin = false, finalPrice) {
   const db = await getDb();
   if (!db) return { ok: false, error: "DB unavailable" };
@@ -9222,6 +9251,7 @@ var _db, _pool, ARCHIVED_SELECT, _depositTablesChecked, _subscriptionTablesCheck
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
+    init_schema();
     init_schema();
     init_env();
     init_facebook_og_refresh();
@@ -14058,6 +14088,7 @@ var systemRouter = router({
 });
 
 // server/routers.ts
+init_db();
 init_db();
 init_schema();
 import { z as z2 } from "zod";
@@ -19408,6 +19439,17 @@ var appRouter = router({
         throw new TRPCError3({ code: "FORBIDDEN", message: "\u975E\u5546\u6236\u6703\u54E1" });
       }
       const result = await confirmMerchantAuctionOrder(input.auctionId, ctx.user.id, isAdmin, input.finalPrice);
+      if (!result.ok) throw new TRPCError3({ code: "BAD_REQUEST", message: result.error });
+      return { success: true };
+    }),
+    /** 商戶：永久拆除已確認拍賣訂單（已扣傭金不退款） */
+    permanentDeleteConfirmed: protectedProcedure.input(z2.object({ auctionId: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      const isAdmin = ctx.user.role === "admin";
+      if (!isAdmin && app?.status !== "approved") {
+        throw new TRPCError3({ code: "FORBIDDEN", message: "\u975E\u5546\u6236\u6703\u54E1" });
+      }
+      const result = await permanentlyDeleteConfirmedMerchantAuction(input.auctionId, ctx.user.id, isAdmin);
       if (!result.ok) throw new TRPCError3({ code: "BAD_REQUEST", message: result.error });
       return { success: true };
     }),

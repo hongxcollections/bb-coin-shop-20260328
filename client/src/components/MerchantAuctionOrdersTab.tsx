@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon, RotateCcw, Copy } from "lucide-react";
+import { useConfirm } from "@/components/ui/confirm-provider";
+import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon, RotateCcw, Copy, Trash2 } from "lucide-react";
 import ChatButton from "@/components/ChatButton";
 
 const DEFAULT_CLOSING = "煩請待回覆 相約交收地點及時間 多謝支持!";
@@ -106,6 +107,7 @@ function ConfirmDialog({ row, type, onClose, onConfirm, isPending }: {
 
 export function MerchantAuctionOrdersTab() {
   const utils = trpc.useUtils();
+  const confirmDialog = useConfirm();
   const [statusFilter, setStatusFilter] = useState<"pending" | "confirmed" | "cancelled">("pending");
   const { data: orders = [], isLoading, error } = trpc.auctionOrders.myMerchant.useQuery({ status: statusFilter });
   const { data: counts = { pending: 0, confirmed: 0, cancelled: 0 } } = trpc.auctionOrders.myMerchantStatusCounts.useQuery(undefined, { staleTime: 15_000 }) as any;
@@ -140,6 +142,28 @@ export function MerchantAuctionOrdersTab() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const permanentDelete = trpc.auctionOrders.permanentDeleteConfirmed.useMutation({
+    onSuccess: () => {
+      toast.success("已永久拆除，已扣傭金不會退回");
+      utils.auctionOrders.myMerchant.invalidate();
+      utils.auctionOrders.myMerchantStatusCounts.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handlePermanentDelete = async (order: any) => {
+    const title = String(order.title ?? "此拍賣");
+    const ok = await confirmDialog({
+      title: "永久拆除已確認拍賣？",
+      description: `「${title}」及其出價、成交及聊天紀錄將永久刪除，無法還原。\n\n警告：已扣除的傭金不會退回商戶。`,
+      confirmText: "確認永久拆除",
+      cancelText: "保留紀錄",
+      tone: "danger",
+    });
+    if (ok) {
+      permanentDelete.mutate({ auctionId: order.auctionId });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -286,11 +310,23 @@ export function MerchantAuctionOrdersTab() {
                     </div>
                   </div>
                 )}
-                {o.status === "confirmed" && o.confirmedAt && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    確認於 {new Date(o.confirmedAt).toLocaleDateString("zh-HK")}
-                  </p>
+                {o.status === "confirmed" && (
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    {o.confirmedAt ? (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        確認於 {new Date(o.confirmedAt).toLocaleDateString("zh-HK")}
+                      </p>
+                    ) : <span />}
+                    <button
+                      onClick={() => handlePermanentDelete(o)}
+                      disabled={permanentDelete.isPending}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-60 shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      永久拆除
+                    </button>
+                  </div>
                 )}
                 {o.status === "cancelled" && (
                   <div className="flex items-center justify-between gap-2 pt-0.5">

@@ -2,6 +2,7 @@ import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull, isNotNu
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction, merchantAuctionSessions, groupAuctionRounds, groupAuctionItems, groupAuctionImages } from "../drizzle/schema";
+import { auctionComments, merchantAuctionSessionItems } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { pingAuctionOg, pingProductOg } from './_core/facebook-og-refresh';
 
@@ -463,6 +464,21 @@ export async function deleteAuction(id: number) {
   if (!db) throw new Error('Database not available');
 
   try {
+    // 清理拍賣相關資料，避免永久刪除後留下孤兒出價、收藏、留言或聊天室。
+    const rooms = await db.select({ id: auctionChatRooms.id })
+      .from(auctionChatRooms)
+      .where(eq(auctionChatRooms.auctionId, id));
+    if (rooms.length > 0) {
+      const roomIds = rooms.map((room) => room.id);
+      await db.delete(auctionChatMessageReactions).where(inArray(auctionChatMessageReactions.roomId, roomIds));
+      await db.delete(auctionChatMessages).where(inArray(auctionChatMessages.roomId, roomIds));
+      await db.delete(auctionChatRooms).where(inArray(auctionChatRooms.id, roomIds));
+    }
+    await db.delete(auctionComments).where(eq(auctionComments.auctionId, id));
+    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.auctionId, id));
+    await db.delete(proxyBids).where(eq(proxyBids.auctionId, id));
+    await db.delete(favorites).where(eq(favorites.auctionId, id));
+    await db.delete(merchantAuctionSessionItems).where(eq(merchantAuctionSessionItems.auctionId, id));
     await db.delete(auctionImages).where(eq(auctionImages.auctionId, id));
     await db.delete(bids).where(eq(bids.auctionId, id));
     const result = await db.delete(auctions).where(eq(auctions.id, id));
@@ -6245,6 +6261,34 @@ export async function getMerchantAuctionOrders(merchantId: number, status?: stri
     params
   );
   return rows ?? [];
+}
+
+/** 商戶永久拆除已確認拍賣訂單；保留傭金交易流水及已扣餘額，不作退款。 */
+export async function permanentlyDeleteConfirmedMerchantAuction(
+  auctionId: number,
+  merchantId: number,
+  isAdmin = false,
+): Promise<{ ok: boolean; error?: string }> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, createdBy, status, highestBidderId, auctionOrderStatus
+     FROM auctions WHERE id = ? LIMIT 1`,
+    [auctionId],
+  );
+  const auction = (rows ?? [])[0];
+  if (!auction) return { ok: false, error: '找不到此拍賣訂單' };
+  if (!isAdmin && Number(auction.createdBy) !== merchantId) return { ok: false, error: '無權操作' };
+  if (
+    auction.status !== 'ended' ||
+    !auction.highestBidderId ||
+    auction.auctionOrderStatus !== 'confirmed'
+  ) {
+    return { ok: false, error: '只有已確認的拍賣訂單可以永久拆除' };
+  }
+
+  // deleteAuction 不會刪除 deposit_transactions，因此已扣傭金及交易流水會保留。
+  await deleteAuction(auctionId);
+  return { ok: true };
 }
 
 export async function confirmMerchantAuctionOrder(auctionId: number, merchantId: number, isAdmin = false, finalPrice?: number): Promise<{ ok: boolean; error?: string }> {

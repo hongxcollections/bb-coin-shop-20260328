@@ -6,6 +6,7 @@ import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_
 import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, sendWinnerAutoReply, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
+import { permanentlyDeleteConfirmedMerchantAuction } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, auctionImages, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionColorRuleTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids, groupAuctionProxyBids } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
@@ -5820,6 +5821,20 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
         const result = await confirmMerchantAuctionOrder(input.auctionId, ctx.user.id, isAdmin, input.finalPrice);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { success: true };
+      }),
+
+    /** 商戶：永久拆除已確認拍賣訂單（已扣傭金不退款） */
+    permanentDeleteConfirmed: protectedProcedure
+      .input(z.object({ auctionId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        const isAdmin = ctx.user.role === 'admin';
+        if (!isAdmin && app?.status !== 'approved') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const result = await permanentlyDeleteConfirmedMerchantAuction(input.auctionId, ctx.user.id, isAdmin);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return { success: true };
       }),
