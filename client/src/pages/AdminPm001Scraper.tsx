@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, Bookmark, BookmarkCheck, ExternalLink, FolderOpen, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, Bookmark, BookmarkCheck, ExternalLink, FolderOpen, ChevronDown, ChevronRight, ChevronUp, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
@@ -119,6 +119,7 @@ export default function AdminPm001Scraper() {
   const [progress, setProgress] = useState({ checked: 0, total: 0, listed: 0 });
   const [results, setResults] = useState<ScrapeResult[]>([]);
   const [savedPosts, setSavedPosts] = useState<SavedPost[]>(() => loadSavedPosts());
+  const savedPostsImportRef = useRef<HTMLInputElement>(null);
   const [pagesScraped, setPagesScraped] = useState(0);
   const [collapsedSavedCats, setCollapsedSavedCats] = useState<Set<string>>(new Set());
   const abortRef = useRef(false);
@@ -128,6 +129,91 @@ export default function AdminPm001Scraper() {
   const fetchPostBatchMutation = trpc.pm001.fetchPostBatch.useMutation();
 
   useEffect(() => { persistSavedPosts(savedPosts); }, [savedPosts]);
+
+  function handleExportSavedPosts() {
+    if (savedPosts.length === 0) {
+      toast.error("沒有可匯出的帖子", { position: "top-center" });
+      return;
+    }
+    const payload = {
+      format: "pm001-saved-posts",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      posts: savedPosts,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `pm001-saved-posts-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`已匯出 ${savedPosts.length} 筆帖子`, { position: "top-center" });
+  }
+
+  async function handleImportSavedPosts(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("匯入檔案不可超過 5MB", { position: "top-center" });
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      const source = Array.isArray(parsed) ? parsed : parsed?.posts;
+      if (!Array.isArray(source)) throw new Error("找不到帖子列表");
+
+      const imported: SavedPost[] = source.map((item: any) => {
+        if (
+          !item ||
+          typeof item.id !== "string" ||
+          typeof item.title !== "string" ||
+          typeof item.postUrl !== "string" ||
+          !item.id.trim() ||
+          !item.title.trim()
+        ) {
+          throw new Error("帖子資料格式不正確");
+        }
+        const postUrl = new URL(item.postUrl);
+        if (
+          !["http:", "https:"].includes(postUrl.protocol) ||
+          !/(^|\.)pm001\.net$/i.test(postUrl.hostname)
+        ) {
+          throw new Error("匯入檔案包含非 pm001.net 網址");
+        }
+        return {
+          id: item.id,
+          title: item.title,
+          postUrl: item.postUrl,
+          matchSource: item.matchSource === "content" ? "content" : "title",
+          postedAt: typeof item.postedAt === "string" ? item.postedAt : null,
+          category: typeof item.category === "string" && item.category.trim() ? item.category : UNCATEGORIZED,
+          savedAt: Number.isFinite(Number(item.savedAt)) ? Number(item.savedAt) : Date.now(),
+        };
+      });
+
+      const existingIds = new Set(savedPosts.map((post) => post.id));
+      const added: SavedPost[] = [];
+      for (const post of imported) {
+        if (existingIds.has(post.id)) continue;
+        existingIds.add(post.id);
+        added.push(post);
+      }
+      if (added.length === 0) {
+        toast.info("沒有新帖子需要匯入", { position: "top-center" });
+        return;
+      }
+      setSavedPosts((current) => [...current, ...added]);
+      setSavedCollapsed(false);
+      toast.success(`已匯入 ${added.length} 筆帖子`, { position: "top-center" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "匯入檔案無效", { position: "top-center" });
+    }
+  }
 
   const selectedCat = workingCats.find((c) => c.id === selectedCatId);
   const savedIdSet = new Set(savedPosts.map(s => s.id));
@@ -520,8 +606,7 @@ export default function AdminPm001Scraper() {
         </Card>
 
         {/* ── 已儲存帖子（預設收起） ── */}
-        {savedPosts.length > 0 && (
-          <Card className="border-emerald-200 mb-6 shadow-sm">
+        <Card className="border-emerald-200 mb-6 shadow-sm">
             <button
               type="button"
               onClick={() => setSavedCollapsed((v) => !v)}
@@ -539,8 +624,44 @@ export default function AdminPm001Scraper() {
             </button>
             {!savedCollapsed && (
               <CardContent>
-                <div className="space-y-3">
-                  {savedByCategory.map(([cat, posts]) => {
+                <input
+                  ref={savedPostsImportRef}
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={handleImportSavedPosts}
+                  className="hidden"
+                />
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportSavedPosts}
+                    disabled={savedPosts.length === 0}
+                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1.5" />
+                    匯出 JSON
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => savedPostsImportRef.current?.click()}
+                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1.5" />
+                    匯入 JSON
+                  </Button>
+                  <span className="text-xs text-muted-foreground">匯入時會按帖子 ID 去重，不會覆蓋現有資料</span>
+                </div>
+                {savedPosts.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                    尚未儲存帖子，可使用「匯入 JSON」搬入備份。
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {savedByCategory.map(([cat, posts]) => {
                     const collapsed = collapsedSavedCats.has(cat);
                     return (
                       <div key={cat} className="border border-emerald-100 rounded-lg overflow-hidden bg-white">
@@ -594,12 +715,12 @@ export default function AdminPm001Scraper() {
                         )}
                       </div>
                     );
-                  })}
-                </div>
+                    })}
+                  </div>
+                )}
               </CardContent>
             )}
           </Card>
-        )}
 
         {/* ── 搜尋結果 ── */}
         {(results.length > 0 || phase === "done") && (
